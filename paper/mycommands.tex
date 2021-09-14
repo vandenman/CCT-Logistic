@@ -1,0 +1,63 @@
+
+\newcommand{\Irater}{r}
+\newcommand{\Iitem}{i}
+\newcommand{\Ipatient}{p}
+%\newcommand{\Incat}{c}
+%\newcommand{\Ilatent}{l}
+%\newcommand{\IdiscreteP}{d}
+\newcommand{\Icovariate}{c}
+
+\newcommand{\Trater}{\expandafter\MakeUppercase\expandafter{\Irater}}
+\newcommand{\Titem}{\expandafter\MakeUppercase\expandafter{\Iitem}}
+\newcommand{\Tpatient}{\expandafter\MakeUppercase\expandafter{\Ipatient}}
+%\newcommand{\Tncat}{\expandafter\MakeUppercase\expandafter{\Incat}}
+%\newcommand{\Tlatent}{\expandafter\MakeUppercase\expandafter{\Ilatent}}
+%\newcommand{\TdiscreteP}{\expandafter\MakeUppercase\expandafter{\IdiscreteP}}
+\newcommand{\Tcovariate}{\expandafter\MakeUppercase\expandafter{\Icovariate}}
+
+% definitions of variables
+\newcommand{\ItemTruth}{\theta}
+\newcommand{\ItemDifficulty}{\kappa}
+\newcommand{\UnBiasedThreshold}{\gamma}
+\newcommand{\Threshold}{\delta}
+\newcommand{\RaterScale}{\alpha}
+\newcommand{\RaterShift}{\beta}
+\newcommand{\RaterCompetence}{\zeta}
+\newcommand{\Appraisal}{y}
+\newcommand{\Error}{\epsilon}
+\newcommand{\FactorScore}{\eta}
+\newcommand{\FactorRegression}{\lambda}
+%\newcommand{\RaterCovariate}{z}
+%\newcommand{\PatientCovariate}{w}
+\newcommand{\Covariate}{z}
+
+\newcommand{\CovariateBeta}{\delta}
+\newcommand{\ItemCovariateBeta}{\gamma}
+
+
+% Probability distributions
+
+%\newcommand{\ilogit}[1]{\text{logit}^{-1}\left(#1\right)}
+\newcommand{\ilogit}[1]{\begin{revision}F\end{revision}\left(#1\right)}
+\newcommand{\logit}[1]{\text{logit}\left(#1\right)}
+\newcommand{\dnorm}[2]{\text{Normal}\left(#1,\,#2\right)}
+\newcommand{\dnormp}[2]{\text{Normal\textsuperscript{+}}\left(#1,\,#2\right)}
+\newcommand{\dgamma}[2]{\text{Gamma}\left(#1,\,#2\right)}
+\newcommand{\dgammaMV}[2]{\text{Gamma}\left(\nicefrac{#1^2}{#2},\,\nicefrac{#1}{#2}\right)} % #1 is mean, #2 is variance
+\newcommand{\dlognormal}[2]{\ensuremath{\mathrm{LogNormal}\left(#1,\,#2\right)}}
+\newcommand{\dlogis}[2]{\text{Logistic}\left(#1,\,#2\right)}
+\newcommand{\dlogiss}[3]{\text{Logistic}\left(#1;\,#2,\,#3\right)}
+
+\newcommand{\dinvgamma}[2]{\text{InverseGamma}\left(#1,\,#2\right)}
+
+% math commands
+\newcommand{\assignment}{=}
+\newcommand{\SE}[1]{\emph{({#1})}}
+\newcommand{\code}[1]{\texttt{#1}}
+
+% spaces
+\newcommand{\Reals}{\mathbb{R}}
+\newcommand{\PositiveReals}{\Reals^+}
+
+% abbreviation Anders & Batchelder (2015)
+\newcommand{\AB}{AB}

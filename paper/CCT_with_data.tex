@@ -1,0 +1,271 @@
+% !TeX document-id = {8751af90-d4b1-40f9-88be-89e61cd71d0c}
+% !TeX TXS-program:compile = txs:///pdflatex/[--shell-escape]
+\documentclass[a4paper,11pt]{article}
+
+%\usepackage[style=apa]{biblatex}
+\usepackage[style=apa,sortcites=true,sorting=nyt,backend=biber]{biblatex}
+\usepackage{amsmath,amsfonts,amssymb, bm}
+\usepackage{graphicx,verbatimbox}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{authblk}
+\usepackage{svg}
+
+%opening
+\title{Augmenting Predictive Models in Forensic Psychiatry with Cultural Consensus Theory}
+\author[1]{Don van den Bergh}
+\author[2]{Erwin Schuringa}
+\author[1]{Eric-Jan Wagenmakers}
+\affil[1]{Department of Psychological Methods, University of Amsterdam}
+\affil[2]{Forensic Psychiatric Centre Dr. S. van Mesdag}
+\date{}
+
+%\usepackage[dvipsnames]{xcolor}
+\usepackage{xcolor}
+\usepackage{todonotes}
+
+\definecolor{colorDon}{RGB}{205,250,255}
+\definecolor{colorEJ} {RGB}{205,255,205}
+
+\newcommand{\DB}[1]{\todo[inline, color=colorDon]{DB: {#1}}}
+\newcommand{\EJ}[1]{\todo[inline, color=colorEJ]{EJ: {#1}}}
+
+%\graphicspath{../figures}
+\graphicspath{{../figures/}{../graphicalmodels/}}
+
+\addbibresource{references.bib}
+
+\input{mycommands.tex}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\begin{abstract}
+	
+\end{abstract}
+
+\section{Introduction}
+
+
+\section{Data set of 105 patients}
+\subsection{How it was collected}
+\subsection{IFTE}
+The Instrument for Forensic Treatment Evaluation is a multidisciplinary Routine Outcome Monitoring instrument. The IFTE is filled out in approximately 10 min every six months by all members of a patient's treatment team independently. The IFTE contains 22 indicators, comprising all 14 clinical criminogenic need indicators of the
+Dutch risk assessment instrument HKT-R (Spreen et al., 2014), three indicators based on the Atascadero Skills Profile (ASP; Vess, 2001), and five indicators designed in consultation with psychologists and psychiatrists. The 22 IFTE indicators are divided into three factors, namely Protective behaviors, Problematic behaviors and Resocialization Skills. Indicators of the IFTE are measured on a 17-point scale.
+
+
+description of this questionnaire.
+\subsection{Descriptives}
+\begin{itemize}
+	\item Amount of patients, raters, and items.
+	\item Sparsity of patient-rater combinations.
+\end{itemize}
+
+
+\section{Cultural Consensus Theory}
+
+Cultural Consensus Theory (CCT) sometimes called also known as ``test theory without an answer key'' \parencite{batchelder1988test}, is a method to discover the ''true answer`` for items from the consensus among the responses.
+For example, suppose a mentally ill patient is scored by multiple raters on aggressiveness.
+Multiple scores are obtained that need to be aggregated to arrive at a single score for this patient.
+The naive solution is to average these scores.
+However, as shown in Figure~\ref{fig:misFitMean} averaging may lead to severely biased estimates.
+\DB{Figure here of score means versus true latent parameter for data simulated under the CRM.}
+The average score disregards all additional information that is available.
+It ignores the individual differences between raters, for example, this assumes that all psychiatrists score aggressiveness in the same way, and group differences among raters, for example, there is no difference in scores by psychiatrists as opposed to clinicians, or other staff member.
+In addition, the average ignores any additional information about the patient at hand, such as the committed crimes and diagnoses.
+\begin{figure}
+	\centering
+	\includesvg[width=\textwidth]{misfitMean}
+	\caption{True item scores (x-axis) versus the sample mean across raters (y-axis).}
+	\label{fig:misFitMean}
+\end{figure}
+
+Cultural consensus theory (CCT) provides a model-based framework for pooling information from multiple raters to form a consensus \parencite{anders2014cultural}.
+There exist a variety of CCT models, each applicable to different types of data.
+For example, the General Condorcet model \parencite{Batchelder1986statistical} applies to dichotomous data, the Latent Truth Rater model \parencite{Anders2015cultural} is suited for ordinal data, and the Continous Response model \parencite{anders2014cultural}.
+
+small description
+\subsection{The Continuous Response Model}
+The Continuous Response Model (CRM) is a CCT model for continuous data \parencite{anders2014cultural}.
+Figure~\ref{model:CRM_p} shows a graphical model of the CRM with a few adjustments.
+
+%\begin{figure}[!ht]
+%	\begin{minipage}{0.5\textwidth}
+%		\centering
+%		\includegraphics[width=\textwidth, page=1]{../graphicalmodels/graphicalmodels.pdf}
+%	\end{minipage}\hfill
+%	\begin{minipage}{0.5\textwidth}
+%		{\normalsize
+%			\begin{align*}
+%			x_{\Iitem\Irater}      			&\sim \dnorm{\mu_{\Iitem\Irater}}{\sigma^2_{\Iitem\Irater}} \\
+%			\mu_{\Iitem\Irater}    			&\assignment \RaterScale_\Irater \ItemTruth_{\Iitem} + \RaterShift_\Irater  \\
+%			\sigma_{\Iitem\Irater} 			&\assignment \RaterCompetence_\Irater \ItemDifficulty_\Iitem\\
+%			\ItemTruth_\Iitem	   			&\sim \dnorm{\mu_\ItemTruth}{\sigma^2_\ItemTruth}\\
+%			\log \ItemDifficulty_\Iitem 	&\sim \dnorm{\mu_\ItemDifficulty}{\sigma^2_\ItemDifficulty}\\
+%			\log \RaterScale_\Irater     	&\sim \dnorm{\mu_\RaterScale}{\sigma^2_\RaterScale}\\
+%			\RaterShift_\Irater	   			&\sim \dnorm{\mu_\RaterShift}{\sigma^2_\RaterShift}\\
+%			\log \RaterCompetence_\Irater	&\sim \dnorm{\mu_\RaterCompetence}{\sigma^2_\RaterCompetence}\\
+%			\end{align*}
+%		}%
+%	\end{minipage}
+%	\caption{Graphical model of the Continuous Response Model for a single patient.}
+%	\label{model:CRM_1}
+%\end{figure}
+
+\begin{figure}[!ht]
+	\begin{minipage}{0.5\textwidth}
+		\centering
+		\includegraphics[width=\textwidth, page=3]{graphicalmodels.pdf}
+	\end{minipage}\hfill
+	\begin{minipage}{0.5\textwidth}
+		{\normalsize
+			\begin{align*}
+			x_{\Ipatient\Iitem\Irater}      &\sim \dnorm{\mu_{\Ipatient\Iitem\Irater}}{\sigma^2_{\Ipatient\Iitem\Irater}} \\
+			\mu_{\Ipatient\Iitem\Irater}    &\assignment \RaterScale_\Irater \ItemTruth_{\Ipatient\Iitem} + \RaterShift_\Irater  \\
+			\sigma_{\Iitem\Irater} 			&\assignment \RaterCompetence_\Irater \ItemDifficulty_\Iitem\\
+			\ItemTruth_{\Ipatient\Iitem}	&\sim \dnorm{\mu_\ItemTruth}{\sigma^2_\ItemTruth}\\
+			\log \ItemDifficulty_\Iitem 	&\sim \dnorm{\mu_\ItemDifficulty}{\sigma^2_\ItemDifficulty}\\
+			\log \RaterScale_\Irater     	&\sim \dnorm{\mu_\RaterScale}{\sigma^2_\RaterScale}\\
+			\RaterShift_\Irater	   			&\sim \dnorm{\mu_\RaterShift}{\sigma^2_\RaterShift}\\
+			\log \RaterCompetence_\Irater	&\sim \dnorm{\mu_\RaterCompetence}{\sigma^2_\RaterCompetence}\\
+			\end{align*}
+		}%
+	\end{minipage}
+	\caption{Graphical model of the Continuous Response Model for multiple patients.}
+	\label{model:CRM_p}
+\end{figure}
+Here, $x_{\Ipatient\Iitem\Irater}$ is the score given to patient $\Ipatient$ on item $\Iitem$ by rater $\Irater$.
+This score is assumed to be normally distributed with mean $\mu_{\Ipatient\Iitem\Irater}$ and standard deviation $\sigma_{\Iitem\Irater}$. 
+The mean is composed of a patients true score on a particular item $\ItemTruth_{\Ipatient\Iitem}$ and a rater-specific scale $\RaterScale_\Irater$ and shift $\RaterShift_\Irater$.
+The standard deviation is comprised of an item-specific difficulty $\ItemDifficulty_\Iitem$ and a rater-specific competence $\RaterCompetence_\Irater$.
+The ratio of the item difficulty and rater competence determines how precise an answer is retrieved.
+
+There are three differences in Figure~\ref{model:CRM_p} compared to the CRM as described in \textcite{anders2014cultural}. 
+First, we do not allow for multiple cultural truths among the raters.
+In our application the raters are professionally trained and we believe the remaining rater parameters suffice to capture differences between raters.
+Second, \parencite{anders2014cultural} considered two levels of nesting, items and respondents, whereas we consider three levels of nesting, patients, items, and raters.
+By dropping the patient indices one 
+
+Third, we adjusted the prior distributions opposed
+
+
+Different cultural truths allows the ``true answer'' on an item to vary across patients
+Another difference with respect to our previous work \parencite{vandenBergh2020cultural} is that the item difficulty $\ItemDifficulty$ does not vary across patients.
+During simulations with a similar ratio of patients to raters, we found that this parameter cannot be reliably estimated.
+Therefore we opted to constrain this parameter across patients.
+
+\subsection{Augmenting Logistic Regression with the CRM}
+The CRM applies an information pooling strategy. Here, we use the results from the CRM, specifically the item truths for each patient, to augment prediction of aggressiveness.
+
+\begin{figure}[!ht]
+%	\begin{minipage}{0.5\textwidth}
+		\centering
+		\includegraphics[width=\textwidth, page=4]{graphicalmodels.pdf}
+%	\end{minipage}\hfill
+%	\begin{minipage}{0.5\textwidth}
+%		{\normalsize
+%			\begin{align*}
+%			x_{\Ipatient\Iitem\Irater}      &\sim \dnorm{\mu_{\Ipatient\Iitem\Irater}}{\sigma^2_{\Ipatient\Iitem\Irater}} \\
+%			\mu_{\Ipatient\Iitem\Irater}    &\assignment \RaterScale_\Irater \ItemTruth_{\Ipatient\Iitem} + \RaterShift_\Irater  \\
+%			\sigma_{\Iitem\Irater} 			&\assignment \RaterCompetence_\Irater \ItemDifficulty_\Iitem\\
+%			\ItemTruth_{\Ipatient\Iitem}	&\sim \dnorm{\mu_\ItemTruth}{\sigma^2_\ItemTruth}\\
+%			\log \ItemDifficulty_\Iitem 	&\sim \dnorm{\mu_\ItemDifficulty}{\sigma^2_\ItemDifficulty}\\
+%			\log \RaterScale_\Irater     	&\sim \dnorm{\mu_\RaterScale}{\sigma^2_\RaterScale}\\
+%			\RaterShift_\Irater	   			&\sim \dnorm{\mu_\RaterShift}{\sigma^2_\RaterShift}\\
+%			\log \RaterCompetence_\Irater	&\sim \dnorm{\mu_\RaterCompetence}{\sigma^2_\RaterCompetence}\\
+%			\end{align*}
+%		}%
+%	\end{minipage}
+	\caption{Graphical model of Logistic Regression Augmented with the Continuous Response Model.}
+	\label{model:Logistic_CRM}
+\end{figure}
+
+
+\subsection{Simulation Study}
+
+\subsubsection{Do we actually want this?}
+
+\subsection{Machine Learning Alternatives}
+This section discusses the four alternative considered
+\subsubsection{Missing value imputation and data reduction}
+The four methods described above are designed for purely rectangular data.
+That is, each row of the data set contains one outcome (aggressive or not) and a number of predictors.
+However, the raw data contains missing valu
+This means that some preprocessing of the data is needed before these methods can be applied.
+Here we discuss missing data handling and the data reduction techniques applied.
+
+\paragraph{Missing values}
+The four alternative methods do not handle missing values.
+Although listwise deletion is an option, this results in rather 
+We use the R package \code{mice} \parencite{vanBuuren2011mice} to impute missing values.
+Rather than imputing one single value for each missing observation, \code{mice} imputes multiple, which leads to multiple data sets.
+While this increases the computational complexity of the procedures, it also propagates uncertainty about the missing observations to the results.
+
+
+\paragraph{Data reduction}
+After imputing missing values in the data, it remains problematic that there are multiple raters
+
+
+\section{Empirical Example}
+
+\subsection{Data set about Forensic Psychiatric}
+doei
+\subsection{Discussion}
+Summary
+
+Hybrid is probably most predictive.
+
+\subsection{Limitations}
+
+\printbibliography
+
+\appendix
+\section{EM Algorithm}
+
+Initial values are found using a few steps of an EM-algorithm that disregards the priors and hyperparameters.
+The likelihood is given by:
+\begin{align*}
+	l(x, ) &=
+	\prod_{\Ipatient=1}^{\Ipatient=\Tpatient}
+	\prod_{\Iitem=1}^{\Iitem=\Titem}
+	\prod_{\Irater=1}^{\Irater=\Trater}
+	\dnorm{arg1}{arg2}
+\end{align*}
+
+\begin{align*}
+	\RaterShift_\Irater &\sim \prod_{\Ipatient=1}^\Tpatient\prod_{\Iitem=1}^\Titem \dnorm{x_{pir} - \RaterScale_\Irater\ItemTruth_{\Ipatient\Iitem}}{\left(\ItemDifficulty_\Iitem\RaterCompetence_\Irater\right)^2} \\
+	\RaterScale_\Irater &\sim \prod_{\Ipatient=1}^\Tpatient\prod_{\Iitem=1}^\Titem 
+	\dnorm{\frac{
+			\RaterShift_\Irater - x_{pir}
+		}{
+			\ItemTruth_{\Ipatient\Iitem}
+		}}{
+		\left(\frac{
+			\ItemDifficulty_\Iitem\RaterCompetence_\Irater
+		}{
+			\left|\ItemTruth_{\Ipatient\Iitem}\right|}\right)^2
+		} \\
+	\ItemTruth_{\Ipatient\Iitem} &\sim \prod_{\Irater=1}^\Trater
+	\dnorm{\frac{
+			x_{pir} - \RaterShift_\Irater
+		}{
+			\RaterScale_\Irater
+		}}{
+		\left(\frac{
+			\ItemDifficulty_\Iitem\RaterCompetence_\Irater
+		}{
+			\RaterScale_\Irater}\right)^2
+	} \\
+	\RaterCompetence_\Irater^2 &\sim \dinvgamma{\frac{\Tpatient\Titem}{2}-1}{
+		\sum_{\Iitem=1}^\Titem \frac{1}{2\ItemDifficulty_\Iitem^{2}}\sum_{\Ipatient=1}^\Tpatient
+		\left(x_{pir} - \RaterScale_\Irater\ItemTruth_{\Ipatient\Iitem} - \RaterShift_\Irater\right)^2
+	}\\
+	\ItemDifficulty_\Iitem^2 &\sim \dinvgamma{\frac{\Tpatient\Trater}{2}-1}{
+		\sum_{\Irater=1}^\Trater \frac{1}{2\RaterCompetence_\Irater^{2}}\sum_{\Ipatient=1}^\Tpatient
+		\left(x_{pir} - \RaterScale_\Irater\ItemTruth_{\Ipatient\Iitem} - \RaterShift_\Irater\right)^2
+	}
+\end{align*}
+
+\end{document}

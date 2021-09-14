@@ -1,2 +1,15 @@
 .Rproj.user
 .Rhistory
+
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.log
+*.run.xml
+*.synctex.gz
+*.toc
+*.out
+
+random/*
+/saved_stan_models/logistic_fit.RData.rds

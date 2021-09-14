@@ -58,6 +58,11 @@ ggplot(data = data_long, aes(x = score, y = ..count.., group = rater_group, fill
   scale_x_continuous(breaks = 0:17) +
   facet_wrap(~item, scales = "free_y")
 
+data_wider <- read_wider_data()
+dim(data_wider)
+summary(data_wide)
+
+
 # voor de inrichting, kans op aggresiviteit? delict categorie?
 # zijn de ratings van verschillende groepen onderscheidend?
 
