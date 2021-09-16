@@ -47,17 +47,28 @@
 \end{abstract}
 
 \section{Introduction}
+The mental health and forensic risk factors of patients in forensic psychiatric hospitals is regularly monitored with methods such as
+Routine Outcome Monitoring \parencite{deBeurs2011ROM}.
 
+Forensic psychiatric hospitals routinely assess the 
 
-\section{Data set of 105 patients}
+Forensic psychiatric hospitals monitor the mental health and forensic risk factors of their patients at regular intervals, typically using a method such as Routine Outcome Monitoring \parencite{deBeurs2011ROM}.
+
+\section{Data of 105 patients in the Mesdag clinic}
 \subsection{How it was collected}
 \subsection{IFTE}
-The Instrument for Forensic Treatment Evaluation is a multidisciplinary Routine Outcome Monitoring instrument. The IFTE is filled out in approximately 10 min every six months by all members of a patient's treatment team independently. The IFTE contains 22 indicators, comprising all 14 clinical criminogenic need indicators of the
-Dutch risk assessment instrument HKT-R (Spreen et al., 2014), three indicators based on the Atascadero Skills Profile (ASP; Vess, 2001), and five indicators designed in consultation with psychologists and psychiatrists. The 22 IFTE indicators are divided into three factors, namely Protective behaviors, Problematic behaviors and Resocialization Skills. Indicators of the IFTE are measured on a 17-point scale.
+
+The data were collected using a Routine Outcome Monitoring instrument called the the Instrument for Forensic Treatment Evaluation (IFTE).
+The IFTE consists of 22 items, of which 14 items are criminogenic need indicators of the Dutch risk assessment instrument HKT-R \parencite{spreen2013handleiding}, five items were designed in consultation with psychologists and psychiatrists, and three items are based on the Atascadero Skills Profile \parencite{vess2001development}.
+The 22 items can be grouped into three factors, Protective behaviors, Problematic behaviors, and Resocialization Skills.
+All items are scored on a 17 point scale.
+
+%\begin{quote}
+%The Instrument for Forensic Treatment Evaluation is a multidisciplinary Routine Outcome Monitoring instrument. The IFTE is filled out in approximately 10 min every six months by all members of a patient's treatment team independently. The IFTE contains 22 indicators, comprising all 14 clinical criminogenic need indicators of the Dutch risk assessment instrument HKT-R (Spreen et al., 2014), three indicators based on the Atascadero Skills Profile (ASP; Vess, 2001), and five indicators designed in consultation with psychologists and psychiatrists. The 22 IFTE indicators are divided into three factors, namely Protective behaviors, Problematic behaviors and Resocialization Skills. Indicators of the IFTE are measured on a 17-point scale.
+%\end{quote}
 
 
-description of this questionnaire.
-\subsection{Descriptives}
+\subsection{Descriptive Statistics}
 \begin{itemize}
 	\item Amount of patients, raters, and items.
 	\item Sparsity of patient-rater combinations.
@@ -185,10 +196,10 @@ The CRM applies an information pooling strategy. Here, we use the results from t
 
 \subsection{Simulation Study}
 
-\subsubsection{Do we actually want this?}
+\subsubsection{Do we actually want to report this?}
 
 \subsection{Machine Learning Alternatives}
-This section discusses the four alternative considered
+This section discusses the four alternative considered, naive logistic regression, random forest, boosted regression trees.
 \subsubsection{Missing value imputation and data reduction}
 The four methods described above are designed for purely rectangular data.
 That is, each row of the data set contains one outcome (aggressive or not) and a number of predictors.
@@ -225,15 +236,6 @@ Hybrid is probably most predictive.
 \section{EM Algorithm}
 
 Initial values are found using a few steps of an EM-algorithm that disregards the priors and hyperparameters.
-The likelihood is given by:
-\begin{align*}
-	l(x, ) &=
-	\prod_{\Ipatient=1}^{\Ipatient=\Tpatient}
-	\prod_{\Iitem=1}^{\Iitem=\Titem}
-	\prod_{\Irater=1}^{\Irater=\Trater}
-	\dnorm{arg1}{arg2}
-\end{align*}
-
 \begin{align*}
 	\RaterShift_\Irater &\sim \prod_{\Ipatient=1}^\Tpatient\prod_{\Iitem=1}^\Titem \dnorm{x_{pir} - \RaterScale_\Irater\ItemTruth_{\Ipatient\Iitem}}{\left(\ItemDifficulty_\Iitem\RaterCompetence_\Irater\right)^2} \\
 	\RaterScale_\Irater &\sim \prod_{\Ipatient=1}^\Tpatient\prod_{\Iitem=1}^\Titem 

@@ -1,7 +1,6 @@
 ---
 title: "CRM Simulations"
 author: "Don van den Bergh"
-date: "9/14/2021"
 output: html_document
 ---
 
@@ -13,9 +12,7 @@ knitr::opts_chunk$set(dev = "ragg_png", fig.ext = "png")
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
-
-
+We can simulate data for the CRM like so
 ```{r simulate}
 library(CRMLogistic)
 
@@ -30,10 +27,13 @@ head(dat$df)
 summary(dat$df)
 ```
 
-## Including Plots
+The tibble in `dat$df` is in long format.
+The first four columns indicates the patient, item, and rater id, as well as the group the rater belongs to.
+The fifth column score indicates the score given.
+We use this structure instead of say, a three-dimensional array because it is better and handling unobserved combinations of patients and raters.
+Now they are absent rows, whereas in an array they'd be missing values.
 
-You can also embed plots, for example:
-
+Initial values for fitting are obtained in this manner:
 ```{r data heuristics}
 data_2_init(dat$df) |>
   add_true_values_to_em_tib(dat) |>
@@ -41,14 +41,22 @@ data_2_init(dat$df) |>
   ggplot2::labs(x = "True value", y = "Estimate") +
   ggplot2::ggtitle("Initial parameter estimates based on data heuristics")
 ```
+
+
+This is not perfect but an okay starting point.
+
+Next, we do 10 EM steps
 ```{r fit EM, cache=TRUE}
-em_tib <- fit_em(dat$df, record_all_iterations = 5, n_iter = 10, compute_locations_scales = TRUE)
+em_tib <- fit_em(dat$df, record_all_iterations = 0, n_iter = 5)
+em_tib |> add_true_values_to_em_tib(dat) |> scatterplot_retrieval()
 ```
 
-```{r plot EM, fig.height=14}
-em_tib |> add_true_values_to_em_tib(dat) |> scatterplot_retrieval(facets = iteration~parameter)
-```
+These results already look a lot better.
 
+However, the em implementation ignores all hierarchical priors (it assumes independent normal priors and gamma priors).
+In a next step, we use the estimates from EM as initial values for variational Bayes (vb).
+This is not strictly necessary, but we noticed that the fitting procedure for vb sometimes got stuck and took long to converge (or failed to converge).
+When setting appropriate starting values this happened less often.
 
 ```{r fit vb, cache=TRUE}
 # convert the data to something suited for cmdstanr
@@ -56,17 +64,26 @@ stan_data <- crm_data_2_stan(dat)
 # extract initial values from em for vb
 init <- list(em_tib_to_init(em_tib, dat))
 
+# compile the stan model
+setwd("../")
 mod <- CRMLogistic::compile_stan_model("stanmodels/extendedCRM_long_new_no_genq.stan")
 
-# compile the model
-vb_init_fit <- mod$variational(data = stan_data, iter = 3e4, grad_samples = 3, elbo_samples = 2, adapt_iter = 500, output_samples = 5e3,
-                          init = init)
-vb_init_tib <- get_means_tib(vb_init_fit, dat)
-vb_init_tib |> scatterplot_retrieval() + ggtitle(sprintf("mod$variational informed by EM: %.3f seconds", vb_init_fit$time())) + labs(x = "Variational Estimate", y = "True value")
-
-em_tib <- fit_em(dat$df, record_all_iterations = 5, n_iter = 10, compute_locations_scales = TRUE)
+# fit variational Bayes
+vb_init_fit <- mod$variational(
+  data = stan_data,
+  # iter = 3e4, grad_samples = 3, elbo_samples = 2, adapt_iter = 500,
+  output_samples = 5e3,
+  init = init
+)
 ```
 
+If we look at the results we see that there is some shrinkage for `log_a`.
+
 ```{r plot vb, fig.height=14}
-em_tib |> add_true_values_to_em_tib(dat) |> scatterplot_retrieval(facets = iteration~parameter)
+vb_init_tib <- get_means_tib(vb_init_fit, dat)
+vb_init_tib |> 
+  subset(!parameter %in% c("locations", "scales"))|> 
+  scatterplot_retrieval() +
+  ggplot2::ggtitle(sprintf("mod$variational informed by EM: %.3f seconds", vb_init_fit$time())) +
+  ggplot2::labs(x = "Variational Estimate", y = "True value")
 ```

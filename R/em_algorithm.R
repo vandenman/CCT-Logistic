@@ -80,10 +80,10 @@ fit_em <- function(df, n_iter = 5, record_all_iterations = 1L, progress = TRUE, 
                    log_a = NULL, b = NULL, log_E = NULL, log_lambda = NULL, lt = NULL) {
 
   init_method <- match.arg(init_method)
-  assertthat::assert_that(
-    assertthat::is.count(n_iter),
-    record_all_iterations == 0 || assertthat::is.count(record_all_iterations) || assertthat::is.flag(record_all_iterations),
-    assertthat::is.flag(compute_locations_scales)
+  assert_that(
+    is.count(n_iter),
+    record_all_iterations == 0 || is.count(record_all_iterations) || is.flag(record_all_iterations),
+    is.flag(compute_locations_scales)
   )
 
   tmp <- get_np_ni_nr_from_df(df)
@@ -135,7 +135,7 @@ fit_em <- function(df, n_iter = 5, record_all_iterations = 1L, progress = TRUE, 
     #   add_true_values_to_em_tib(dat) |>
     #   scatterplot_retrieval(facets = iteration~parameter)
 
-    if (it %% record_all_iterations == 0L) {
+    if (record_all_iterations > 0L && it %% record_all_iterations == 0L) {
       toAdd <- if (compute_locations_scales) {
         locations <- exp(log_a[df$rater]) * c(lt[cbind(df$patient, df$item)]) + b[df$rater]
         scales    <- exp(log_E[df$rater] + log_lambda[df$item])
@@ -255,8 +255,11 @@ compute_raw_params <- function(x) {
 
 #' @export
 em_tib_to_init <- function(tib, dat) {
+  sub <-
+    if ("iteration" %in% names(tib)) \(x) subset(x, parameter %in% c("log_a", "b", "log_E", "log_lambda", "lt") & !iteration %in% iteration == max(iteration))
+    else                             \(x) subset(x, parameter %in% c("log_a", "b", "log_E", "log_lambda", "lt"))
   em_tib |>
-    subset(parameter %in% c("log_a", "b", "log_E", "log_lambda", "lt") & iteration == max(iteration)) |>
+    sub() |>
     split(~parameter) |>
     lapply(`[[`, "estimate") |>
     compute_hyperparams(dat) |>
