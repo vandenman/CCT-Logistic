@@ -5,9 +5,6 @@
 #' It's not recommended for use outside of this project, just use cmdstanr::cmdstan_model directly.
 #' @export
 compile_stan_model <- function(stan_file, compile = TRUE, dir = file.path("stanmodels", "compiled_stan_models"), ...) {
-
-
-
   cmdstanr::cmdstan_model(stan_file = stan_file, compile = compile, dir = dir, ...)
 }
 

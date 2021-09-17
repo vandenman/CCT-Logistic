@@ -16,7 +16,7 @@ scatterplot_retrieval <- function(tib, mapping = NULL, facets = ~parameter, scal
   assert_that(nrow(tib) > 0L)
 
   if (is.null(mapping)) {
-    if ("rater_group" %in% names(tib) && !all(is.na(tib$rater_group)) && !all(tib$rater_group == 1L)) {
+    if ("rater_group" %in% names(tib) && !all(is.na(tib$rater_group)) && !all(tib$rater_group[!is.na(tib$rater_group)] == 1L)) {
       mapping <- ggplot2::aes(x = true_value, y = estimate, color = rater_group)
       no_rater_groups <- max(as.integer(tib$rater_group), na.rm = TRUE)
       color_scale <- scale_color_manual(values = scales::hue_pal()(no_rater_groups), breaks = seq_len(no_rater_groups))
