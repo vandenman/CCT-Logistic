@@ -10,6 +10,7 @@
 %\usepackage{tikz} % already loaded
 \usetikzlibrary{bayesnet}
 \usetikzlibrary{shapes.geometric} % needed for squares
+\usetikzlibrary{calc}
 
 \usepackage{graphics}
 
@@ -540,7 +541,7 @@
 
 \node[obsD, left = of b, double distance = 1pt, minimum width = 1cm]	(zr)		{$z_{\Irater}$};
 
-\node[latent, left = of y,                       ]     (g) 	{$\ItemCovariateBeta_{\Iitem}$};
+\node[latent, left = of y,                       ]     (g) 	{$\CovariateBeta_{\Iitem}$};
 
 \node[latent, right = of zp                      ]     (h) 	{$\CovariateBeta_{\Icovariate}$};
 
@@ -558,7 +559,7 @@
 \edge {zr}     	    {a, b, E};%
 
 {\tikzset{plate caption/.append style={below=0pt of #1.north east, xshift = -.5cm, yshift = .4cm}}
-	\plate[text centered] {ni} {(x)(mu)(l)(y)}            {$\Tpatient$ patients };
+	\plate[text centered] {ni} {(x)(mu)(l)}            {$\Tpatient$ patients };
 }
 {\tikzset{plate caption/.append style={below=0pt of #1.north, xshift = 1.1cm, yshift = 0.8cm}}
 	\plate[text centered] {ni} {(x)(mu)(sig)(l)(lam)(ihelp1)}            {$\Titem$ items  };
@@ -572,6 +573,243 @@
 
 \end{tikzpicture}
 
+\begin{tikzpicture}[square/.style={regular polygon,regular polygon sides=4}]
+%\draw [help lines] (-3,-5) grid (3,5);			
+
+% Define nodes
+\node[obsD, double distance=1pt]						(x) 	{$x_{\Ipatient\Iitem\Irater}$};
+
+\node[latent, below = of x,   double distance = 1pt]	(mu) 	{$\Threshold_{\Irater\Incat}$};
+\node[latent, right = of mu,   double distance = 1pt]	(cc) 	{$\UnbiasedThreshold_{\Incat}$};
+\node[latent, above = of x,                        ]	(sig) 	{$\Appraisal_{\Ipatient\Iitem\Irater}$};
+
+\node[latent, right = of x,                        ]      (l) 	{$\ItemTruth_{\Ipatient\Iitem}$};
+\node[latent, left = of mu,                        ]      (b) 	{$\RaterShift_{\Irater}$};
+\node[latent, left = of sig,                       ]      (E) 	{$\RaterCompetence_{\Irater}$};
+\node[latent, above = of b         ]					(a) 	{$\RaterScale_{\Irater}$};
+
+
+\node[latent, above = of sig, yshift=-.4cm				]	(lam) 	{$\ItemDifficulty_{\Iitem}$};
+
+
+\node[obsD, left = of a, minimum width = 1cm, xshift = .4cm]	(zr)		{$\Covariate_{\Irater}$};
+%\node[obsD, left = of E, double distance = 1pt, minimum width = 1cm] at ($(E)!0.5!(b)$)	(zr)		{$z_{\Irater}$};
+
+%\node[latent, left = of E] at ($(E)!0.5!(b)$) (test)	{test};
+
+% invisible helper nodes to make the plates not overlap
+\node[latent, above= of x, xshift = -.3cm, draw=none, fill=none]    (ihelp1) 	{};
+\node[latent, yshift = .3cm, draw=none, fill=none] at (E)   (rhelp1) 	{};
+%\node[latent, yshift = 0cm, draw=none] at (l)   (phelp1) 	{};
+
+% Edges
+\edge {mu, sig}     {x};%
+\edge {a, b}		{mu};%
+\edge {l, E, lam}      {sig};
+
+\edge {mu, sig}     {x};%
+
+\edge {zr}     	    {a, b, E};%
+
+{\tikzset{plate caption/.append style={below=0pt of #1.south east, xshift = -.5cm, yshift = 0cm}}
+	\plate[text centered] {ni} {(x)(l)(y)(sig)}            {$\Tpatient$ patients };
+}
+{\tikzset{plate caption/.append style={below=0pt of #1.north, xshift = 1.1cm, yshift = 0.0cm}}
+	\plate[text centered] {ni} {(x)(sig)(l)(lam)(ihelp1)}            {$\Titem$ items  };
+}
+{\tikzset{plate caption/.append style={below=0pt of #1.south west, xshift = .6cm, yshift = -.1cm}}
+	\plate[text centered] {ni} {(x)(mu)(sig)(a)(b)(E)(zr)(rhelp1)}            {$\Trater$ raters};
+}
+{\tikzset{plate caption/.append style={below=4pt of #1.south east, xshift = -.6cm}}
+	\plate[text centered] {nc} {(cc)(mu)}              {$\Tncat$ categories};
+}
+
+\end{tikzpicture}
+
+\begin{tikzpicture}[square/.style={regular polygon,regular polygon sides=4}]
+%\draw [help lines] (-3,-5) grid (3,5);			
+
+% Define nodes
+\node[obsD, double distance=1pt]						(x) 	{$x_{\Ipatient\Iitem\Irater}$};
+
+\node[latent, below = of x,   double distance = 1pt]	(mu) 	{$\Threshold_{\Irater\Incat}$};
+\node[latent, right = of mu,   double distance = 1pt]	(cc) 	{$\UnbiasedThreshold_{\Incat}$};
+\node[latent, above = of x,                        ]	(sig) 	{$\Appraisal_{\Ipatient\Iitem\Irater}$};
+
+\node[latent, right = of x,                        ]      (l) 	{$\ItemTruth_{\Ipatient\Iitem}$};
+\node[latent, left = of mu,                        ]      (b) 	{$\RaterShift_{\Irater}$};
+\node[latent, left = of sig,                       ]      (E) 	{$\RaterCompetence_{\Irater}$};
+\node[latent, above = of b         ]					(a) 	{$\RaterScale_{\Irater}$};
+
+
+\node[latent, above = of sig, yshift=-.4cm				]	(lam) 	{$\ItemDifficulty_{\Iitem}$};
+
+
+\node[obsD, right = of l, minimum width = 1cm]	                (y)	        {$v_{\Ipatient}$};
+\node[obsD, above = of y, minimum width = 1cm]	(zp)		{$\Covariate_{\Ipatient}$};
+
+\node[obsD, left = of a, minimum width = 1cm, xshift = .4cm]	(zr)		{$\Covariate_{\Irater}$};
+%\node[obsD, left = of E, double distance = 1pt, minimum width = 1cm] at ($(E)!0.5!(b)$)	(zr)		{$z_{\Irater}$};
+
+%\node[latent, left = of E] at ($(E)!0.5!(b)$) (test)	{test};
+
+\node[latent, above = of l,                       ]     (g) 	{$\CovariateBeta_{\Iitem}$};
+\node[latent, right = of zp, xshift = -.4cm                       ]     (h)  	{$\CovariateBeta_{\Icovariate}$};
+
+% invisible helper nodes to make the plates not overlap
+\node[latent, above= of x, xshift = -.3cm, draw=none, fill=none]    (ihelp1) 	{};
+\node[latent, yshift = .3cm, draw=none, fill=none] at (E)   (rhelp1) 	{};
+%\node[latent, yshift = 0cm, draw=none] at (l)   (phelp1) 	{};
+
+% Edges
+\edge {mu, sig}     {x};%
+\edge {a, b}		{mu};%
+\edge {l, E, lam}      {sig};
+
+\edge {mu, sig}     {x};%
+
+\edge {l, zp, g, h} {y};%
+\edge {zr}     	    {a, b, E};%
+
+{\tikzset{plate caption/.append style={below=0pt of #1.south east, xshift = -.5cm, yshift = 0cm}}
+	\plate[text centered] {ni} {(x)(l)(y)(sig)}            {$\Tpatient$ patients };
+}
+{\tikzset{plate caption/.append style={below=0pt of #1.north, xshift = 1.1cm, yshift = 0.0cm}}
+	\plate[text centered] {ni} {(x)(sig)(l)(lam)(ihelp1)}            {$\Titem$ items  };
+}
+{\tikzset{plate caption/.append style={below=0pt of #1.south west, xshift = .6cm, yshift = -.1cm}}
+	\plate[text centered] {ni} {(x)(mu)(sig)(a)(b)(E)(zr)(rhelp1)}            {$\Trater$ raters};
+}
+{\tikzset{plate caption/.append style={below=0pt of #1.north east, yshift = -.9cm}}
+	\plate[align=right] {ni} {(zp)(h)}            {$\Icovariate$ Covariates};
+}
+{\tikzset{plate caption/.append style={below=4pt of #1.south east, xshift = -.6cm}}
+	\plate[text centered] {nc} {(cc)(mu)}              {$\Tncat$ categories};
+}
+
+\end{tikzpicture}
+
+\begin{tikzpicture}[square/.style={regular polygon,regular polygon sides=4}]
+%\draw [help lines] (-3,-5) grid (3,5);			
+
+% Define nodes
+\node[obsD, double distance=1pt]						(x) 	{$x_{\Ipatient\Iitem\Irater}$};
+
+\node[latent, left = of x]	                           (mu) 	{$\Threshold_{\Irater\Incat}$};
+
+\node[latent, above = of x,                        ]	(sig) 	{$\Appraisal_{\Ipatient\Iitem\Irater}$};
+
+\node[latent, right = of sig,                      ]      (l) 	{$\ItemTruth_{\Ipatient\Iitem}$};
+\node[latent, left = of sig,                       ]      (E) 	{$\RaterCompetence_{\Irater}$};
+
+
+\node[latent, above = of sig, yshift=-.4cm				]	(lam) 	{$\ItemDifficulty_{\Iitem}$};
+
+
+%\node[obsD, right = of l, minimum width = 1cm]	                (y)	        {$v_{\Ipatient}$};
+%\node[obsD, below = of y, minimum width = 1cm]	(zp)		{$\Covariate_{\Ipatient}$};
+%
+\node[obsD, left = of E, minimum width = 1cm, xshift = .4cm]	(zr)		{$\Covariate_{\Irater}$};
+%\node[obsD, left = of E, double distance = 1pt, minimum width = 1cm] at ($(E)!0.5!(b)$)	(zr)		{$z_{\Irater}$};
+
+%\node[latent, left = of E] at ($(E)!0.5!(b)$) (test)	{test};
+
+%\node[latent, above = of l,  yshift=-.4cm         ]     (g) 	{$\CovariateBeta_{\Iitem}$};
+%\node[latent, right = of lam         ]     (g) 	{$\CovariateBeta_{\Iitem}$};
+%\node[latent, right = of zp, xshift = -.4cm       ]     (h)  	{$\CovariateBeta_{\Icovariate}$};
+
+% invisible helper nodes to make the plates not overlap
+\node[latent, above= of x, xshift = -.3cm, draw=none, fill=none]    (ihelp1) 	{};
+\node[latent, yshift = .3cm, draw=none, fill=none] at (E)   (rhelp1) 	{};
+
+%\node[latent, yshift = 0cm, draw=none] at (l)   (phelp1) 	{};
+
+% Edges
+\edge {mu, sig}     {x};%
+%\edge {a, b}		{mu};%
+\edge {l, E, lam}   {sig};%
+
+\edge {mu, sig}     {x};%
+
+%\edge {l, zp, g, h} {y};%
+\edge {zr}     	    {E, mu};%
+
+{\tikzset{plate caption/.append style={below=0pt of #1.south east, xshift = -.5cm, yshift = -.4cm}}
+	\plate[text centered] {ni} {(x)(l)(sig)}            {$\Tpatient$ patients };
+}
+{\tikzset{plate caption/.append style={below=0pt of #1.north, xshift = 1.1cm, yshift = 0.4cm}}
+	\plate[text centered] {ni} {(x)(sig)(l)(lam)(ihelp1)}            {$\Titem$ items  };
+}
+{\tikzset{plate caption/.append style={below=0pt of #1.south west, xshift = .6cm, yshift = -.5cm}}
+	\plate[text centered] {ni} {(x)(mu)(sig)(E)(zr)(rhelp1)}            {$\Trater$ raters};
+}
+{\tikzset{plate caption/.append style={below=4pt of #1.south east, xshift = -.6cm}}
+	\plate[text centered] {nc} {(mu)}              {$\Tncat$ categories};
+}
+
+\end{tikzpicture}
+
+\begin{tikzpicture}[square/.style={regular polygon,regular polygon sides=4}]
+%\draw [help lines] (-3,-5) grid (3,5);			
+
+% Define nodes
+\node[obsD, double distance=1pt]						(x) 	{$x_{\Ipatient\Iitem\Irater}$};
+
+\node[latent, left = of x]	                           (mu) 	{$\Threshold_{\Irater\Incat}$};
+
+\node[latent, above = of x,                        ]	(sig) 	{$\Appraisal_{\Ipatient\Iitem\Irater}$};
+
+\node[latent, right = of sig,                      ]      (l) 	{$\ItemTruth_{\Ipatient\Iitem}$};
+\node[latent, left = of sig,                       ]      (E) 	{$\RaterCompetence_{\Irater}$};
+
+
+\node[latent, above = of sig, yshift=-.4cm				]	(lam) 	{$\ItemDifficulty_{\Iitem}$};
+
+
+\node[obsD, right = of l, minimum width = 1cm]	                (y)	        {$v_{\Ipatient}$};
+\node[obsD, below = of y, minimum width = 1cm]	(zp)		{$\Covariate_{\Ipatient}$};
+
+\node[obsD, left = of E, minimum width = 1cm, xshift = .4cm]	(zr)		{$\Covariate_{\Irater}$};
+%\node[obsD, left = of E, double distance = 1pt, minimum width = 1cm] at ($(E)!0.5!(b)$)	(zr)		{$z_{\Irater}$};
+
+%\node[latent, left = of E] at ($(E)!0.5!(b)$) (test)	{test};
+
+%\node[latent, above = of l,  yshift=-.4cm         ]     (g) 	{$\CovariateBeta_{\Iitem}$};
+\node[latent, right = of lam         ]     (g) 	{$\CovariateBeta_{\Iitem}$};
+\node[latent, right = of zp, xshift = -.4cm       ]     (h)  	{$\CovariateBeta_{\Icovariate}$};
+
+% invisible helper nodes to make the plates not overlap
+\node[latent, above= of x, xshift = -.3cm, draw=none, fill=none]    (ihelp1) 	{};
+\node[latent, yshift = .3cm, draw=none, fill=none] at (E)   (rhelp1) 	{};
+%\node[latent, yshift = 0cm, draw=none] at (l)   (phelp1) 	{};
+
+% Edges
+\edge {mu, sig}     {x};%
+%\edge {a, b}		{mu};%
+\edge {l, E, lam}   {sig};%
+
+\edge {mu, sig}     {x};%
+
+\edge {l, zp, g, h} {y};%
+\edge {zr}     	    {E, mu};%
+
+{\tikzset{plate caption/.append style={below=0pt of #1.south east, xshift = -.5cm, yshift = -.4cm}}
+	\plate[text centered] {ni} {(x)(l)(y)(sig)}            {$\Tpatient$ patients };
+}
+{\tikzset{plate caption/.append style={below=0pt of #1.north, xshift = 1.1cm, yshift = 0.4cm}}
+	\plate[text centered] {ni} {(x)(sig)(l)(lam)(ihelp1)}            {$\Titem$ items  };
+}
+{\tikzset{plate caption/.append style={below=0pt of #1.south west, xshift = .6cm, yshift = -.5cm}}
+	\plate[text centered] {ni} {(x)(mu)(sig)(E)(zr)(rhelp1)}            {$\Trater$ raters};
+}
+{\tikzset{plate caption/.append style={below=0pt of #1.north east, yshift = -.9cm}}
+	\plate[align=right] {ni} {(zp)(h)}            {$\Icovariate$ Covariates};
+}
+{\tikzset{plate caption/.append style={below=4pt of #1.south east, xshift = -.6cm}}
+	\plate[text centered] {nc} {(mu)}              {$\Tncat$ categories};
+}
+
+\end{tikzpicture}
 
 \end{document}
 

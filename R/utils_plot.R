@@ -11,12 +11,12 @@ pplot <- function(x, y, ...) {
 }
 
 #' @export
-scatterplot_retrieval <- function(tib, mapping = NULL, facets = ~parameter, scales = "free") {
+scatterplot_retrieval <- function(tib, mapping = NULL, facets = ~parameter, scales = "free", labeller = NULL) {
 
   assert_that(nrow(tib) > 0L)
 
   if (is.null(mapping)) {
-    if ("rater_group" %in% names(tib) && !all(is.na(tib$rater_group)) && !all(tib$rater_group == 1L)) {
+    if ("rater_group" %in% names(tib) && !all(is.na(tib$rater_group)) && !all(tib$rater_group[!is.na(tib$rater_group)] == 1L)) {
       mapping <- ggplot2::aes(x = true_value, y = estimate, color = rater_group)
       no_rater_groups <- max(as.integer(tib$rater_group), na.rm = TRUE)
       color_scale <- scale_color_manual(values = scales::hue_pal()(no_rater_groups), breaks = seq_len(no_rater_groups))
@@ -32,10 +32,16 @@ scatterplot_retrieval <- function(tib, mapping = NULL, facets = ~parameter, scal
     ncol <- NULL
   }
 
+  label_data <- tib |>
+    dplyr::group_by(parameter) |>
+    dplyr::summarize(cor = cor(true_value, estimate), rmse = sqrt(mean((true_value - estimate)^2)))
+  labels <- setNames(sprintf("%s cor:%.3f rmse:%.3f", label_data$parameter, label_data$cor, label_data$rmse), label_data$parameter)
+  labeller <- labeller %||% ggplot2::labeller(parameter = labels)
+
   ggplot(data = tib, mapping = mapping) +
     geom_abline() +
     geom_point() +
-    facet_wrap(facets = facets, scales = scales, ncol = ncol) +
+    facet_wrap(facets = facets, scales = scales, ncol = ncol, labeller = labeller) +
     color_scale +
     theme_bw()
 }

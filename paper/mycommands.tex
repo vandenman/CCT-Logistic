@@ -2,15 +2,15 @@
 \newcommand{\Irater}{r}
 \newcommand{\Iitem}{i}
 \newcommand{\Ipatient}{p}
-%\newcommand{\Incat}{c}
+\newcommand{\Incat}{c}
 %\newcommand{\Ilatent}{l}
 %\newcommand{\IdiscreteP}{d}
-\newcommand{\Icovariate}{c}
+\newcommand{\Icovariate}{d}
 
 \newcommand{\Trater}{\expandafter\MakeUppercase\expandafter{\Irater}}
 \newcommand{\Titem}{\expandafter\MakeUppercase\expandafter{\Iitem}}
 \newcommand{\Tpatient}{\expandafter\MakeUppercase\expandafter{\Ipatient}}
-%\newcommand{\Tncat}{\expandafter\MakeUppercase\expandafter{\Incat}}
+\newcommand{\Tncat}{\expandafter\MakeUppercase\expandafter{\Incat}}
 %\newcommand{\Tlatent}{\expandafter\MakeUppercase\expandafter{\Ilatent}}
 %\newcommand{\TdiscreteP}{\expandafter\MakeUppercase\expandafter{\IdiscreteP}}
 \newcommand{\Tcovariate}{\expandafter\MakeUppercase\expandafter{\Icovariate}}
@@ -18,8 +18,9 @@
 % definitions of variables
 \newcommand{\ItemTruth}{\theta}
 \newcommand{\ItemDifficulty}{\kappa}
-\newcommand{\UnBiasedThreshold}{\gamma}
-\newcommand{\Threshold}{\delta}
+\newcommand{\UnbiasedThreshold}{\gamma}
+%\newcommand{\Threshold}{\delta}
+\newcommand{\Threshold}{\tau}
 \newcommand{\RaterScale}{\alpha}
 \newcommand{\RaterShift}{\beta}
 \newcommand{\RaterCompetence}{\zeta}
@@ -31,14 +32,21 @@
 %\newcommand{\PatientCovariate}{w}
 \newcommand{\Covariate}{z}
 
-\newcommand{\CovariateBeta}{\delta}
-\newcommand{\ItemCovariateBeta}{\gamma}
+\newcommand{\CovariateBeta}{\eta}
+%\newcommand{\ItemCovariateBeta}{\eta}
+
+\newcommand{\oneScore}{x_{\Ipatient\Iitem\Irater}}
+\newcommand{\oneAppraisal}{\Appraisal_{\Ipatient\Iitem\Irater}}
+
 
 
 % Probability distributions
 
+\newcommand{\cdf}[1]{F\left(#1\right)}
+
 %\newcommand{\ilogit}[1]{\text{logit}^{-1}\left(#1\right)}
-\newcommand{\ilogit}[1]{\begin{revision}F\end{revision}\left(#1\right)}
+%\newcommand{\ilogit}[1]{\begin{revision}F\end{revision}\left(#1\right)}
+\newcommand{\ilogit}[1]{F\left(#1\right)}
 \newcommand{\logit}[1]{\text{logit}\left(#1\right)}
 \newcommand{\dnorm}[2]{\text{Normal}\left(#1,\,#2\right)}
 \newcommand{\dnormp}[2]{\text{Normal\textsuperscript{+}}\left(#1,\,#2\right)}
