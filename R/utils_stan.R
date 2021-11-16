@@ -1,14 +1,3 @@
-#' @title compile a stan model
-#' @inheritParams cmdstanr::cmdstan_model
-#' @param dir directory for compiled executables
-#' @details This is a helper for this project so you don't have to adjust any directories.
-#' It's not recommended for use outside of this project, just use cmdstanr::cmdstan_model directly.
-#' @export
-compile_stan_model <- function(stan_file, compile = TRUE, dir = file.path("stanmodels", "compiled_stan_models"), ...) {
-  cmdstanr::cmdstan_model(stan_file = stan_file, compile = compile, dir = dir, ...)
-}
-
-
 Q_sum_to_zero_QR_R <- function(N) {
   Q_r <- numeric(2*N)
 

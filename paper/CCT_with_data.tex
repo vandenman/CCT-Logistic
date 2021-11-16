@@ -8,6 +8,7 @@
 \usepackage{graphicx,verbatimbox}
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
 \usepackage{authblk}
+\usepackage{nicefrac}
 \usepackage{svg}
 
 %opening
@@ -43,14 +44,14 @@
 \tableofcontents
 
 \begin{abstract}
-	
+
 \end{abstract}
 
 \section{Introduction}
 The mental health and forensic risk factors of patients in forensic psychiatric hospitals is regularly monitored with methods such as
 Routine Outcome Monitoring \parencite{deBeurs2011ROM}.
 
-Forensic psychiatric hospitals routinely assess the 
+Forensic psychiatric hospitals routinely assess the
 
 Forensic psychiatric hospitals monitor the mental health and forensic risk factors of their patients at regular intervals, typically using a method such as Routine Outcome Monitoring \parencite{deBeurs2011ROM}.
 
@@ -148,16 +149,16 @@ Figure~\ref{model:CRM_p} shows a graphical model of the CRM with a few adjustmen
 	\label{model:CRM_p}
 \end{figure}
 Here, $x_{\Ipatient\Iitem\Irater}$ is the score given to patient $\Ipatient$ on item $\Iitem$ by rater $\Irater$.
-This score is assumed to be normally distributed with mean $\mu_{\Ipatient\Iitem\Irater}$ and standard deviation $\sigma_{\Iitem\Irater}$. 
+This score is assumed to be normally distributed with mean $\mu_{\Ipatient\Iitem\Irater}$ and standard deviation $\sigma_{\Iitem\Irater}$.
 The mean is composed of a patients true score on a particular item $\ItemTruth_{\Ipatient\Iitem}$ and a rater-specific scale $\RaterScale_\Irater$ and shift $\RaterShift_\Irater$.
 The standard deviation is comprised of an item-specific difficulty $\ItemDifficulty_\Iitem$ and a rater-specific competence $\RaterCompetence_\Irater$.
 The ratio of the item difficulty and rater competence determines how precise an answer is retrieved.
 
-There are three differences in Figure~\ref{model:CRM_p} compared to the CRM as described in \textcite{anders2014cultural}. 
+There are three differences in Figure~\ref{model:CRM_p} compared to the CRM as described in \textcite{anders2014cultural}.
 First, we do not allow for multiple cultural truths among the raters.
 In our application the raters are professionally trained and we believe the remaining rater parameters suffice to capture differences between raters.
 Second, \parencite{anders2014cultural} considered two levels of nesting, items and respondents, whereas we consider three levels of nesting, patients, items, and raters.
-By dropping the patient indices one 
+By dropping the patient indices one
 
 Third, we adjusted the prior distributions opposed
 
@@ -167,13 +168,106 @@ Another difference with respect to our previous work \parencite{vandenBergh2020c
 During simulations with a similar ratio of patients to raters, we found that this parameter cannot be reliably estimated.
 Therefore we opted to constrain this parameter across patients.
 
+\subsection{The Latent Truth Rater Model}
+The Latent Truth Rater Model (LTM) is a CCT model for ordinal data \parencite{Anders2015cultural}.
+Previously, we extended the LTM to handle data from multiple patients \parencite{vandenBergh2020cultural} and Figure~\ref{model:LTM_p} shows the LTM for multiple patients.
+\begin{figure}[!ht]
+	\begin{minipage}{0.55\textwidth}
+		\centering
+		\includegraphics[width=\textwidth, page=7]{graphicalmodels.pdf}
+	\end{minipage}\hfill
+	\begin{minipage}{0.45\textwidth}
+		{\normalsize
+			\begin{align*}
+			\oneScore &\assignment
+			\begin{cases}
+			1		&\hspace{-.3cm} \text{if } \oneAppraisal \leq \Threshold_{\Irater 1} \\
+			\Incat	&\hspace{-.3cm} \text{if } \Threshold_{\Irater, \Incat-1} < \oneAppraisal \leq \Threshold_{\Irater\Incat} \\
+			\Tncat	&\hspace{-.3cm} \text{if } \oneAppraisal > \Threshold_{\Irater, \Tncat-1}
+			\end{cases}\\
+			\oneAppraisal &\sim \dlogis{\ItemTruth_{\Ipatient\Iitem}}{\nicefrac{\ItemDifficulty_\Iitem}{\RaterCompetence_\Irater}} \\
+			\Threshold_{\Irater\Incat} &\sim \dnorm{0}{1}\\
+			\ItemTruth_{\Ipatient\Iitem}        &\sim \dnorm{\mu_\ItemTruth}{\sigma_\ItemTruth^2}\\
+			\ItemDifficulty_\Iitem   &\sim \dgammaMV{\mu_\ItemDifficulty}{\sigma_\ItemDifficulty^2} \\
+			\RaterCompetence_\Irater &\sim \dgammaMV{\mu_{\RaterCompetence_\Irater}}{\sigma_{\RaterCompetence_\Irater}^2} \\
+			\end{align*}
+		}%
+	\end{minipage}
+	\caption{%
+		Graphical model of the Latent Truth Rater Model for multiple patients.
+		Note that the thresholds $\bm{\Threshold}_\Irater$ are constrained to be ordered, that is, for all raters we have $\Threshold_{\Irater 1} \leq \dots \leq \Threshold_{\Irater \Incat} \leq \dots \leq \Threshold_{\Irater,\Tncat-1}$.
+	}
+	\label{model:LTM_p}
+\end{figure}
+
+Here, $\oneScore$ is the observed score given to patient $\Ipatient$ on item $\Iitem$ by rater $\Irater$.
+This score is assumed to be deterministically generated from a continuous latent appraisal $\Appraisal_{\Ipatient\Iitem\Irater}$ that is discretized to an ordinal scale by the thresholds $\Threshold_{\Irater\Incat}$.
+In particular, we have that
+\begin{align*}
+\oneScore =
+\left\{\begin{array}{ll}
+1		& \text{if }  \Appraisal_{\Ipatient\Iitem\Irater} \leq \Threshold_{\Irater 1} \\[4pt]
+\Incat	& \text{if }  \Threshold_{\Irater, \Incat - 1} < \Appraisal_{\Ipatient\Iitem\Irater} \leq \Threshold_{\Irater\Incat} \\[4pt]
+\Tncat	& \text{if }  \Appraisal_{\Ipatient\Iitem\Irater} > \Threshold_{\Irater,\Tncat-1}
+\end{array} \right.
+\end{align*}
+Since the appraisal score is latent, the deterministic function above implies the following probabilistic model over the observed scores:
+\begin{align*}
+P(\oneScore\mid \oneAppraisal,\bm{\Threshold}_{\Irater}) =
+\left\{\begin{array}{ll}
+1 - \cdf{\Appraisal_{\Ipatient\Iitem\Irater} - \Threshold_{\Irater 1}}         & \text{if } \oneScore = 1, \\[4pt]
+\cdf{\oneAppraisal - \Threshold_{\Irater,\Incat-1}} -
+\cdf{\oneAppraisal - \Threshold_{\Irater\Incat}}         & \text{if } 1 < \oneScore < \Tncat,\\[4pt]
+\cdf{\oneAppraisal - \Threshold_{\Irater,\Tncat-1}}       & \text{if } \oneScore = \Tncat.
+\end{array} \right.
+\end{align*}
+where $\cdf{}$ is the logistic cumulative distribution function.\footnote{%
+	Note that this choice is arbitrary and that it is possibly to use any continuous cumulative distribution function.
+}
+
+Next, we explain how the latent appraisals and thresholds come about.
+The appraisals are draws from a logistic distribution with location $\ItemTruth_{\Ipatient\Iitem}$, the true score for patient $\Ipatient$ on item $\Iitem$. The scale of the logistic distribution is the ratio of the item difficulty $\ItemDifficulty_\Iitem$ to the rater competence $\RaterCompetence_\Irater$.
+A higher item difficulty means that the appraisals are more noisy, which leads to a more dispersed probability distribution over possible scores.
+Conversely, a higher rater competence means that the appraisals are less noisy, which leads to a more concentrated distribution over the outcomes.
+There are $\Tncat - 1$ ordered thresholds for each rater, which are assigned a standard normal prior for identification purposes.
+
+There are two differences in the model specification above compared to our previous work \parencite{vandenBergh2020cultural}.
+First, we previously modeled the thresholds using two rater specific parameters.
+However, in simulations we noticed that these two parameters provide too little flexibility when the ordinal scale consists of 18 categories, as in the data at hand.
+Therefore we decided to model the thresholds individually.
+This complicates interpreting the differences between the thresholds across raters, however, that is also not the goal of this paper.
+Second, we previously allowed the item difficulty parameter to vary across patients, which captures that some items may be more difficulty or easy to assess for some patients (e.g., some patients may cooperate more than others).
+This parameter is mainly informed by the number or raters and there needs to be a sufficient amount of raters that score each patient for a reliable estimate.
+However, we noticed when simulating data with a ratio of raters to patients like in the data at hand that there are simply too few observations to reliably estimate the deviations in item difficulty across patients.
+\DB{We could also look at a patient specific ``cooperativeness'' parameter. Rather than doing $\ItemDifficulty_{\Ipatient\Iitem}$, which introduces $\Tpatient\times\Titem$ parameters, the logistic scale would become $\frac{\ItemDifficulty_\Iitem}{\RaterCompetence_\Irater \times\text{Cooperativeness}_\Ipatient}$. This introduces an additional $\Tpatient$ parameters.}
+
+
+%$\Appraisal_{\Ipatient\Iitem\Irater} \leq \Threshold_{\Irater1}$ implies that $x_{\Ipatient\Iitem\Irater} = 1$, $\Threshold_{\Irater, \Incat - 1} < \Appraisal_{\Ipatient\Iitem\Irater} \leq \Threshold_{\Irater\Incat}$ implies that $x_{\Ipatient\Iitem\Irater} = \Incat$, and $\Appraisal_{\Ipatient\Iitem\Irater} > \Threshold_{\Irater\Tncat}$ implies that $x_{\Ipatient\Iitem\Irater} = \Tncat$.
+%
+%  that distributed with mean $\mu_{\Ipatient\Iitem\Irater}$ and standard deviation $\sigma_{\Iitem\Irater}$.
+%
+%
+%Compared to our previous work, we made a few adjustments to make the model more suited for analyzing the data at hand.
+%First, we removed
+%
+%
+%Previously we modeled the thresholds using two rater specific parameters. However, during simulations we noticed that this is too restrictive when the ordinal scale consists of 18 categories, as in the data example at hand.
+
+
 \subsection{Augmenting Logistic Regression with the CRM}
-The CRM applies an information pooling strategy. Here, we use the results from the CRM, specifically the item truths for each patient, to augment prediction of aggressiveness.
+In a next step, we use the information from the LTM to predict violent behavior.
+We use logistic regression to predict violent behavior.
+Figure~\ref{model:Logistic_LTM} shows a graphical model of the logistic regression combined with the LTM.
+The latent truth for each patient on each item is seen as a covariate in the logistic regression model.
+
+%with a logistic regression
+%In our application we are not directly interested in the results of the LTM, but rather, we wish to predict violent behavior
+%The CRM applies an information pooling strategy. Here, we use the results from the CRM, specifically the item truths for each patient, to augment prediction of aggressiveness.
 
 \begin{figure}[!ht]
 %	\begin{minipage}{0.5\textwidth}
 		\centering
-		\includegraphics[width=\textwidth, page=4]{graphicalmodels.pdf}
+		\includegraphics[width=\textwidth, page=8]{graphicalmodels.pdf}
 %	\end{minipage}\hfill
 %	\begin{minipage}{0.5\textwidth}
 %		{\normalsize
@@ -189,10 +283,25 @@ The CRM applies an information pooling strategy. Here, we use the results from t
 %			\end{align*}
 %		}%
 %	\end{minipage}
-	\caption{Graphical model of Logistic Regression Augmented with the Continuous Response Model.}
-	\label{model:Logistic_CRM}
+	\caption{Graphical model of Logistic Regression Augmented with the Latent Truth Rater Model.}
+	\label{model:Logistic_LTM}
 \end{figure}
 
+\subsection{The Latent Truth Rater Model}
+
+%\begin{figure}
+%	\centering
+%	\includegraphics[width=\textwidth, page=5]{graphicalmodels.pdf}
+%	\caption{Graphical model of Logistic Regression Augmented with the Latent Truth Rater Model.}
+%	\label{model:Logistic_LTM}
+%\end{figure}
+%
+%\begin{figure}
+%	\centering
+%	\includegraphics[width=\textwidth, page=6]{graphicalmodels.pdf}
+%	\caption{Graphical model of Logistic Regression Augmented with the Latent Truth Rater Model.}
+%	\label{model:Logistic_LTM}
+%\end{figure}
 
 \subsection{Simulation Study}
 
@@ -209,7 +318,7 @@ Here we discuss missing data handling and the data reduction techniques applied.
 
 \paragraph{Missing values}
 The four alternative methods do not handle missing values.
-Although listwise deletion is an option, this results in rather 
+Although listwise deletion is an option, this results in rather
 We use the R package \code{mice} \parencite{vanBuuren2011mice} to impute missing values.
 Rather than imputing one single value for each missing observation, \code{mice} imputes multiple, which leads to multiple data sets.
 While this increases the computational complexity of the procedures, it also propagates uncertainty about the missing observations to the results.
@@ -232,42 +341,42 @@ Hybrid is probably most predictive.
 
 \printbibliography
 
-\appendix
-\section{EM Algorithm}
-
-Initial values are found using a few steps of an EM-algorithm that disregards the priors and hyperparameters.
-\begin{align*}
-	\RaterShift_\Irater &\sim \prod_{\Ipatient=1}^\Tpatient\prod_{\Iitem=1}^\Titem \dnorm{x_{pir} - \RaterScale_\Irater\ItemTruth_{\Ipatient\Iitem}}{\left(\ItemDifficulty_\Iitem\RaterCompetence_\Irater\right)^2} \\
-	\RaterScale_\Irater &\sim \prod_{\Ipatient=1}^\Tpatient\prod_{\Iitem=1}^\Titem 
-	\dnorm{\frac{
-			\RaterShift_\Irater - x_{pir}
-		}{
-			\ItemTruth_{\Ipatient\Iitem}
-		}}{
-		\left(\frac{
-			\ItemDifficulty_\Iitem\RaterCompetence_\Irater
-		}{
-			\left|\ItemTruth_{\Ipatient\Iitem}\right|}\right)^2
-		} \\
-	\ItemTruth_{\Ipatient\Iitem} &\sim \prod_{\Irater=1}^\Trater
-	\dnorm{\frac{
-			x_{pir} - \RaterShift_\Irater
-		}{
-			\RaterScale_\Irater
-		}}{
-		\left(\frac{
-			\ItemDifficulty_\Iitem\RaterCompetence_\Irater
-		}{
-			\RaterScale_\Irater}\right)^2
-	} \\
-	\RaterCompetence_\Irater^2 &\sim \dinvgamma{\frac{\Tpatient\Titem}{2}-1}{
-		\sum_{\Iitem=1}^\Titem \frac{1}{2\ItemDifficulty_\Iitem^{2}}\sum_{\Ipatient=1}^\Tpatient
-		\left(x_{pir} - \RaterScale_\Irater\ItemTruth_{\Ipatient\Iitem} - \RaterShift_\Irater\right)^2
-	}\\
-	\ItemDifficulty_\Iitem^2 &\sim \dinvgamma{\frac{\Tpatient\Trater}{2}-1}{
-		\sum_{\Irater=1}^\Trater \frac{1}{2\RaterCompetence_\Irater^{2}}\sum_{\Ipatient=1}^\Tpatient
-		\left(x_{pir} - \RaterScale_\Irater\ItemTruth_{\Ipatient\Iitem} - \RaterShift_\Irater\right)^2
-	}
-\end{align*}
+%\appendix
+%\section{EM Algorithm}
+%
+%Initial values are found using a few steps of an EM-algorithm that disregards the priors and hyperparameters.
+%\begin{align*}
+%	\RaterShift_\Irater &\sim \prod_{\Ipatient=1}^\Tpatient\prod_{\Iitem=1}^\Titem \dnorm{x_{pir} - \RaterScale_\Irater\ItemTruth_{\Ipatient\Iitem}}{\left(\ItemDifficulty_\Iitem\RaterCompetence_\Irater\right)^2} \\
+%	\RaterScale_\Irater &\sim \prod_{\Ipatient=1}^\Tpatient\prod_{\Iitem=1}^\Titem
+%	\dnorm{\frac{
+%			\RaterShift_\Irater - x_{pir}
+%		}{
+%			\ItemTruth_{\Ipatient\Iitem}
+%		}}{
+%		\left(\frac{
+%			\ItemDifficulty_\Iitem\RaterCompetence_\Irater
+%		}{
+%			\left|\ItemTruth_{\Ipatient\Iitem}\right|}\right)^2
+%		} \\
+%	\ItemTruth_{\Ipatient\Iitem} &\sim \prod_{\Irater=1}^\Trater
+%	\dnorm{\frac{
+%			x_{pir} - \RaterShift_\Irater
+%		}{
+%			\RaterScale_\Irater
+%		}}{
+%		\left(\frac{
+%			\ItemDifficulty_\Iitem\RaterCompetence_\Irater
+%		}{
+%			\RaterScale_\Irater}\right)^2
+%	} \\
+%	\RaterCompetence_\Irater^2 &\sim \dinvgamma{\frac{\Tpatient\Titem}{2}-1}{
+%		\sum_{\Iitem=1}^\Titem \frac{1}{2\ItemDifficulty_\Iitem^{2}}\sum_{\Ipatient=1}^\Tpatient
+%		\left(x_{pir} - \RaterScale_\Irater\ItemTruth_{\Ipatient\Iitem} - \RaterShift_\Irater\right)^2
+%	}\\
+%	\ItemDifficulty_\Iitem^2 &\sim \dinvgamma{\frac{\Tpatient\Trater}{2}-1}{
+%		\sum_{\Irater=1}^\Trater \frac{1}{2\RaterCompetence_\Irater^{2}}\sum_{\Ipatient=1}^\Tpatient
+%		\left(x_{pir} - \RaterScale_\Irater\ItemTruth_{\Ipatient\Iitem} - \RaterShift_\Irater\right)^2
+%	}
+%\end{align*}
 
 \end{document}

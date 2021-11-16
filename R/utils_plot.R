@@ -11,7 +11,7 @@ pplot <- function(x, y, ...) {
 }
 
 #' @export
-scatterplot_retrieval <- function(tib, mapping = NULL, facets = ~parameter, scales = "free") {
+scatterplot_retrieval <- function(tib, mapping = NULL, facets = ~parameter, scales = "free", labeller = NULL) {
 
   assert_that(nrow(tib) > 0L)
 
@@ -32,10 +32,16 @@ scatterplot_retrieval <- function(tib, mapping = NULL, facets = ~parameter, scal
     ncol <- NULL
   }
 
+  label_data <- tib |>
+    dplyr::group_by(parameter) |>
+    dplyr::summarize(cor = cor(true_value, estimate), rmse = sqrt(mean((true_value - estimate)^2)))
+  labels <- setNames(sprintf("%s cor:%.3f rmse:%.3f", label_data$parameter, label_data$cor, label_data$rmse), label_data$parameter)
+  labeller <- labeller %||% ggplot2::labeller(parameter = labels)
+
   ggplot(data = tib, mapping = mapping) +
     geom_abline() +
     geom_point() +
-    facet_wrap(facets = facets, scales = scales, ncol = ncol) +
+    facet_wrap(facets = facets, scales = scales, ncol = ncol, labeller = labeller) +
     color_scale +
     theme_bw()
 }

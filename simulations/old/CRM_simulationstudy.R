@@ -381,10 +381,20 @@ post_means |> subset( parameter %in% c("mus", "sds")) |> scatterplot_retrieval()
 
 system("beep_finished.sh")
 
+post_means <- tibble(parameter = rep(letters[1:4], each = 100), param_index = rep(1:100, 4), bias = rnorm(400), color = runif(400))
 post_means |>
   subset(!parameter %in% c("mus", "sds")) |>
   ggplot(mapping = aes(x = param_index, y = bias, color = color)) +
   geom_abline(intercept = 0, slope = 0) +
+  geom_point() +
+  facet_wrap(facets = ~parameter, scales = "free") +
+  scale_colour_gradientn(colours = terrain.colors(10)) +
+  theme_bw()
+
+post_means |>
+  subset(!parameter %in% c("mus", "sds")) |>
+  ggplot(mapping = aes(x = param_index, y = bias, color = color)) +
+  jaspGraphs::geom_abline2(intercept = 0, slope = 0, method = "ggpl") +
   geom_point() +
   facet_wrap(facets = ~parameter, scales = "free") +
   scale_colour_gradientn(colours = terrain.colors(10)) +

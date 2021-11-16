@@ -16,10 +16,13 @@
 
 ### LTRM
 
-- [ ] Run normal LTRM on the items. Somehow check if results make sense.
+- [x] Run normal LTRM on the items. Somehow check if results make sense.
 - [ ] Add logistic regression to LTRM to do predictions.
 - [ ] Find references on IFBE questionnaire.
-- [ ] try the QR trick for the sum to zero constraint rather than what I do now
+- [x] try the QR trick for the sum to zero constraint rather than what I do now
+
+- [ ] S3 method for converting to Stan.
+- [ ] add implied thresholds instead of "free_thresholds".
 
 
 ### Discuss with EJ

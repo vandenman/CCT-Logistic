@@ -13,3 +13,4 @@
 
 random/*
 /saved_stan_models/logistic_fit.RData.rds
+/fitted_objects/*

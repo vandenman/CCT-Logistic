@@ -31,7 +31,7 @@ functions {
   }
   real ordered_logistic_pmf_simplified(int x, real location, real scale, real threshold_scale, real threshold_shift, vector default_thresholds, int nc) {
     if (x == 1) {
-      return log1m(inv_logit((location - threshold_shift - threshold_scale * default_thresholds[x    ]) / scale));
+      return log1m_inv_logit((location - threshold_shift - threshold_scale * default_thresholds[x    ]) / scale);
     } else if (x == nc) {
       return log_inv_logit((location - threshold_shift - threshold_scale * default_thresholds[x - 1]) / scale);
     } else {
@@ -188,12 +188,32 @@ profile("likelihood") {
     int i = idx_item[o];
     int r = idx_rater[o];
 
-    real scale = exp(log_lambda[i] - log_E[r]);
-    real location = lt[p, i];
+    real val = ordered_logistic_pmf_simplified(
+      x[o],
+      lt[p, i],
+      exp(log_lambda[i] - log_E[r]), // scale
+      exp(log_a[r]),
+      b[r],
+      lambda,
+      nc
+    );
 
-    vector[nt] delta = exp(log_a[r]) * lambda + b[r];
+    // if (is_inf(val) || is_nan(val)) {
+    //
+    //   print(val);
+    //   print(x[o]);
+    //   print(lt[p, i]);
+    //   print(exp(log_lambda[i] - log_E[r]));
+    //   print(exp(log_a[r]));
+    //   print(b[r]);
+    //   print(lambda);
+    //   print(nc);
+    //
+    // }
 
-    x[o] ~ ordered_logistic(location / scale, delta ./ scale);
+
+    // real ordered_logistic_pmf_simplified(int x, real location, real scale, real threshold_scale, real threshold_shift, vector default_thresholds, int nc) {
+    target += val;
 
   }
 
