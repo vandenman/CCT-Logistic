@@ -20,7 +20,7 @@ mod <- cmdstanr::cmdstan_model("stanmodels/extendedCRM_long_new_no_genq.stan",
                                dir = "stanmodels",
                                pedantic = TRUE, quiet = FALSE)
 
-stan_data <- crm_data_2_stan(dat, vectorized = FALSE)
+stan_data <- data_2_stan(dat, vectorized = FALSE)
 
 vb_init_fit <- mod$variational(data = stan_data, iter = 3e4, grad_samples = 3, elbo_samples = 2, adapt_iter = 500, output_samples = 5e3,
                           init = list(em_tib_to_init(em_tib, dat)))

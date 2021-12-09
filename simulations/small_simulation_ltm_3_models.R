@@ -8,9 +8,9 @@ library(dplyr)
 fit_all_three_models <- function(data, model, iter = 3e4, adapt_iter = 500, output_samples = 2e3, grad_samples = 5, elbo_samples = 5, debug = TRUE, force = FALSE,
                                  path_prefix = "") {
 
-  stan_data_orig <- ltm_data_2_stan(data, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = FALSE)
-  stan_data_skew <- ltm_data_2_stan(data, debug = debug, use_skew_logistic_thresholds = TRUE,  use_free_logistic_thresholds = FALSE)
-  stan_data_free <- ltm_data_2_stan(data, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE)
+  stan_data_orig <- data_2_stan(data, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = FALSE)
+  stan_data_skew <- data_2_stan(data, debug = debug, use_skew_logistic_thresholds = TRUE,  use_free_logistic_thresholds = FALSE)
+  stan_data_free <- data_2_stan(data, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE)
 
   if (path_prefix != "" && !endsWith(path_prefix, "_"))
     path_prefix <- paste0(path_prefix, "_")

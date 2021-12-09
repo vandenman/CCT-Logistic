@@ -14,9 +14,9 @@ fit_all_three_models <- function(data, model, iter = 3e4, adapt_iter = 500, outp
   if (path_prefix != "" && !endsWith(path_prefix, "_"))
     path_prefix <- paste0(path_prefix, "_")
 
-  stan_data_orig <- logistic_regression_ltm_data_2_stan(data, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = FALSE)
-  stan_data_skew <- logistic_regression_ltm_data_2_stan(data, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = TRUE,  use_free_logistic_thresholds = FALSE)
-  stan_data_free <- logistic_regression_ltm_data_2_stan(data, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE)
+  stan_data_orig <- data_2_stan(data, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = FALSE)
+  stan_data_skew <- data_2_stan(data, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = TRUE,  use_free_logistic_thresholds = FALSE)
+  stan_data_free <- data_2_stan(data, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE)
 
   path_orig <- file.path("fitted_objects", sprintf("%slog_reg_3_models_orig_thresholds.rds", path_prefix))
   path_skew <- file.path("fitted_objects", sprintf("%slog_reg_3_models_skew_thresholds.rds", path_prefix))

@@ -17,7 +17,7 @@ dat <- simulate_data_ltm(np, ni, nr, nc, no_rater_groups = no_rater_groups, use_
 mod_sparse <- compile_stan_model("stanmodels/LTM.stan",                 pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels")
 mod_free   <- compile_stan_model("stanmodels/LTM_free_thresholds.stan", pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels")
 
-stan_data <- ltm_data_2_stan(dat, debug = TRUE)
+stan_data <- data_2_stan(dat, debug = TRUE)
 
 path_fit_vb1 <- file.path("fitted_objects", "simulation_ltm_sparse_fixed_thresholds.rds")
 path_fit_vb2 <- file.path("fitted_objects", "simulation_ltm_sparse_free_thresholds.rds")
@@ -72,7 +72,7 @@ inspect_probability_plot(c(observed_proportions), c(model_probabilities_free))  
 set.seed(1234)
 dat_free <- simulate_data_ltm(np, ni, nr, nc, no_rater_groups = no_rater_groups, use_free_thresholds = TRUE)
 
-stan_data <- ltm_data_2_stan(dat_free, debug = TRUE)
+stan_data <- data_2_stan(dat_free, debug = TRUE)
 
 path_fit_vb1 <- file.path("fitted_objects", "simulation_ltm_free_fixed_thresholds.rds")
 path_fit_vb2 <- file.path("fitted_objects", "simulation_ltm_free_free_thresholds.rds")

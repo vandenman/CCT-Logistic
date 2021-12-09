@@ -29,3 +29,13 @@
 
 - [ ] Approach where the 4 current methods use "stupidly" average the ratings
 - [ ] Approaches for predictions based on partial information
+
+
+### TODO
+
+- [x] combine logistic with non-logistic model into one Stan file?
+- [ ] two time points!
+- [ ] additional patient parameter
+
+- [ ] add bool for running logistic regression or not
+

@@ -35,23 +35,30 @@ simulate_logistic_regression.ltm_data <- function(np, no_covariates, slopes = NU
   ltm_data <- np
   np <- ltm_data$np
   ni <- ltm_data$ni
+  no_time_points <- ltm_data$no_time_points
 
   assert_that(is.count(no_covariates))
 
   design_matrix <- design_matrix %||% cbind(1, center(matrix(rnorm(np * (no_covariates - 1L)), np, no_covariates - 1L)))
   slopes        <- slopes        %||% rnorm(no_covariates)
-  slopes_items  <- slopes_items  %||% rnorm(ni)
+  slopes_items  <- slopes_items  %||% rnorm(ni * no_time_points)
 
   assert_that(
     is.matrix(design_matrix),
     ncol(design_matrix)  == no_covariates,
     nrow(design_matrix)  == np,
     length(slopes)       == no_covariates,
-    length(slopes_items) == ni
+    length(slopes_items) == ni * no_time_points
   )
 
-  design_matrix <- cbind(design_matrix, ltm_data$parameters$lt)
-  slopes        <- c(slopes, slopes_items)
+  if (no_time_points == 1L)
+    design_matrix <- cbind(design_matrix, ltm_data$parameters$lt)
+  else
+    design_matrix <- cbind(design_matrix,
+                           ltm_data$parameters$lt - ltm_data$parameters$offset_lt,
+                           ltm_data$parameters$lt + ltm_data$parameters$offset_lt)
+
+  slopes <- c(slopes, slopes_items)
 
   log_reg <- simulate_logistic_regression(np, ncol(design_matrix), slopes, design_matrix)
 
@@ -65,7 +72,7 @@ simulate_logistic_regression.ltm_data <- function(np, no_covariates, slopes = NU
 }
 
 #' @export
-logistic_regression_ltm_data_2_stan <- function(dat, store_predictions = FALSE, ...) {
+data_2_stan.logistic_regression_ltm_data <- function(dat, store_predictions = FALSE, ...) {
 
   assert_that(is.flag(store_predictions), inherits(dat, "logistic_regression_ltm_data"))
 

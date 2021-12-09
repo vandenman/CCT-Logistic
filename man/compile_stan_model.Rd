@@ -24,7 +24,10 @@ method.}
 \item{dir}{directory for compiled executables}
 
 \item{...}{Optionally, additional arguments to pass to the
-\code{\link[cmdstanr:model-method-compile]{$compile()}} method if \code{compile=TRUE}.}
+\code{\link[cmdstanr:model-method-compile]{$compile()}} method if \code{compile=TRUE}. These
+options include specifying the directory for saving the executable, turning
+on pedantic mode, specifying include paths, configuring C++ options, and
+more. See \code{\link[cmdstanr:model-method-compile]{$compile()}} for details.}
 }
 \description{
 compile a stan model

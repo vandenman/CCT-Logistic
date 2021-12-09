@@ -8,7 +8,7 @@ assert_counts <- function (np, ni, nr, no_rater_groups) {
   )
 }
 
-validate_parameter_dimensions <- function(np, ni, nr, log_a, b, log_E, lt, log_lambda, vary_lambda_across_patients = FALSE) {
+validate_parameter_dimensions <- function(np, ni, nr, no_time_points, log_a, b, log_E, lt, log_lambda, offset_lt, vary_lambda_across_patients = FALSE) {
   assert_that(
     all(dim(lt)         == c(np, ni)),
     length(log_a)       == nr,
@@ -19,6 +19,11 @@ validate_parameter_dimensions <- function(np, ni, nr, log_a, b, log_E, lt, log_l
     assert_that(all(dim(log_lambda) == c(ni, np)))
   else
     assert_that(length(log_lambda) == ni)
+
+  if (no_time_points == 1L)
+    assert_that(all(dim(offset_lt) == c(0, 0)))
+  else
+    assert_that(all(dim(offset_lt) == c(np, ni)))
 }
 
 

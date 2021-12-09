@@ -15,19 +15,48 @@ compile_stan_model <- function(stan_file, compile = TRUE, dir = file.path("stanm
 #' @param force if TRUE, ignore any saved results the
 #' @details if path exists and force is FALSE it loads the results with `readRDS`. Otherwise, evaluate `expr`.
 #' @export
-save_or_run_model <- function(expr, path, force) {
+save_or_run_model <- function(expr, path, force, max_retries = 1L) {
 
+  assert_that(is.bool(force), is.count(max_retries), dir.exists(dirname(path)))
   if (file.exists(path) && !force) {
     return(readRDS(path))
   } else {
-    fit <- force(expr)
-    if (inherits(fit, "CmdStanFit")) {
+
+    successful_expr <- function(fit) {
+      !is_try_error(fit) && (!is_CmdStanFit(fit) || all(fit$return_codes() == 0L))
+    }
+
+    call <- substitute(expr)
+
+    for (i in seq_len(max_retries)) {
+
+      if (max_retries > 1L)
+        cat(sprintf("try: %d\n", i))
+
+      fit <- try(eval(call, envir = parent.frame(1L)))
+
+      if (successful_expr(fit))
+        break
+
+    }
+
+    if (!successful_expr(fit)) {
+      stop("failed to run expr after ", max_retries, " retries.")
+    } else if (is_CmdStanFit(fit)) {
       fit$save_object(path)
     } else {
       saveRDS(fit, file = path)
     }
     return(fit)
   }
+}
+
+is_try_error <- function(x) {
+  inherits(x, "try-error")
+}
+
+is_CmdStanFit <- function(x) {
+  inherits(x, "CmdStanFit")
 }
 
 get_params <- function(fit, filter = "lp__|lp_approx__|_raw|sd_|mu_|log_probs") {

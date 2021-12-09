@@ -60,7 +60,7 @@ simulate_data_crm <- function(np, ni, nr, no_rater_groups = 4L,
   # browser()
   df$score  <- rnorm(nrow(df), locations, scales)
 
-  return(list(
+  res <- list(
     df = df,
     np = np, ni = ni, nr = nr, no_rater_groups = no_rater_groups,
     rater_group_assignment = rater_group_assignment,
@@ -69,12 +69,15 @@ simulate_data_crm <- function(np, ni, nr, no_rater_groups = 4L,
       log_a = log_a, b = b, log_E = log_E,
       locations = locations, scales = scales
     )
-  ))
+  )
+  class(res) <- "crm_data"
+
+  return(res)
 
 }
 
 #' @export
-crm_data_2_stan <- function(dat, prior_only = FALSE, debug = TRUE, vary_lambda_across_patients = FALSE, vectorized = FALSE,
+data_2_stan.crm_data <- function(dat, prior_only = FALSE, debug = TRUE, vary_lambda_across_patients = FALSE, vectorized = FALSE,
                        mu_log_lambda = 0, mu_log_a = 0, mu_b = 0,
                        a_sd_lt         = 1,   b_sd_lt         = 1,
                        a_sd_log_lambda = 1.1, b_sd_log_lambda = 1.1,

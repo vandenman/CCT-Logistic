@@ -227,7 +227,7 @@ parameters{
   // conditional hyperparameters
   vector           [use_free_logistic_thresholds ? 0 : no_rater_groups] mu_b;
   vector<lower = 0>[use_free_logistic_thresholds ? 0 : no_rater_groups] sd_b;
-  vector<lower = 0>[use_free_logistic_thresholds ? 0 : no_rater_groups] log_sd_log_a_raw;
+  vector           [use_free_logistic_thresholds ? 0 : no_rater_groups] log_sd_log_a_raw;
 
   // logistic regression
   real                       log_reg_intercept;

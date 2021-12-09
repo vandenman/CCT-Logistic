@@ -4,7 +4,7 @@
 \alias{save_or_run_model}
 \title{run a stan model}
 \usage{
-save_or_run_model(expr, path, force)
+save_or_run_model(expr, path, force, max_retries = 1L)
 }
 \arguments{
 \item{expr}{some R expression}

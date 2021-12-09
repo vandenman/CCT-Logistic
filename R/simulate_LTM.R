@@ -1,5 +1,5 @@
 #' @export
-simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L,
+simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L, no_time_points = 1L,
                           lt = NULL, log_lambda = NULL, log_a = NULL, b = NULL, log_E = NULL, threshold_shape = NULL,
                           mu_log_a = NULL, sd_log_a = NULL, mu_b = NULL, sd_b = NULL, mu_log_E = NULL, sd_log_E = NULL,
                           return_mus_sds = TRUE, vary_lambda_across_patients = NULL, store_probabilities = FALSE,
@@ -11,7 +11,8 @@ simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L,
     is.flag(store_probabilities),
     is.flag(use_skew_thresholds),
     is.flag(use_free_thresholds),
-    !(use_skew_thresholds && use_free_thresholds)
+    !(use_skew_thresholds && use_free_thresholds),
+    is.count(no_time_points) && no_time_points >= 1L && no_time_points <= 2L
   )
 
 
@@ -55,7 +56,9 @@ simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L,
     threshold_shape %||% rnorm(nr, 1)
   }
 
-  validate_parameter_dimensions(np, ni, nr, log_a, b, log_E, lt, log_lambda, vary_lambda_across_patients)
+  offset_lt <- if (no_time_points == 2L) matrix(rnorm(np*ni), np, ni) else matrix(NA_real_, 0, 0)
+
+  validate_parameter_dimensions(np, ni, nr, no_time_points, log_a, b, log_E, lt, log_lambda, offset_lt, vary_lambda_across_patients)
 
   df <- tibble::tibble(
     patient     = rep(seq_len(np),                times = ni * nr),
@@ -64,7 +67,12 @@ simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L,
     rater_group = rater_group_assignment[rater]
   )
 
-  assertthat::assert_that(nrow(df) == np * ni * nr)
+  if (no_time_points == 2L) {
+    df <- rbind(df, df)
+    df[["time_point"]] <- rep(1:2, each = np * ni * nr)
+  }
+
+  assertthat::assert_that(nrow(df) == np * ni * nr * no_time_points)
 
   threshold_probs <- seq_len(nc-1L) / nc
   gamma <- (1:(nc - 1))
@@ -98,6 +106,12 @@ simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L,
     location <- lt[p, i]
     scale    <- exp(log_lambda[i] - log_E[r])
 
+    if (no_time_points == 2L) {
+      t <- df$time_point[o]
+      # (2 * t - 3) maps 1:2 to c(-1, 1)
+      location <- location + (2 * t - 3) * offset[p, i]
+    }
+
     prob <- get_probs_ordered(delta, location, scale)
     score[o] <- sample(nc, 1L, prob = prob)
 
@@ -118,14 +132,15 @@ simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L,
 
   res <- list(
     df = df,
-    np = np, ni = ni, nr = nr, nc = nc, no_rater_groups = no_rater_groups,
+    np = np, ni = ni, nr = nr, nc = nc, no_rater_groups = no_rater_groups, no_time_points = no_time_points,
     rater_group_assignment = rater_group_assignment,
     parameters = list(
       lt = lt, log_lambda = log_lambda,
       log_a = log_a, b = b, log_E = log_E,
       threshold_shape = threshold_shape,
       free_thresholds = free_thresholds,
-      probabilities = probs
+      probabilities = probs,
+      offset_lt = offset_lt
     ),
     parameters_used = parameters_used
   )
@@ -211,7 +226,12 @@ log_likelihood_ltm.data.frame <- function(x, nc = NULL, log_a, b, log_E, lt, log
 }
 
 #' @export
-ltm_data_2_stan <- function(dat, nc = NULL, prior_only = FALSE, debug = TRUE, vary_lambda_across_patients = FALSE, vectorized = FALSE,
+data_2_stan <- function(dat, ...) {
+  UseMethod("data_2_stan", dat)
+}
+
+#' @export
+data_2_stan.ltm_data <- function(dat, nc = NULL, prior_only = FALSE, debug = TRUE, vary_lambda_across_patients = FALSE, vectorized = FALSE,
                             use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE,
                        mu_log_lambda = 0, mu_log_a = 0, mu_b = 0,
                        a_sd_lt         = 1,   b_sd_lt         = 1,
@@ -231,6 +251,9 @@ ltm_data_2_stan <- function(dat, nc = NULL, prior_only = FALSE, debug = TRUE, va
     nc   <- dat$nc
     no_rater_groups <- dat$no_rater_groups
     rater_group_assignment <- dat$rater_group_assignment
+    no_time_points <- dat$no_time_points
+    idx_time_point <- as.integer(x_df$time_point)
+
 
   } else {
 
@@ -243,6 +266,8 @@ ltm_data_2_stan <- function(dat, nc = NULL, prior_only = FALSE, debug = TRUE, va
     no_rater_groups <- if (!is.null(x_df$rater_group)) max(x_df$rater_group) else 1L
     rater_group_assignment <- x_df$rater_group[!duplicated(x_df$rater)]
 
+    idx_time_point <- x_df$time_point %||% integer()
+    no_time_points <- max(idx_time_point)
   }
 
   assert_counts(np, ni, nr, no_rater_groups)
@@ -282,6 +307,7 @@ ltm_data_2_stan <- function(dat, nc = NULL, prior_only = FALSE, debug = TRUE, va
     ni                  = ni,
     nr                  = nr,
     nc                  = nc,
+    no_time_points      = no_time_points,
     no_rater_groups     = no_rater_groups,
 
     n_observed          = length(x_df$score),
@@ -289,6 +315,7 @@ ltm_data_2_stan <- function(dat, nc = NULL, prior_only = FALSE, debug = TRUE, va
     idx_item            = as.integer(x_df$item),
     idx_rater           = as.integer(x_df$rater),
     idx_rater_group     = as.integer(rater_group_assignment),
+    idx_time_point      = idx_time_point,
     rater_group_counts  = as.integer(unname(c(table(rater_group_assignment)))),
 
     n_missing           = 0L,

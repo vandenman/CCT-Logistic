@@ -60,7 +60,7 @@ When setting appropriate starting values this happened less often.
 
 ```{r fit vb, cache=TRUE}
 # convert the data to something suited for cmdstanr
-stan_data <- crm_data_2_stan(dat)
+stan_data <- data_2_stan(dat)
 # extract initial values from em for vb
 init <- list(em_tib_to_init(em_tib, dat))
 

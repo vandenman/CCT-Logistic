@@ -96,7 +96,7 @@ vector raw_to_constrained(vector raw_vec, vector mu, vector log_sd, vector qr, i
   vector [len] temp = exp(log_sd)[group_idx] .* sum_to_zero_QR(raw_vec, qr, len);
 
   // TODO: this requires that the input idx_rater_group is sorted, which is not yet guaranteed!
-  // adapted from https://mc-stan.org/docs/2_28/stan-users-guide/ragged-data-structs-section.html
+  // adapted from https://mc-stan.org/docs/2_27/stan-users-guide/ragged-data-structs-section.html
   int pos = 1;
   vector [no_groups] temp_means;
   for (i in 1:no_groups) {
@@ -120,6 +120,12 @@ data{
   int<lower = 0, upper = 1> use_skew_logistic_thresholds;
   int<lower = 0, upper = 1> use_free_logistic_thresholds;
 
+  // fit logistic regression or not?
+  int<lower = 0, upper = 1> fit_logistic;
+
+  // logistic regression
+  int<lower = 0, upper = 1> store_predictions;
+
   // sizes
   int<lower = 1> n_observed;
   int<lower = 0> n_missing;
@@ -129,6 +135,7 @@ data{
   int<lower = 2> nc;
   int<lower = 1> no_rater_groups;
   int<lower = 1> rater_group_counts[no_rater_groups];
+  int<lower = 0, upper = 1> no_time_points;
 
   // observed data
   int x[n_observed];
@@ -138,7 +145,16 @@ data{
   int<lower = 1, upper = ni> idx_item   [n_observed];
   int<lower = 1, upper = np> idx_patient[n_observed];
 
+  int<lower = 1, upper = no_time_points>  idx_time_point[n_observed];
+
   int<lower = 1, upper = no_rater_groups> idx_rater_group[nr];
+
+  // logistic regression data
+  int<lower = 0, upper = 1>      log_reg_outcomes[np];
+  int<lower = 0>                 no_covariates;
+  // this is not space efficient, but required for bernoulli_logit_glm
+  matrix[np, no_covariates]      design_matrix_covariates;
+  // matrix[np, n_covariates + ni]  design_matrix;
 
   // missing data
   int<lower = 1, upper = nr> idx_rater_missing  [n_missing];
@@ -185,6 +201,12 @@ transformed data{
     default_threshold_probs[t] = tt / nc;
   }
 
+  int ones_np[store_predictions ? np : 0];
+  if (store_predictions) {
+    for (p in 1:np) {
+      ones_np[p] = 1;
+    }
+  }
 
 }
 parameters{
@@ -212,6 +234,14 @@ parameters{
   vector           [use_free_logistic_thresholds ? 0 : no_rater_groups] mu_b;
   vector<lower = 0>[use_free_logistic_thresholds ? 0 : no_rater_groups] sd_b;
   vector           [use_free_logistic_thresholds ? 0 : no_rater_groups] log_sd_log_a_raw;
+
+  // logistic regression
+  vector[fit_logistic ? 1                  : 0] log_reg_intercept;
+  vector[fit_logistic ? no_covariates + ni : 0] log_reg_slopes;
+
+  // time offsets
+  matrix[no_time_points > 0 ? np : 0, no_time_points > 0 ? ni : 0] offset_lt;
+
 
 }
 transformed parameters {
@@ -261,6 +291,7 @@ transformed parameters {
 
     }
   }
+
 }
 model{
   // hyperpriors
@@ -300,6 +331,9 @@ model{
   if (use_skew_logistic_thresholds)
     threshold_shape ~ std_normal();
 
+  if (no_time_points > 0)
+    offset_lt ~ std_normal();
+
   // likelihood in long form
   for (o in 1:n_observed) {
 
@@ -309,6 +343,14 @@ model{
 
     real location = lt[p, i];
     real scale = exp(log_lambda[i, vary_lambda_across_patients ? p : 1] - log_E[r]);
+
+    if (no_time_points > 0) {
+
+      int t = idx_time_point[o];
+      // (2 * t - 3) maps {1, 2} to {-1, 1}
+      location += (2 * t - 3) * offset_lt[p, i];
+
+    }
 
     if (use_free_logistic_thresholds) {
 
@@ -337,9 +379,21 @@ model{
           default_thresholds,
           nc
         );
+
       }
     }
   }
+
+  // logistic regression
+  if (fit_logistic) {
+    // priors
+    log_reg_intercept ~ std_normal();
+    log_reg_slopes    ~ std_normal();
+
+    // this could be fused into the loop above
+    log_reg_outcomes ~ bernoulli_logit_glm(append_col(design_matrix_covariates, lt), log_reg_intercept, log_reg_slopes);
+  }
+
 }
 generated quantities {
 
@@ -386,6 +440,15 @@ generated quantities {
           }
         }
       }
+    }
+  }
+
+  vector<lower = 0, upper = 1>[store_predictions ? np : 0] log_reg_predictions;
+  if (store_predictions) {
+    for (p in 1:np) {
+      real alpha = log_reg_intercept + dot_product(design_matrix_covariates[p, ], log_reg_slopes[1:no_covariates]) + dot_product(lt[p, ], log_reg_slopes[(no_covariates + 1):(no_covariates + ni)]);
+      log_reg_predictions[p] = exp(bernoulli_logit_lpmf(1 | alpha));
+      // bernoulli_logit_glm_lpmf(ones_np | append_col(design_matrix_covariates, lt), log_reg_intercept, log_reg_slopes);
     }
   }
 }
