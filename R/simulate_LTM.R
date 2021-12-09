@@ -109,7 +109,7 @@ simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L, no_time_poin
     if (no_time_points == 2L) {
       t <- df$time_point[o]
       # (2 * t - 3) maps 1:2 to c(-1, 1)
-      location <- location + (2 * t - 3) * offset[p, i]
+      location <- location + (2 * t - 3) * offset_lt[p, i]
     }
 
     prob <- get_probs_ordered(delta, location, scale)
