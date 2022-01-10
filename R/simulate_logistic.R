@@ -29,6 +29,11 @@ simulate_logistic_regression.default <- function(np, no_covariates, slopes = NUL
 }
 
 #' @export
+is.logistic_regression_data <- function(x) {
+  inherits(x, "logistic_regression_data")
+}
+
+#' @export
 simulate_logistic_regression.ltm_data <- function(np, no_covariates, slopes = NULL, design_matrix = NULL, slopes_items = NULL, ...) {
 
   # ensure names make sense
@@ -72,14 +77,20 @@ simulate_logistic_regression.ltm_data <- function(np, no_covariates, slopes = NU
 }
 
 #' @export
+is.logistic_regression_ltm_data <- function(x) {
+  inherits(x, "logistic_regression_ltm_data")
+}
+
+#' @export
 data_2_stan.logistic_regression_ltm_data <- function(dat, store_predictions = FALSE, ...) {
 
   assert_that(is.flag(store_predictions), inherits(dat, "logistic_regression_ltm_data"))
 
-  ni <- dat$ltm_data$ni
-  no_covariates <- ncol(dat$log_reg$design_matrix) - 1L - ni
+  ni             <- dat$ltm_data$ni
+  no_time_points <- dat$ltm_data$no_time_points
+  no_covariates  <- ncol(dat$log_reg$design_matrix) - 1L - ni * no_time_points
 
-  res <- ltm_data_2_stan(dat$ltm_data, ...)
+  res <- data_2_stan(dat$ltm_data, ...)
 
   res$store_predictions        <- store_predictions
   res$log_reg_outcomes         <- dat$log_reg$y
@@ -87,6 +98,7 @@ data_2_stan.logistic_regression_ltm_data <- function(dat, store_predictions = FA
   # the final columns contain the true values for lt, which we also drop
   res$design_matrix_covariates <- dat$log_reg$design_matrix[, seq(2L, 1L + no_covariates), drop = FALSE]
   res$no_covariates            <- no_covariates
+  res$fit_logistic             <- 1L
 
   return(res)
 

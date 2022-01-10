@@ -3,7 +3,11 @@ simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L, no_time_poin
                           lt = NULL, log_lambda = NULL, log_a = NULL, b = NULL, log_E = NULL, threshold_shape = NULL,
                           mu_log_a = NULL, sd_log_a = NULL, mu_b = NULL, sd_b = NULL, mu_log_E = NULL, sd_log_E = NULL,
                           return_mus_sds = TRUE, vary_lambda_across_patients = NULL, store_probabilities = FALSE,
-                          use_skew_thresholds = FALSE, use_free_thresholds = FALSE) {
+                          threshold_type = c("logistic", "skew_logistic", "free")) {
+
+  threshold_type <- match.arg(threshold_type)
+  use_skew_thresholds <- threshold_type == "skew"
+  use_free_thresholds <- threshold_type == "free"
 
   assert_counts(np, ni, nr, no_rater_groups)
   assert_that(
@@ -130,10 +134,13 @@ simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L, no_time_poin
     c("lt", "log_lambda", "log_E", "log_a", "b")
   }
 
+  if (no_time_points == 2L)
+    parameters_used <- c(parameters_used, "offset_lt")
+
   res <- list(
     df = df,
     np = np, ni = ni, nr = nr, nc = nc, no_rater_groups = no_rater_groups, no_time_points = no_time_points,
-    rater_group_assignment = rater_group_assignment,
+    rater_group_assignment = rater_group_assignment, threshold_type = threshold_type,
     parameters = list(
       lt = lt, log_lambda = log_lambda,
       log_a = log_a, b = b, log_E = log_E,
@@ -147,6 +154,9 @@ simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L, no_time_poin
   class(res) <- "ltm_data"
   return(res)
 }
+
+#' @export
+is.ltm_data <- function(x) inherits(x, "ltm_data")
 
 guess_nc <- function(df) {
   nc <- if (is.factor(df$score)) {
@@ -238,7 +248,8 @@ data_2_stan.ltm_data <- function(dat, nc = NULL, prior_only = FALSE, debug = TRU
                        a_sd_log_lambda = 1.1, b_sd_log_lambda = 1.1,
                        a_sd_log_E      = 1,   b_sd_log_E      = 1,
                        a_sd_log_a      = 1,   b_sd_log_a      = 1,
-                       a_sd_b          = 1,   b_sd_b          = 1
+                       a_sd_b          = 1,   b_sd_b          = 1,
+                       ...
                        ) {
 
 
@@ -345,7 +356,15 @@ data_2_stan.ltm_data <- function(dat, nc = NULL, prior_only = FALSE, debug = TRU
     vary_lambda_across_patients  = as.integer(vary_lambda_across_patients),
     vectorized                   = as.integer(vectorized),
     use_skew_logistic_thresholds = as.integer(use_skew_logistic_thresholds),
-    use_free_logistic_thresholds = as.integer(use_free_logistic_thresholds)
+    use_free_logistic_thresholds = as.integer(use_free_logistic_thresholds),
+
+    # these may be overwritten by data_2_stan.logistic_regression_ltm_data
+    fit_logistic             = 0L,
+    store_predictions        = 0L,
+    log_reg_outcomes         = numeric(0L),
+    no_covariates            = 0L,
+    design_matrix_covariates = matrix(NA_real_, 0L, 0L)
+
   )
   return(data)
 }

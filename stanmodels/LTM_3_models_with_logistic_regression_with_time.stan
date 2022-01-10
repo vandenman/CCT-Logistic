@@ -124,7 +124,7 @@ data{
   int<lower = 0, upper = 1> fit_logistic;
 
   // logistic regression
-  int<lower = 0, upper = 1> store_predictions;
+  int<lower = 0, upper = fit_logistic> store_predictions;
 
   // sizes
   int<lower = 1> n_observed;
@@ -135,7 +135,7 @@ data{
   int<lower = 2> nc;
   int<lower = 1> no_rater_groups;
   int<lower = 1> rater_group_counts[no_rater_groups];
-  int<lower = 0, upper = 1> no_time_points;
+  int<lower = 1, upper = 2> no_time_points;
 
   // observed data
   int x[n_observed];
@@ -150,10 +150,10 @@ data{
   int<lower = 1, upper = no_rater_groups> idx_rater_group[nr];
 
   // logistic regression data
-  int<lower = 0, upper = 1>      log_reg_outcomes[np];
-  int<lower = 0>                 no_covariates;
+  int<lower = 0, upper = 1>                                       log_reg_outcomes[fit_logistic ? np : 0];
+  int<lower = 0>                                                  no_covariates;
   // this is not space efficient, but required for bernoulli_logit_glm
-  matrix[np, no_covariates]      design_matrix_covariates;
+  matrix[fit_logistic ? np : 0, fit_logistic ? no_covariates : 0] design_matrix_covariates;
   // matrix[np, n_covariates + ni]  design_matrix;
 
   // missing data
@@ -236,11 +236,11 @@ parameters{
   vector           [use_free_logistic_thresholds ? 0 : no_rater_groups] log_sd_log_a_raw;
 
   // logistic regression
-  vector[fit_logistic ? 1                  : 0] log_reg_intercept;
-  vector[fit_logistic ? no_covariates + ni : 0] log_reg_slopes;
+  vector[fit_logistic ? 1                                   : 0] log_reg_intercept;
+  vector[fit_logistic ? no_covariates + ni * no_time_points : 0] log_reg_slopes;
 
   // time offsets
-  matrix[no_time_points > 0 ? np : 0, no_time_points > 0 ? ni : 0] offset_lt;
+  matrix[no_time_points == 2 ? np : 0, no_time_points == 2 ? ni : 0] offset_lt;
 
 
 }
@@ -331,8 +331,8 @@ model{
   if (use_skew_logistic_thresholds)
     threshold_shape ~ std_normal();
 
-  if (no_time_points > 0)
-    offset_lt ~ std_normal();
+  if (no_time_points == 2)
+    to_vector(offset_lt) ~ std_normal();
 
   // likelihood in long form
   for (o in 1:n_observed) {
@@ -344,7 +344,7 @@ model{
     real location = lt[p, i];
     real scale = exp(log_lambda[i, vary_lambda_across_patients ? p : 1] - log_E[r]);
 
-    if (no_time_points > 0) {
+    if (no_time_points == 2) {
 
       int t = idx_time_point[o];
       // (2 * t - 3) maps {1, 2} to {-1, 1}
@@ -391,7 +391,13 @@ model{
     log_reg_slopes    ~ std_normal();
 
     // this could be fused into the loop above
-    log_reg_outcomes ~ bernoulli_logit_glm(append_col(design_matrix_covariates, lt), log_reg_intercept, log_reg_slopes);
+    matrix[nr, no_covariates + no_time_points * ni] log_reg_design_matrix;
+    if (no_time_points == 1) {
+      log_reg_design_matrix = append_col(design_matrix_covariates, lt);
+    } else {
+      log_reg_design_matrix = append_col(design_matrix_covariates, append_col(lt - offset_lt, lt + offset_lt));
+    }
+    log_reg_outcomes ~ bernoulli_logit_glm(log_reg_design_matrix, rep_vector(log_reg_intercept[1], np), log_reg_slopes);
   }
 
 }
@@ -443,10 +449,21 @@ generated quantities {
     }
   }
 
-  vector<lower = 0, upper = 1>[store_predictions ? np : 0] log_reg_predictions;
-  if (store_predictions) {
+  vector<lower = 0, upper = 1>[fit_logistic * store_predictions ? np : 0] log_reg_predictions;
+  if (fit_logistic * store_predictions) {
+
     for (p in 1:np) {
-      real alpha = log_reg_intercept + dot_product(design_matrix_covariates[p, ], log_reg_slopes[1:no_covariates]) + dot_product(lt[p, ], log_reg_slopes[(no_covariates + 1):(no_covariates + ni)]);
+      vector[1] alpha;
+      if (no_time_points == 1) {
+        alpha = log_reg_intercept +
+          dot_product(design_matrix_covariates[p, ], log_reg_slopes[1:no_covariates]) +
+          dot_product(lt[p, ], log_reg_slopes[(no_covariates + 1):(no_covariates + ni)]);
+      } else {
+        alpha = log_reg_intercept +
+          dot_product(design_matrix_covariates[p, ], log_reg_slopes[1:no_covariates]) +
+          dot_product(lt[p, ] - offset_lt[p, ], log_reg_slopes[(no_covariates      + 1):(no_covariates +   ni)]) +
+          dot_product(lt[p, ] + offset_lt[p, ], log_reg_slopes[(no_covariates + ni + 1):(no_covariates + 2*ni)]);
+      }
       log_reg_predictions[p] = exp(bernoulli_logit_lpmf(1 | alpha));
       // bernoulli_logit_glm_lpmf(ones_np | append_col(design_matrix_covariates, lt), log_reg_intercept, log_reg_slopes);
     }

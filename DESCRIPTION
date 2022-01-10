@@ -17,6 +17,7 @@ Imports:
     cmdstanr (>= 0.4.0.9000),
     ggplot2,
     grDevices,
+    jaspGraphs,
     progress,
     svglite,
     tibble,
@@ -25,4 +26,5 @@ Imports:
     vctrs (>= 0.3.8)
 Roxygen: list(markdown = TRUE)
 Remotes: 
-    stan-dev/cmdstanr
+    stan-dev/cmdstanr,
+    jasp-stats/jaspGraphs

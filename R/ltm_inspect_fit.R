@@ -1,5 +1,5 @@
 #' @export
-obs_proportions <- function(x, ..., nc = 18) {
+get_obs_proportions <- function(x, ..., nc = 18) {
   if (vctrs::vec_unique_count(x) != nc)
     tb <- table(c(x, 1:nc), ...) - 1L
   else

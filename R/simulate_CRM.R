@@ -83,7 +83,8 @@ data_2_stan.crm_data <- function(dat, prior_only = FALSE, debug = TRUE, vary_lam
                        a_sd_log_lambda = 1.1, b_sd_log_lambda = 1.1,
                        a_sd_log_E      = 1,   b_sd_log_E      = 1,
                        a_sd_log_a      = 1,   b_sd_log_a      = 1,
-                       a_sd_b          = 1,   b_sd_b          = 1
+                       a_sd_b          = 1,   b_sd_b          = 1,
+                       ...
                        ) {
 
   # assertthat::assert_that(

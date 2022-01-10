@@ -18,9 +18,9 @@ fit_all_three_models <- function(data, model, iter = 3e4, adapt_iter = 500, outp
   stan_data_skew <- data_2_stan(data, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = TRUE,  use_free_logistic_thresholds = FALSE)
   stan_data_free <- data_2_stan(data, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE)
 
-  path_orig <- file.path("fitted_objects", sprintf("%slog_reg_3_models_orig_thresholds.rds", path_prefix))
-  path_skew <- file.path("fitted_objects", sprintf("%slog_reg_3_models_skew_thresholds.rds", path_prefix))
-  path_free <- file.path("fitted_objects", sprintf("%slog_reg_3_models_free_thresholds.rds", path_prefix))
+  path_orig <- file.path("fitted_objects", sprintf("%stime_3_models_orig_thresholds.rds", path_prefix))
+  path_skew <- file.path("fitted_objects", sprintf("%stime_3_models_skew_thresholds.rds", path_prefix))
+  path_free <- file.path("fitted_objects", sprintf("%stime_3_models_free_thresholds.rds", path_prefix))
 
   cat("Fitting original threshold model\n")
   fit_orig <- save_or_run_model(
@@ -56,15 +56,27 @@ split_slopes_on_covariate_vs_lt <- function(tib, no_covariates) {
   tib
 }
 
+get_performance_tib <- function(dat, fit, threshold_name = "threshold", ...) {
+  UseMethod("get_performance_tib", dat)
+}
 
-get_performance_tib <- function(fit, dat, threshold_name, nc, nr, no_covariates) {
-  nc            <- dat$ltm_data$nc
-  nr            <- dat$ltm_data$nr
-  no_covariates <- ncol(dat$log_reg$design_matrix) - dat$ltm_data$ni
+get_performance_tib.logistic_regression_ltm_data <- function(dat, fit, threshold_name) {
+  nc <- get_nc(dat)
+  nr <- get_nr(dat)
+  no_covariates <- get_no_covariates(dat)
   get_means_tib(fit) |>
     add_implied_thresholds(nc, nr) |>
     add_true_values_to_tib(dat) |>
     split_slopes_on_covariate_vs_lt(no_covariates) |>
+    mutate(parameter = if_else(parameter == "free_thresholds", threshold_name, parameter))
+}
+
+get_performance_tib.ltm_data <- function(dat, fit, threshold_name) {
+  nc <- get_nc(dat)
+  nr <- get_nr(dat)
+  get_means_tib(fit) |>
+    add_implied_thresholds(nc, nr) |>
+    add_true_values_to_tib(dat) |>
     mutate(parameter = if_else(parameter == "free_thresholds", threshold_name, parameter))
 }
 
@@ -107,26 +119,90 @@ get_predictions_plot <- function(fit, name, data) {
 
 }
 
-fit_single_dataset <- function(dataset, model, data_name) {
+inspect_probability_plot2 <- function(observed_proportions, model_probabilities, yLimLeft = NULL, yLimRight = NULL, title = NULL) {
+
+  nc <- length(observed_proportions)
+  diff <- observed_proportions - model_probabilities
+  tib <- tibble(
+    category    = factor(rep(1:nc, 3)),
+    probability = c(observed_proportions, model_probabilities, diff),
+    group       = factor(rep(c("observed", "model", "diff"), each = nc)),
+    panel       = rep(c("raw", "difference"), c(2*nc, nc))
+  )
+
+  tibAbline <- tibble(
+    intercept = 0,
+    slope     = 0,
+    panel     = "difference"
+  )
+
+  yBreaksLeft <- jaspGraphs::getPrettyAxisBreaks(c(yLimLeft, 0, tib |> filter(panel == "difference") |> select(probability) |> unlist()))
+  pLeft <- ggplot(data = tib |> filter(panel == "difference"), aes(x = category, y = probability, group = group, fill = group)) +
+    geom_bar(position="dodge", stat="identity", width = .4) +
+    scale_y_continuous(breaks = yBreaksLeft, limits = range(yBreaksLeft)) +
+    labs(fill = NULL, x = "Category", y = "Probability") +
+    facet_wrap(~panel, scales = "free_y") +
+    ggtitle(title) +
+    jaspGraphs::geom_rangeframe() +
+    jaspGraphs::themeJaspRaw(legend.position = "right")
+
+  yBreaksRight <- jaspGraphs::getPrettyAxisBreaks(c(yLimRight, 0, tib |> filter(panel == "raw") |> select(probability) |> unlist()))
+  pRight <- ggplot(data = tib |> filter(panel == "raw"), aes(x = category, y = probability, group = group, fill = group)) +
+    geom_bar(position="dodge", stat="identity", width = .4) +
+    scale_y_continuous(breaks = yBreaksRight, limits = range(yBreaksRight)) +
+    labs(fill = NULL, x = "Category", y = "Probability") +
+    facet_wrap(~panel, scales = "free_y") +
+    jaspGraphs::geom_rangeframe() +
+    jaspGraphs::themeJaspRaw(legend.position = "right")
+
+  return(gridExtra::arrangeGrob(grobs = list(pLeft, pRight), nrow = 1L))
+}
+
+
+get_fit_ltm_plot <- function(fit, name, data) {
+  nc <- get_nc(data)
+
+  obs_proportions   <- get_obs_proportions(get_score(data), nc = nc)
+  log_probs <- fit$draws("log_probs", format = "draws_matrix")
+  mean_probs <- matrix(apply(log_probs, 2L, function(x) mean(exp(x))), nrow = nc)
+  model_probabilities  <- rowMeans(mean_probs)
+  inspect_probability_plot2(obs_proportions, model_probabilities, title = name)
+
+}
+
+fit_single_dataset <- function(dataset, model, data_name, debug = TRUE, store_predictions = TRUE) {
 
   path_prefix <- paste0("data_", data_name)
-  fits <- fit_all_three_models(dataset, model, path_prefix = path_prefix)
+  fits <- fit_all_three_models(dataset, model, path_prefix = path_prefix, debug = debug, store_predictions = store_predictions)
+browser()
   perf_tib <- purrr::map2(fits, c("2-parameter_thresholds", "skew_thresholds", "free_thresholds"), get_performance_tib, dat = dataset)
 
   graphs_retrieval <- map2(fits, perf_tib, get_scatterplot_retrieval)
-  graphs_predictions <- purrr::map2(fits, names(fits), get_predictions_plot, data = dataset)
+  graphs_retrieval_joined   <- arrangeGrob(grobs = graphs_retrieval, ncol = 3)
 
-  # TODO: these should not plot directly
-  graphs_retrieval_joined   <- grid.arrange(grobs = graphs_retrieval, ncol = 3)
-  graphs_predictions_joined <- grid.arrange(grobs = matrix(unlist(graphs_predictions, recursive = FALSE), 3, 2, TRUE), nrow = 2, ncol = 3)
+  graphs_fit_ltm <- graphs_fit_ltm_joined <- NULL
+  if (debug) {
+    graphs_fit_ltm        <- purrr::map2(fits, names(fits), get_fit_ltm_plot, data = dataset)
+    graphs_fit_ltm_joined <- arrangeGrob(grobs = matrix(unlist(lapply(graphs_fit_ltm, `[[`, "grobs"), recursive = FALSE), 3, 2, TRUE), nrow = 2, ncol = 3)
+  }
+
+  graphs_predictions_log_reg <- graphs_predictions_log_reg_joined <- NULL
+  if (store_predictions && is.logistic_regression_ltm_data(dataset)) {
+    graphs_predictions_log_reg <- purrr::map2(fits, names(fits), get_predictions_plot, data = dataset)
+    graphs_predictions_log_reg_joined <- arrangeGrob(grobs = matrix(unlist(graphs_predictions_log_reg, recursive = FALSE), 3, 2, TRUE), nrow = 2, ncol = 3)
+  }
 
   return(list(
-    fits                      = fits,
-    perf_tib                  = perf_tib,
-    graphs_retrieval          = graphs_retrieval,
-    graphs_predictions        = graphs_predictions,
-    graphs_retrieval_joined   = graphs_retrieval_joined,
-    graphs_predictions_joined = graphs_predictions_joined
+    fits                              = fits,
+    perf_tib                          = perf_tib,
+
+    graphs_retrieval                  = graphs_retrieval,
+    graphs_fit_ltm                    = graphs_fit_ltm,
+    graphs_predictions_log_reg        = graphs_predictions_log_reg,
+
+    graphs_retrieval_joined           = graphs_retrieval_joined,
+    graphs_fit_ltm_joined             = graphs_fit_ltm_joined,
+    graphs_predictions_log_reg_joined = graphs_predictions_log_reg_joined
   ))
 }
 
@@ -139,27 +215,46 @@ no_rater_groups <- 1 # no groups of rater
 no_covariates <- 5   # no additional covariates
 no_time_points <- 2
 
+# compile the stan model
+mod_log_reg_ltm <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time.stan", pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels")
+
 set.seed(1234)
+threshold_types <- c("logistic", "skew_logistic", "free")
+dataset_list <- map(c("logistic", "skew_logistic", "free"),
+                    \(threshold_type) simulate_data_ltm(np, ni, nr, nc, no_rater_groups = no_rater_groups, no_time_points = no_time_points, threshold_type = threshold_type)
+)
+names(dataset_list) <- threshold_types
 
-dat_orig <- simulate_data_ltm(np, ni, nr, nc, no_rater_groups = no_rater_groups, no_time_points = no_time_points, use_skew_thresholds = FALSE, use_free_thresholds = TRUE)
-dat_skew <- simulate_data_ltm(np, ni, nr, nc, no_rater_groups = no_rater_groups, no_time_points = no_time_points, use_skew_thresholds = TRUE,  use_free_thresholds = FALSE)
-dat_free <- simulate_data_ltm(np, ni, nr, nc, no_rater_groups = no_rater_groups, no_time_points = no_time_points, use_skew_thresholds = FALSE, use_free_thresholds = TRUE)
+# fit all 9 models
+results <- pmap(list(dataset = dataset_list, data_name = names(dataset_list)), fit_single_dataset, model = mod_log_reg_ltm)
 
-dat_log_reg_orig <- simulate_logistic_regression(dat_orig, no_covariates = no_covariates, slopes = seq_len(no_covariates))
-dat_log_reg_skew <- simulate_logistic_regression(dat_skew, no_covariates = no_covariates, slopes = seq_len(no_covariates))
-dat_log_reg_free <- simulate_logistic_regression(dat_free, no_covariates = no_covariates, slopes = seq_len(no_covariates))
+grid.arrange(results$logistic$graphs_retrieval_joined)
+grid.arrange(results$logistic$graphs_fit_ltm_joined)
+grid.arrange(results$skew_logistic$graphs_retrieval_joined)
+grid.arrange(results$skew_logistic$graphs_fit_ltm_joined)
+grid.arrange(results$free$graphs_retrieval_joined)
+grid.arrange(results$free$graphs_fit_ltm_joined)
 
+# add logistic regression
+set.seed(5678)
+dataset_log_reg_list <- map(dataset_list, \(dat) simulate_logistic_regression(dat, no_covariates = no_covariates, slopes = seq_len(no_covariates)))
+names(dataset_log_reg_list) <- paste0("log_reg_", names(dataset_log_reg_list))
+
+# fit all 9 models
+# debugonce(fit_single_dataset)
+results <- pmap(list(dataset = dataset_log_reg_list, data_name = names(dataset_log_reg_list)), fit_single_dataset, model = mod_log_reg_ltm)
+
+
+# first fit the 9 models without logistic regression
 dataset_list <- list(
   orig = dat_log_reg_orig,
   skew = dat_log_reg_skew,
   free = dat_log_reg_free
 )
 
-# compile the stan model
-mod_log_reg_ltm <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression.stan", pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels")
-
 # fit all 9 models
 results <- pmap(list(dataset = dataset_list, data_name = names(dataset_list)), fit_single_dataset, model = mod_log_reg_ltm)
+
 
 system("beep_finished.sh 0")
 
