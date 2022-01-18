@@ -1001,8 +1001,7 @@
       "OS_type": NA,
       "NeedsCompilation": "no",
       "Repository": "CRAN",
-      "Source": "Repository",
-      "Requirements": []
+      "Source": "Repository"
     },
     "reshape2": {
       "Package": "reshape2",

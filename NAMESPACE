@@ -3,6 +3,7 @@
 S3method(data_2_stan,crm_data)
 S3method(data_2_stan,logistic_regression_ltm_data)
 S3method(data_2_stan,ltm_data)
+S3method(data_2_stan,tbl_df)
 S3method(get_no_covariates,logistic_regression_data)
 S3method(get_no_covariates,logistic_regression_ltm_data)
 S3method(get_score,logistic_regression_ltm_data)

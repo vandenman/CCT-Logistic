@@ -109,13 +109,89 @@ vector raw_to_constrained(vector raw_vec, vector mu, vector log_sd, vector qr, i
   return constrained;
 }
 
+real lpdf_ltm_sliced_observation(array[] int slice, int start, int end,
+  int[] idx_patient,
+  int[] idx_item,
+  int[] idx_rater,
+  int[] idx_time_point,
+  int[] x,
+  matrix lt,
+  matrix offset_lt,
+  matrix log_lambda,
+  vector log_E,
+  vector log_a,
+  vector b,
+  vector[] free_thresholds,
+  vector threshold_shape,
+  vector default_thresholds,
+  vector default_threshold_probs,
+  int nc,
+  int no_time_points,
+  int vary_lambda_across_patients,
+  int use_free_logistic_thresholds,
+  int use_skew_logistic_thresholds
+  ) {
+
+  real result = 0.0;
+  for (o in start:end) {
+
+    int p = idx_patient[o];
+    int i = idx_item[o];
+    int r = idx_rater[o];
+
+    real location = lt[p, i];
+    real scale = exp(log_lambda[i, vary_lambda_across_patients ? p : 1] - log_E[r]);
+
+    if (no_time_points == 2) {
+
+      int t = idx_time_point[o];
+      // (2 * t - 3) maps {1, 2} to {-1, 1}
+      location += (2 * t - 3) * offset_lt[p, i];
+
+    }
+
+    if (use_free_logistic_thresholds) {
+
+      result += ordered_logistic_lpmf(x[o] | location / scale, free_thresholds[r] ./ scale);
+
+    } else {
+
+      real threshold_scale = exp(log_a[r]);
+      real threshold_shift = b[r];
+
+      if (use_skew_logistic_thresholds) {
+
+        result += ordered_logistic_pmf_skew_simplified(
+          x[o],
+          location, scale, threshold_scale, threshold_shift,
+          threshold_shape[r],
+          default_threshold_probs,
+          nc
+        );
+
+      } else {
+
+        result += ordered_logistic_pmf_simplified(
+          x[o],
+          location, scale, threshold_scale, threshold_shift,
+          default_thresholds,
+          nc
+        );
+
+      }
+    }
+  }
+  return result;
+}
+
+
 }
 data{
   // booleans
   int<lower = 0, upper = 1> prior_only;
   int<lower = 0, upper = 1> debug;
   int<lower = 0, upper = 1> vary_lambda_across_patients;
-  int<lower = 0, upper = 1> vectorized;
+  // int<lower = 0, upper = 1> vectorized;
   // only one of these can be true
   int<lower = 0, upper = 1> use_skew_logistic_thresholds;
   int<lower = 0, upper = 1> use_free_logistic_thresholds;
@@ -335,54 +411,80 @@ model{
     to_vector(offset_lt) ~ std_normal();
 
   // likelihood in long form
-  for (o in 1:n_observed) {
+  // serial evaluation
+  // for (o in 1:n_observed) {
+  //
+  //   int p = idx_patient[o];
+  //   int i = idx_item[o];
+  //   int r = idx_rater[o];
+  //
+  //   real location = lt[p, i];
+  //   real scale = exp(log_lambda[i, vary_lambda_across_patients ? p : 1] - log_E[r]);
+  //
+  //   if (no_time_points == 2) {
+  //
+  //     int t = idx_time_point[o];
+  //     // (2 * t - 3) maps {1, 2} to {-1, 1}
+  //     location += (2 * t - 3) * offset_lt[p, i];
+  //
+  //   }
+  //
+  //   if (use_free_logistic_thresholds) {
+  //
+  //     target += ordered_logistic_lpmf(x[o] | location / scale, free_thresholds[r] ./ scale);
+  //
+  //   } else {
+  //
+  //     real threshold_scale = exp(log_a[r]);
+  //     real threshold_shift = b[r];
+  //
+  //     if (use_skew_logistic_thresholds) {
+  //
+  //       target += ordered_logistic_pmf_skew_simplified(
+  //         x[o],
+  //         location, scale, threshold_scale, threshold_shift,
+  //         threshold_shape[r],
+  //         default_threshold_probs,
+  //         nc
+  //       );
+  //
+  //     } else {
+  //
+  //       target += ordered_logistic_pmf_simplified(
+  //         x[o],
+  //         location, scale, threshold_scale, threshold_shift,
+  //         default_thresholds,
+  //         nc
+  //       );
+  //
+  //     }
+  //   }
+  // }
 
-    int p = idx_patient[o];
-    int i = idx_item[o];
-    int r = idx_rater[o];
-
-    real location = lt[p, i];
-    real scale = exp(log_lambda[i, vary_lambda_across_patients ? p : 1] - log_E[r]);
-
-    if (no_time_points == 2) {
-
-      int t = idx_time_point[o];
-      // (2 * t - 3) maps {1, 2} to {-1, 1}
-      location += (2 * t - 3) * offset_lt[p, i];
-
-    }
-
-    if (use_free_logistic_thresholds) {
-
-      target += ordered_logistic_lpmf(x[o] | location / scale, free_thresholds[r] ./ scale);
-
-    } else {
-
-      real threshold_scale = exp(log_a[r]);
-      real threshold_shift = b[r];
-
-      if (use_skew_logistic_thresholds) {
-
-        target += ordered_logistic_pmf_skew_simplified(
-          x[o],
-          location, scale, threshold_scale, threshold_shift,
-          threshold_shape[r],
-          default_threshold_probs,
-          nc
-        );
-
-      } else {
-
-        target += ordered_logistic_pmf_simplified(
-          x[o],
-          location, scale, threshold_scale, threshold_shift,
-          default_thresholds,
-          nc
-        );
-
-      }
-    }
-  }
+  // with threads
+  target += reduce_sum(
+    lpdf_ltm_sliced_observation, idx_patient, 1,
+    idx_patient,
+    idx_item,
+    idx_rater,
+    idx_time_point,
+    x,
+    lt,
+    offset_lt,
+    log_lambda,
+    log_E,
+    log_a,
+    b,
+    free_thresholds,
+    threshold_shape,
+    default_thresholds,
+    default_threshold_probs,
+    nc,
+    no_time_points,
+    vary_lambda_across_patients,
+    use_free_logistic_thresholds,
+    use_skew_logistic_thresholds
+  );
 
   // logistic regression
   if (fit_logistic) {
@@ -405,6 +507,7 @@ generated quantities {
 
   matrix<upper = 0>[debug ? nc : 0, debug ? n_observed : 0] log_probs;
 
+  // this is incredibly memory intense!
   if (debug) {
 
     // likelihood in long form

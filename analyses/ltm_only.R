@@ -6,35 +6,39 @@ library(cmdstanr)
 library(dplyr)
 library(purrr)
 
-fit_all_three_models <- function(data, model, iter = 3e4, adapt_iter = 500, output_samples = 2e3, grad_samples = 5, elbo_samples = 15, debug = TRUE, force = FALSE,
-                                 path_prefix = "", nc = 18, max_retries = 3) {
+cpp_options <- list(
+  "CXXFLAGS+= -oFast -march=native -mtune=native"
+)
+cmdstan_make_local(cpp_options = cpp_options)
+rebuild_cmdstan(cores = 8)
 
-  stan_data_orig <- data_2_stan(data, nc = nc, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = FALSE)
-  stan_data_skew <- data_2_stan(data, nc = nc, debug = debug, use_skew_logistic_thresholds = TRUE,  use_free_logistic_thresholds = FALSE)
-  stan_data_free <- data_2_stan(data, nc = nc, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE)
+fit_all_three_models <- function(data, model, iter = 3e4, adapt_iter = 500, output_samples = 2e3, grad_samples = 5, elbo_samples = 5, threads = 8, debug = FALSE, force = FALSE,
+                                 path_prefix = "", store_predictions = TRUE) {
 
   if (path_prefix != "" && !endsWith(path_prefix, "_"))
     path_prefix <- paste0(path_prefix, "_")
 
-  path_orig <- file.path("fitted_objects", sprintf("%s3_models_orig_thresholds.rds", path_prefix))
-  path_skew <- file.path("fitted_objects", sprintf("%s3_models_skew_thresholds.rds", path_prefix))
-  path_free <- file.path("fitted_objects", sprintf("%s3_models_free_thresholds.rds", path_prefix))
+  stan_data_orig <- data_2_stan(data, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = FALSE)
+  stan_data_skew <- data_2_stan(data, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = TRUE,  use_free_logistic_thresholds = FALSE)
+  stan_data_free <- data_2_stan(data, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE)
+
+  path_orig <- file.path("fitted_objects", sprintf("%stime_3_models_orig_thresholds.rds", path_prefix))
+  path_skew <- file.path("fitted_objects", sprintf("%stime_3_models_skew_thresholds.rds", path_prefix))
+  path_free <- file.path("fitted_objects", sprintf("%stime_3_models_free_thresholds.rds", path_prefix))
+
+  fit_model <- function(data) {
+    model$variational(data = data, iter = iter, adapt_iter = adapt_iter, output_samples = output_samples, grad_samples = grad_samples, elbo_samples = elbo_samples,
+                      threads = threads)
+  }
 
   cat("Fitting original threshold model\n")
-  fit_orig <- save_or_run_model(
-    model$variational(data = stan_data_orig, iter = iter, adapt_iter = adapt_iter, output_samples = output_samples, grad_samples = grad_samples, elbo_samples = elbo_samples),
-    path_orig, force, max_retries
-  )
+  fit_orig <- save_or_run_model(fit_model(stan_data_orig), path_orig, force)
+
   cat("Fitting skew threshold model\n")
-  fit_skew <- save_or_run_model(
-    model$variational(data = stan_data_skew, iter = iter, adapt_iter = adapt_iter, output_samples = output_samples, grad_samples = grad_samples, elbo_samples = elbo_samples),
-    path_skew, force, max_retries
-  )
+  fit_skew <- save_or_run_model(fit_model(stan_data_skew), path_skew, force)
+
   cat("Fitting free threshold model\n")
-  fit_free <- save_or_run_model(
-    model$variational(data = stan_data_free, iter = iter, adapt_iter = adapt_iter, output_samples = output_samples, grad_samples = grad_samples, elbo_samples = elbo_samples),
-    path_free, force, max_retries
-  )
+  fit_free <- save_or_run_model(fit_model(stan_data_free), path_free, force)
 
   return(list(
     fit_orig = fit_orig,
@@ -47,30 +51,34 @@ normalize_factor <- function(x) {
   as.integer(droplevels(x))
 }
 
+# TODO: this data-cleaning step should happen elsewhere, so that the data can be easily switched out for something else
 all_data <- read_long_data()
 data_2_analyze <- all_data |>
   as_tibble() |>
-  filter(as.integer(time) == 1 & !is.na(score)) |>
-  select(-c(time, patient_age_group, violent_before, violent_between, violent_after,
+  filter(!is.na(score)) |>
+  select(-c(patient_age_group, violent_before, violent_between, violent_after,
                  treatement_duration_group, diagnosis_group, crime_group)) |>
   mutate(
     patient     = normalize_factor(patient),
     item        = normalize_factor(item),
     rater       = normalize_factor(rater),
+    time        = normalize_factor(time),
     rater_group = normalize_factor(rater_group),
     score       = score + 1 # transform score from 0 -17 to 1 - 18
   ) |>
-  arrange(rater_group, patient, item, rater)
+  arrange(rater_group, patient, item, rater, time)
 
 np <- max(data_2_analyze$patient)
 ni <- max(data_2_analyze$item)
 nr <- max(data_2_analyze$rater)
+nt <- max(data_2_analyze$time)
 nc <- 18L
 
-mod_ltm <- compile_stan_model("stanmodels/LTM_3_models.stan", pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels")
+mod_ltm <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time.stan", pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels",
+                              cpp_options = list(stan_threads=TRUE))
 
 # debugonce(CCTLogistic:::save_or_run_model)
-fits <- fit_all_three_models(data_2_analyze, mod_ltm, path_prefix = "mesdag_T1_ltm")
+fits <- fit_all_three_models(data_2_analyze, mod_ltm, path_prefix = "mesdag_ltm")
 # system("beep_finished.sh 0")
 
 observed_proportions <- obs_proportions(data_2_analyze$score)

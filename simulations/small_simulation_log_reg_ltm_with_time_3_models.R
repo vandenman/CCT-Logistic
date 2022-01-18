@@ -319,7 +319,6 @@ force          <- TRUE
 path_prefix    <- ""
 path_orig <- file.path("fitted_objects", sprintf("%s3_log_reg_models_orig_thresholds.rds", path_prefix))
 
-purrr::map2
 
 
 fit_orig <- save_or_run_model(
