@@ -18,9 +18,11 @@ read_wider_data <- function()
 read_wider_imputed_data <- function()
   read_data("data_wider_imputed.rds")
 
-`%||%` <- function(a, b) {
-  if (!is.null(a)) a else b
-}
+#' @importFrom rlang %||%
+#TODO: just import rlang::`%||%`?
+# `%||%` <- function(a, b) {
+#   if (!is.null(a)) a else b
+# }
 
 save_figure <- function(figure, file, dir = "figures", extension = c("svg", "pdf"), ...) {
 

@@ -997,11 +997,12 @@
     },
     "renv": {
       "Package": "renv",
-      "Version": "0.15.0",
+      "Version": "0.15.1",
       "OS_type": NA,
       "NeedsCompilation": "no",
       "Repository": "CRAN",
-      "Source": "Repository"
+      "Source": "Repository",
+      "Requirements": []
     },
     "reshape2": {
       "Package": "reshape2",

@@ -508,6 +508,7 @@ generated quantities {
   matrix<upper = 0>[debug ? nc : 0, debug ? n_observed : 0] log_probs;
 
   // this is incredibly memory intense!
+  // TODO: it would be MUCH cleaner to somehow reuse lpdf_ltm_sliced_observation here!
   if (debug) {
 
     // likelihood in long form
@@ -519,6 +520,14 @@ generated quantities {
 
       real location = lt[p, i];
       real scale = exp(log_lambda[i, vary_lambda_across_patients ? p : 1] - log_E[r]);
+
+      if (no_time_points == 2) {
+
+        int t = idx_time_point[o];
+        // (2 * t - 3) maps {1, 2} to {-1, 1}
+        location += (2 * t - 3) * offset_lt[p, i];
+
+      }
 
       if (use_free_logistic_thresholds) {
 

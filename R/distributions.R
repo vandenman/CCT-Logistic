@@ -14,6 +14,17 @@ get_probs_ordered <- function(thresholds, location, scale, cdf = plogis) {
   return(prob)
 }
 
+get_probs_ordered_logistic <- function(thresholds, location, scale) {
+  # optimized implementation of get_probs_ordered for logistic cdf
+  vals <- 1 / (1 + exp((thresholds - location) / scale))
+  c(
+    1 - vals[1L],
+    vals[-length(vals)] - vals[-1L],
+    vals[length(vals)]
+  )
+}
+
+
 #' @export
 cutpoints_to_probs <- function(cutpoints) {
 
@@ -30,6 +41,16 @@ cutpoints_to_probs <- function(cutpoints) {
   return(prob)
 }
 
+
+cutpoints_to_probs_fast <- function(cutpoints) {
+
+  c(
+    1 - cutpoints[1L],
+    cutpoints[-length(cutpoints)] - cutpoints[-1L],
+    cutpoints[length(cutpoints)]
+  )
+}
+
 #' @export
 dordered_logistic <- function(x, thresholds, location = 0, scale = 1, log = TRUE) {
   dordered(x, log, stats::plogis(location - thresholds, 0, scale))
@@ -41,25 +62,25 @@ dordered_skew_logistic <- function(x, thresholds, location = 0, scale = 1, shape
 }
 
 #' @export
-rordered_logistic <- function(n, thresholds, location = 0, scale = 1, log = TRUE) {
-  rordered(n, log, stats::plogis(location - thresholds, 0, scale))
+rordered_logistic <- function(n, thresholds, location = 0, scale = 1) {
+  rordered(n, stats::plogis(location - thresholds, 0, scale))
 }
 
 #' @export
-rordered_skew_logistic <- function(x, thresholds, location = 0, scale = 1, shape = 0, log = TRUE) {
-  dordered(x, log, pELGW(location - thresholds, 0, scale, shape))
+rordered_skew_logistic <- function(x, thresholds, location = 0, scale = 1, shape = 0) {
+  rordered(x, pELGW(location - thresholds, 0, scale, shape))
 }
 
 #' @export
 rordered <- function(n, cutpoints) {
   n == 0L && return(integer())
-  prob <- cutpoints_to_probs(cutpoints)
+  prob <- cutpoints_to_probs_fast(cutpoints)
   sample(length(cutpoints) + 1L, size = n, replace = TRUE, prob = prob)
 }
 
 #' @export
 dordered <- function(x, cutpoints, log = TRUE) {
-  probs <- cutpoints_to_probs(cutpoints)
+  probs <- cutpoints_to_probs_fast(cutpoints)
   if (log)
     return(log(prob[x]))
   else return(prob[x])
