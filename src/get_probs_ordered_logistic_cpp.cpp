@@ -1,16 +1,7 @@
 #include <Rcpp.h>
 using namespace Rcpp;
 
-// This is a simple example of exporting a C++ function to R. You can
-// source this function into an R session using the Rcpp::sourceCpp
-// function (or via the Source button on the editor toolbar). Learn
-// more about Rcpp at:
-//
-//   http://www.rcpp.org/
-//   http://adv-r.had.co.nz/Rcpp.html
-//   http://gallery.rcpp.org/
-//
-
+//' @export
 // [[Rcpp::export]]
 NumericVector get_probs_ordered_logistic_cpp(const NumericVector thresholds, const double location, const double scale) {
 
@@ -27,18 +18,18 @@ NumericVector get_probs_ordered_logistic_cpp(const NumericVector thresholds, con
     prob[i] = vals0 - vals1;
     vals0 = vals1;
   }
+
   prob[nc - 1] = vals1;
 
   return prob;
 }
 
 
-// You can include R code blocks in C++ files processed with sourceCpp
-// (useful for testing and development). The R code will be automatically
-// run after the compilation.
-//
-
 /*** R
+thresholds <- 1:18
+location <- 3
+scale <- 2
+
 get_probs_ordered_logistic_cpp(thresholds, location, scale)
 CCTLogistic:::get_probs_ordered_logistic(thresholds, location, scale)
 

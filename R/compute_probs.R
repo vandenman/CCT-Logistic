@@ -71,7 +71,7 @@ compute_probs <- function(draws, stan_data, stan_variable_sizes, return_mean = T
 
       if (use_free_logistic_thresholds) {
 
-        log_probs[, o] <- get_probs_ordered_logistic(free_thresholds[r, ], location, scale)
+        log_probs[, o] <- get_probs_ordered_logistic_cpp(free_thresholds[r, ], location, scale)
 
       } else {
 
@@ -79,14 +79,15 @@ compute_probs <- function(draws, stan_data, stan_variable_sizes, return_mean = T
         threshold_shift = b[r]
 
          if (use_skew_logistic_thresholds) {
-           log_probs[, o] <- get_probs_ordered_logistic(
+           log_probs[, o] <- get_probs_ordered_logistic_cpp(
              qELGW(default_threshold_probs, threshold_shift, threshold_scale, threshold_shape[r]),
              location,
              scale
            )
          } else {
-           log_probs[, o] <- get_probs_ordered_logistic(
-             qlogis(default_threshold_probs, threshold_shift, threshold_scale),
+           log_probs[, o] <- get_probs_ordered_logistic_cpp(
+             threshold_shift + default_thresholds * threshold_scale,
+             # qlogis(default_threshold_probs, threshold_shift, threshold_scale),
              location,
              scale
            )

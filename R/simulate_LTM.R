@@ -384,6 +384,8 @@ stan_data_ltm_inner <- function(np, ni, nr, no_rater_groups, nc, a_sd_lt, b_sd_l
 data_2_stan.tbl_df <- function(dat, score = "score", patient = "patient", item = "item",
                                rater = "rater", time = "time", rater_group = "rater_group",
                                nc = NULL,
+                               logistic_dat = NULL, logistic_target = NULL, logistic_patient = "patient",
+                               store_predictions = FALSE,
                                prior_only = FALSE, debug = TRUE, vary_lambda_across_patients = FALSE,
                                use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE,
                                mu_log_lambda = 0, mu_log_a = 0, mu_b = 0,
@@ -393,6 +395,8 @@ data_2_stan.tbl_df <- function(dat, score = "score", patient = "patient", item =
                                a_sd_log_a      = 1,   b_sd_log_a      = 1,
                                a_sd_b          = 1,   b_sd_b          = 1,
                                ...) {
+
+  # TODO: add safety checks!
 
   nc <- nc %||% guess_nc(dat)
 
@@ -412,6 +416,26 @@ data_2_stan.tbl_df <- function(dat, score = "score", patient = "patient", item =
     prior_only, vary_lambda_across_patients,  use_skew_logistic_thresholds, use_free_logistic_thresholds,
     rater_group_assignment, dat, no_time_points, idx_time_point, debug
   )
+
+  if (!is.null(logistic_dat)) {
+
+    # TODO: should this be a separate function so it can be done without ltm? the model doesnt support that though
+    f <- paste0(logistic_target, "~ 1")
+    if (ncol(logistic_dat) > 2L)
+      f <- paste(f, "+", paste(setdiff(colnames(logistic_dat), c(logistic_target, logistic_patient)), collapse = " + "))
+    f <- as.formula(f)
+    design_matrix <- model.matrix(f, logistic_dat)
+
+    no_covariates <- ncol(design_matrix) - 1L
+
+    data$store_predictions        <- store_predictions
+    data$log_reg_outcomes         <- logistic_dat[[logistic_target]]
+    # we start from 2 because we drop the intercept since Stan's bernoulli_logit_glm has a separate argument for the intercept
+    data$design_matrix_covariates <- design_matrix[, -1L, drop = FALSE]
+    data$no_covariates            <- no_covariates
+    data$fit_logistic             <- 1L
+
+  }
 
   return(data)
 
