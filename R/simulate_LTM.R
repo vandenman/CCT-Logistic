@@ -242,43 +242,25 @@ data_2_stan <- function(dat, ...) {
 
 #' @export
 data_2_stan.ltm_data <- function(dat, nc = NULL, prior_only = FALSE, debug = TRUE, vary_lambda_across_patients = FALSE,
-                            use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE,
-                       mu_log_lambda = 0, mu_log_a = 0, mu_b = 0,
-                       a_sd_lt         = 1,   b_sd_lt         = 1,
-                       a_sd_log_lambda = 1.1, b_sd_log_lambda = 1.1,
-                       a_sd_log_E      = 1,   b_sd_log_E      = 1,
-                       a_sd_log_a      = 1,   b_sd_log_a      = 1,
-                       a_sd_b          = 1,   b_sd_b          = 1,
-                       ...
-                       ) {
+                           use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE,
+                           mu_log_lambda = 0, mu_log_a = 0, mu_b = 0,
+                           a_sd_lt         = 1,   b_sd_lt         = 1,
+                           a_sd_log_lambda = 1.1, b_sd_log_lambda = 1.1,
+                           a_sd_log_E      = 1,   b_sd_log_E      = 1,
+                           a_sd_log_a      = 1,   b_sd_log_a      = 1,
+                           a_sd_b          = 1,   b_sd_b          = 1,
+                           ...
+                           ) {
 
-
-  # if (!is.data.frame(dat)) {
-
-    x_df <- dat$df
-    np   <- dat$np
-    ni   <- dat$ni
-    nr   <- dat$nr
-    nc   <- dat$nc
-    no_rater_groups <- dat$no_rater_groups
-    rater_group_assignment <- dat$rater_group_assignment
-    no_time_points <- dat$no_time_points
-    idx_time_point <- as.integer(x_df$time_point)
-
-  # } else {
-  #
-  #   nc <- nc %||% guess_nc(dat)
-  #
-  #   x_df <- dat
-  #   np <- max(as.integer(x_df$patient))
-  #   ni <- max(as.integer(x_df$item))
-  #   nr <- max(as.integer(x_df$rater))
-  #   no_rater_groups <- if (!is.null(x_df$rater_group)) max(x_df$rater_group) else 1L
-  #   rater_group_assignment <- x_df$rater_group[!duplicated(x_df$rater)]
-  #
-  #   idx_time_point <- x_df$time_point %||% integer()
-  #   no_time_points <- max(idx_time_point)
-  # }
+  x_df <- dat$df
+  np   <- dat$np
+  ni   <- dat$ni
+  nr   <- dat$nr
+  nc   <- dat$nc
+  no_rater_groups <- dat$no_rater_groups
+  rater_group_assignment <- dat$rater_group_assignment
+  no_time_points <- dat$no_time_points
+  idx_time_point <- as.integer(x_df$time_point)
 
   data <- stan_data_ltm_inner(
     np, ni, nr, no_rater_groups, nc,
@@ -371,9 +353,11 @@ stan_data_ltm_inner <- function(np, ni, nr, no_rater_groups, nc, a_sd_lt, b_sd_l
     # these may be overwritten by data_2_stan.logistic_regression_ltm_data
     fit_logistic             = 0L,
     store_predictions        = 0L,
-    log_reg_outcomes         = numeric(0L),
+    log_reg_outcomes         = integer(),
     no_covariates            = 0L,
-    design_matrix_covariates = matrix(NA_real_, 0L, 0L)
+    design_matrix_covariates = matrix(NA_real_, 0L, 0L),
+    np_log_reg               = 0L,
+    log_reg_np_idx           = integer()
 
   ))
 }
@@ -381,10 +365,11 @@ stan_data_ltm_inner <- function(np, ni, nr, no_rater_groups, nc, a_sd_lt, b_sd_l
 
 #TODO: this function need individual documentation! maybe it shouldn't even be an S3 method?
 #' @export
-data_2_stan.tbl_df <- function(dat, score = "score", patient = "patient", item = "item",
+data_2_stan.data.frame <- function(dat, score = "score", patient = "patient", item = "item",
                                rater = "rater", time = "time", rater_group = "rater_group",
                                nc = NULL,
                                logistic_dat = NULL, logistic_target = NULL, logistic_patient = "patient",
+                               missing_idx = integer(),
                                store_predictions = FALSE,
                                prior_only = FALSE, debug = TRUE, vary_lambda_across_patients = FALSE,
                                use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE,
@@ -434,6 +419,8 @@ data_2_stan.tbl_df <- function(dat, score = "score", patient = "patient", item =
     data$design_matrix_covariates <- design_matrix[, -1L, drop = FALSE]
     data$no_covariates            <- no_covariates
     data$fit_logistic             <- 1L
+
+    data <- data_2_stan_incorporate_missing_log_reg(data, missing_idx)
 
   }
 

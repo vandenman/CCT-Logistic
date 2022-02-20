@@ -47,3 +47,11 @@ save_figure <- function(figure, file, dir = "figures", extension = c("svg", "pdf
     stop("Invalid extension '", extension, "'")
   }
 }
+
+#' @export
+normalize_factor <- function(x) {
+  if (is.factor(x))
+    as.integer(droplevels(x))
+  else if (is.integer(x))
+    match(x, unique(x))
+}

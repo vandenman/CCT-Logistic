@@ -67,7 +67,7 @@ real ordered_logistic_pmf_skew_simplified(int x, real location, real scale, real
   }
 }
 
-vector raw_to_constrained(vector raw_vec, vector mu, vector log_sd, vector qr, int len, int no_groups, int[] group_idx, int[] group_counts) {
+vector raw_to_constrained(vector raw_vec, vector mu, vector log_sd, vector qr, int len, int no_groups, array[] int group_idx, array[] int group_counts) {
 
   /*
     NOTE: the naive solution
@@ -110,11 +110,11 @@ vector raw_to_constrained(vector raw_vec, vector mu, vector log_sd, vector qr, i
 }
 
 real lpdf_ltm_sliced_observation(array[] int slice, int start, int end,
-  int[] idx_patient,
-  int[] idx_item,
-  int[] idx_rater,
-  int[] idx_time_point,
-  int[] x,
+  array[] int idx_patient,
+  array[] int idx_item,
+  array[] int idx_rater,
+  array[] int idx_time_point,
+  array[] int x,
   matrix lt,
   matrix offset_lt,
   matrix log_lambda,
@@ -226,13 +226,17 @@ data{
   int<lower = 1, upper = no_rater_groups> idx_rater_group[nr];
 
   // logistic regression data
-  int<lower = 0, upper = 1>                                       log_reg_outcomes[fit_logistic ? np : 0];
+  int<lower = 0>                                                  np_log_reg;
+  int<lower = 0, upper = 1>                                       log_reg_outcomes[fit_logistic ? np_log_reg : 0];
   int<lower = 0>                                                  no_covariates;
   // this is not space efficient, but required for bernoulli_logit_glm
   matrix[fit_logistic ? np : 0, fit_logistic ? no_covariates : 0] design_matrix_covariates;
-  // matrix[np, n_covariates + ni]  design_matrix;
 
-  // missing data
+  // which observation in log_reg_outcomes corresponds to which patient?
+  // basically lt[log_reg_np_idx, ] yields the lt that correspond to log_reg_outcomes
+  int<lower=1, upper=np> log_reg_np_idx [np_log_reg];
+
+  // TODO: missing data
   int<lower = 1, upper = nr> idx_rater_missing  [n_missing];
   int<lower = 1, upper = ni> idx_item_missing   [n_missing];
 
@@ -283,6 +287,9 @@ transformed data{
       ones_np[p] = 1;
     }
   }
+
+  // only do this once.
+  matrix[fit_logistic ? np_log_reg : 0, fit_logistic ? no_covariates : 0] design_matrix_covariates_observed = design_matrix_covariates[log_reg_np_idx, ];
 
 }
 parameters{
@@ -492,14 +499,19 @@ model{
     log_reg_intercept ~ std_normal();
     log_reg_slopes    ~ std_normal();
 
-    // this could be fused into the loop above
-    matrix[nr, no_covariates + no_time_points * ni] log_reg_design_matrix;
+    matrix[np_log_reg, no_covariates + no_time_points * ni] log_reg_design_matrix;
     if (no_time_points == 1) {
-      log_reg_design_matrix = append_col(design_matrix_covariates, lt);
+      log_reg_design_matrix = append_col(design_matrix_covariates_observed, lt[log_reg_np_idx, ]);
     } else {
-      log_reg_design_matrix = append_col(design_matrix_covariates, append_col(lt - offset_lt, lt + offset_lt));
+      log_reg_design_matrix = append_col(
+        design_matrix_covariates_observed,
+        append_col(
+          lt[log_reg_np_idx, ] - offset_lt[log_reg_np_idx, ],
+          lt[log_reg_np_idx, ] + offset_lt[log_reg_np_idx, ]
+        )
+      );
     }
-    log_reg_outcomes ~ bernoulli_logit_glm(log_reg_design_matrix, rep_vector(log_reg_intercept[1], np), log_reg_slopes);
+    log_reg_outcomes ~ bernoulli_logit_glm(log_reg_design_matrix, rep_vector(log_reg_intercept[1], np_log_reg), log_reg_slopes);
   }
 
 }
@@ -564,6 +576,7 @@ generated quantities {
   vector<lower = 0, upper = 1>[fit_logistic * store_predictions ? np : 0] log_reg_predictions;
   if (fit_logistic * store_predictions) {
 
+    // NOTE: the code below makes predictions for both the observed log_reg_outcomes and the unobserved log_reg_outcomes.
     for (p in 1:np) {
       vector[1] alpha;
       if (no_time_points == 1) {
