@@ -54,22 +54,25 @@
     \lineheight{1}%
     \setlength\tabcolsep{0pt}%
     \put(0,0){\includegraphics[width=\unitlength,page=1]{misfitMean_svg-tex.pdf}}%
-    \put(0.06641667,0.11691665){\makebox(0,0)[rt]{\lineheight{1.25}\smash{\begin{tabular}[t]{r}-6\end{tabular}}}}%
-    \put(0.06641667,0.22398609){\makebox(0,0)[rt]{\lineheight{1.25}\smash{\begin{tabular}[t]{r}-4\end{tabular}}}}%
-    \put(0.06641667,0.33104167){\makebox(0,0)[rt]{\lineheight{1.25}\smash{\begin{tabular}[t]{r}-2\end{tabular}}}}%
+    \put(0.06641667,0.11691665){\makebox(0,0)[rt]{\lineheight{1.25}\smash{\begin{tabular}[t]{r}-3\end{tabular}}}}%
+    \put(0.06641667,0.22398609){\makebox(0,0)[rt]{\lineheight{1.25}\smash{\begin{tabular}[t]{r}-2\end{tabular}}}}%
+    \put(0.06641667,0.33104167){\makebox(0,0)[rt]{\lineheight{1.25}\smash{\begin{tabular}[t]{r}-1\end{tabular}}}}%
     \put(0.06641667,0.43809721){\makebox(0,0)[rt]{\lineheight{1.25}\smash{\begin{tabular}[t]{r}0\end{tabular}}}}%
-    \put(0.06641667,0.54515276){\makebox(0,0)[rt]{\lineheight{1.25}\smash{\begin{tabular}[t]{r}2\end{tabular}}}}%
-    \put(0.06641667,0.65222221){\makebox(0,0)[rt]{\lineheight{1.25}\smash{\begin{tabular}[t]{r}4\end{tabular}}}}%
-    \put(0.06641667,0.75927777){\makebox(0,0)[rt]{\lineheight{1.25}\smash{\begin{tabular}[t]{r}6\end{tabular}}}}%
+    \put(0.06641667,0.54515276){\makebox(0,0)[rt]{\lineheight{1.25}\smash{\begin{tabular}[t]{r}1\end{tabular}}}}%
+    \put(0.06641667,0.65222221){\makebox(0,0)[rt]{\lineheight{1.25}\smash{\begin{tabular}[t]{r}2\end{tabular}}}}%
+    \put(0.06641667,0.75927777){\makebox(0,0)[rt]{\lineheight{1.25}\smash{\begin{tabular}[t]{r}3\end{tabular}}}}%
     \put(0,0){\includegraphics[width=\unitlength,page=2]{misfitMean_svg-tex.pdf}}%
-    \put(0.129375,0.05470835){\makebox(0,0)[t]{\lineheight{1.25}\smash{\begin{tabular}[t]{c}-3\end{tabular}}}}%
-    \put(0.26756943,0.05470835){\makebox(0,0)[t]{\lineheight{1.25}\smash{\begin{tabular}[t]{c}-2\end{tabular}}}}%
-    \put(0.40576387,0.05470835){\makebox(0,0)[t]{\lineheight{1.25}\smash{\begin{tabular}[t]{c}-1\end{tabular}}}}%
-    \put(0.54395832,0.05470835){\makebox(0,0)[t]{\lineheight{1.25}\smash{\begin{tabular}[t]{c}0\end{tabular}}}}%
-    \put(0.68215276,0.05470835){\makebox(0,0)[t]{\lineheight{1.25}\smash{\begin{tabular}[t]{c}1\end{tabular}}}}%
-    \put(0.82034724,0.05470835){\makebox(0,0)[t]{\lineheight{1.25}\smash{\begin{tabular}[t]{c}2\end{tabular}}}}%
-    \put(0.95854169,0.05470835){\makebox(0,0)[t]{\lineheight{1.25}\smash{\begin{tabular}[t]{c}3\end{tabular}}}}%
+    \put(0.24781943,0.05470835){\makebox(0,0)[t]{\lineheight{1.25}\smash{\begin{tabular}[t]{c}-2\end{tabular}}}}%
+    \put(0.48473612,0.05470835){\makebox(0,0)[t]{\lineheight{1.25}\smash{\begin{tabular}[t]{c}0\end{tabular}}}}%
+    \put(0.7216389,0.05470835){\makebox(0,0)[t]{\lineheight{1.25}\smash{\begin{tabular}[t]{c}2\end{tabular}}}}%
+    \put(0.95854169,0.05470835){\makebox(0,0)[t]{\lineheight{1.25}\smash{\begin{tabular}[t]{c}4\end{tabular}}}}%
     \put(0.54395832,0.01183336){\makebox(0,0)[t]{\lineheight{1.25}\smash{\begin{tabular}[t]{c}True item score\end{tabular}}}}%
     \put(0.024125,0.44670833){\rotatebox{90}{\makebox(0,0)[t]{\lineheight{1.25}\smash{\begin{tabular}[t]{c}Sample mean\end{tabular}}}}}%
+    \put(0,0){\includegraphics[width=\unitlength,page=3]{misfitMean_svg-tex.pdf}}%
+    \put(0.15176388,0.73738887){\makebox(0,0)[t]{\lineheight{1.25}\smash{\begin{tabular}[t]{c}Patient\end{tabular}}}}%
+    \put(0,0){\includegraphics[width=\unitlength,page=4]{misfitMean_svg-tex.pdf}}%
+    \put(0.16177778,0.69488888){\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}1\end{tabular}}}}%
+    \put(0.16177778,0.65551388){\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}2\end{tabular}}}}%
+    \put(0.16177778,0.61615277){\makebox(0,0)[lt]{\lineheight{1.25}\smash{\begin{tabular}[t]{l}3\end{tabular}}}}%
   \end{picture}%
 \endgroup%

@@ -3,7 +3,7 @@ simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L, no_time_poin
                           lt = NULL, log_lambda = NULL, log_a = NULL, b = NULL, log_E = NULL, threshold_shape = NULL,
                           mu_log_a = NULL, sd_log_a = NULL, mu_b = NULL, sd_b = NULL, mu_log_E = NULL, sd_log_E = NULL,
                           return_mus_sds = TRUE, vary_lambda_across_patients = NULL, store_probabilities = FALSE,
-                          threshold_type = c("logistic", "skew_logistic", "free")) {
+                          threshold_type = c("logistic", "skew_logistic", "free"), thresholds = NULL) {
 
   threshold_type <- match.arg(threshold_type)
   use_skew_thresholds <- threshold_type == "skew"
@@ -11,12 +11,12 @@ simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L, no_time_poin
 
   assert_counts(np, ni, nr, no_rater_groups)
   assert_that(
-    is.count(nc),
     is.flag(store_probabilities),
     is.flag(use_skew_thresholds),
     is.flag(use_free_thresholds),
     !(use_skew_thresholds && use_free_thresholds),
-    is.count(no_time_points) && no_time_points >= 1L && no_time_points <= 2L
+    is.count(no_time_points) && no_time_points >= 1L && no_time_points <= 2L,
+    is.null(thresholds) || (is.matrix(thresholds) && is.numeric(thresholds) && nrow(thresholds) == nr && ncol(thresholds) == nc - 1)
   )
 
 
@@ -86,13 +86,17 @@ simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L, no_time_poin
   probs <- if (store_probabilities) matrix(NA_real_, nrow(df), nc) else NULL
 
   # free_thresholds <- NULL
-  free_thresholds <- matrix(NA, nr, nc - 1)
-  if (use_free_thresholds) {
-    for (r in seq_len(nr))
-      free_thresholds[r, ] <- sort(rlogis(nc - 1))
+  if (thresholds != NULL) {
+    free_thresholds <- thresholds
   } else {
-    for (r in seq_len(nr))
-      free_thresholds[r, ] <- qELGW(threshold_probs, location = b[r], scale = exp(log_a[r]), shape = threshold_shape[r])
+    free_thresholds <- matrix(NA, nr, nc - 1)
+    if (use_free_thresholds) {
+      for (r in seq_len(nr))
+        free_thresholds[r, ] <- sort(rlogis(nc - 1))
+    } else {
+      for (r in seq_len(nr))
+        free_thresholds[r, ] <- qELGW(threshold_probs, location = b[r], scale = exp(log_a[r]), shape = threshold_shape[r])
+    }
   }
 
   for (o in seq_len(nrow(df))) {

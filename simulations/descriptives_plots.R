@@ -1,7 +1,9 @@
 rm(list = ls())
 library(data.table)
 library(ggplot2)
-source(file.path("simulations", "utils.R"))
+library(dplyr)
+library(tibble)
+# source(file.path("simulations", "utils.R"))
 
 data_long <- read_long_data()
 
@@ -14,7 +16,10 @@ unique_patients_sorted <- names(sort(table(data_long[["patient"]])))
 selected_patients <- unique_patients_sorted[1:no_patients]
 selected_items    <- unique(data_long[["item"]])[1:no_items]
 
-subset_data_long <- data_long[patient %in% selected_patients & item %in% selected_items, ]
+patient <- 1:5
+subset_data_long <- data_long |>
+  as_tibble() |>
+  filter(patient %in% selected_patients & item %in% selected_items)
 
 ggplot(data = subset_data_long, aes(x = factor(time), y = score, group = factor(rater), color = factor(rater))) +
   geom_point() +

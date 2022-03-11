@@ -6,13 +6,6 @@ library(cmdstanr)
 library(dplyr)
 library(purrr)
 
-# cpp_options <- list(
-#   "CXXFLAGS+= -oFast -march=native -mtune=native"
-# )
-# cmdstanr::install_cmdstan(cpp_options = cpp_options)
-# cmdstan_make_local(cpp_options = cpp_options)
-# rebuild_cmdstan(cores = 8)
-
 fit_all_three_models <- function(data, model, logistic_dat = NULL, logistic_target = NULL, iter = 3e4, adapt_iter = 500, output_samples = 2e3, grad_samples = 5, elbo_samples = 5, threads = 8, debug = FALSE, force = FALSE,
                                  path_prefix = "", store_predictions = TRUE) {
 

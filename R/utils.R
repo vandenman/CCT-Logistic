@@ -24,6 +24,7 @@ read_wider_imputed_data <- function()
 #   if (!is.null(a)) a else b
 # }
 
+#' @export
 save_figure <- function(figure, file, dir = "figures", extension = c("svg", "pdf"), ...) {
 
   ext <- tools::file_ext(file)
