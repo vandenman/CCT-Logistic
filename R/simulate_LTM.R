@@ -86,7 +86,7 @@ simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L, no_time_poin
   probs <- if (store_probabilities) matrix(NA_real_, nrow(df), nc) else NULL
 
   # free_thresholds <- NULL
-  if (thresholds != NULL) {
+  if (!is.null(thresholds)) {
     free_thresholds <- thresholds
   } else {
     free_thresholds <- matrix(NA, nr, nc - 1)

@@ -3,7 +3,7 @@
 #' Description of your package
 #'
 #' @docType package
-#' @author you <youremail>
+#' @author Don van den Bergh \email{donvdbergh@@hotmail.com}
 #' @import Rcpp
 #' @importFrom Rcpp evalCpp
 #' @useDynLib CCTLogistic

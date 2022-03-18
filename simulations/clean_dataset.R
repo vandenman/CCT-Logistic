@@ -1,4 +1,5 @@
 rm(list = ls())
+library(CCTLogistic)
 library(assertthat)
 # library(data.table)
 
@@ -75,9 +76,9 @@ old_names <- c(
 
 # English names
 new_names <- c(
-  "patient", "time", "patient_age_group",
-  "treatement_duration_group", "violent_before", "violent_between",
-  "violent_after", "diagnosis_group", "crime_group",
+  "patient", "time", "age",
+  "treatment_duration", "violent_before", "violent_between",
+  "violent_after", "diagnosis", "crime",
   "rater", "rater_group"
 )
 
@@ -93,14 +94,26 @@ data_wide22 <- data_wide2 |>
   select(-skipped_vars) |>
   mutate(
     across(c(measure_vars, old_names), \(x) na_if(x,  99)),
-    across(c(measure_vars, old_names), \(x) na_if(x, -99))
+    across(c(measure_vars, old_names), \(x) na_if(x, -99)),
   ) |>
-  rename_with(~ new_names, old_names)
-
+  rename_with(~ new_names, old_names) |>
+  mutate(
+    across(measure_vars, \(x) x + 1), # transform score from 0-17 to 1 - 18
+    across(new_names, factor)
+  )
 
 data_long22 <- data_wide22 |>
   pivot_longer(measure_vars, names_to = "item", values_to = "score") |>
-  relocate(patient, item, rater, rater_group, time, score)
+  relocate(patient, item, rater, rater_group, time, score) |>
+  mutate(
+    item = factor(as.numeric(gsub("IFBE_", "", item)) + 1)
+  )
 
-saveRDS(data_wide22, file.path("data", "data_wide.rds"))
-saveRDS(data_long22, file.path("data", "data_long.rds"))
+data_violence <- data_long22 |>
+  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
+  select(c(patient, age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
+  filter(!duplicated(patient))
+
+saveRDS(data_wide22,   file.path("data", "data_wide.rds"))
+saveRDS(data_long22,   file.path("data", "data_long.rds"))
+saveRDS(data_violence, file.path("data", "data_violence.rds"))

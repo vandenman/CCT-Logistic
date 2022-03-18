@@ -8,5 +8,5 @@
 Description of your package
 }
 \author{
-you <youremail>
+Don van den Bergh \email{donvdbergh@hotmail.com}
 }

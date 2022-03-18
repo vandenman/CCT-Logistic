@@ -18,6 +18,10 @@ read_wider_data <- function()
 read_wider_imputed_data <- function()
   read_data("data_wider_imputed.rds")
 
+#' @export
+read_violence_data <- function()
+  read_data("data_violence.rds")
+
 #' @importFrom rlang %||%
 #TODO: just import rlang::`%||%`?
 # `%||%` <- function(a, b) {
@@ -47,6 +51,26 @@ save_figure <- function(figure, file, dir = "figures", extension = c("svg", "pdf
   } else {
     stop("Invalid extension '", extension, "'")
   }
+}
+
+#' @export
+save_figure_obj <- function(figure, file, dir = "figure_r_objs", ...) {
+
+  ext <- tools::file_ext(file)
+  if (ext == "") {
+    file <- paste0(file, ".rds")
+  } else if (ext != "rds") {
+    stop("Expected extension .rds")
+  }
+  file <- file.path(dir, file)
+
+  saveRDS(figure, file)
+}
+
+#' @export
+load_figure_obj <- function(file, dir = "figure_r_objs", ...) {
+  file <- file.path(dir, file)
+  readRDS(file)
 }
 
 #' @export

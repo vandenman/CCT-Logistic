@@ -10,10 +10,13 @@ nr <- 10
 nc <- 7
 
 set.seed(42)
-data_obj <- simulate_data_ltm(np, ni, nr, nc, threshold_type = "free", )
-
-patient_idx <- 1:3
-observed_data <- data_obj$df |> filter(patient %in% patient_idx) |> group_by(patient, item) |> summarise(mean = mean(score)) |> ungroup(item) |> summarise(mean2 = mean - mean(mean))
+data_obj <- simulate_data_ltm(np, ni, nr, nc, threshold_type = "free")
+observed_data <- data_obj$df |>
+  filter(patient %in% patient_idx) |>
+  group_by(patient, item) |>
+  summarise(mean = mean(score)) |>
+  ungroup(item) |>
+  summarise(mean2 = mean - mean(mean))
 latent_truth  <- data_obj$parameters$lt[patient_idx, ]
 patient_grp   <-  factor(rep(patient_idx, each = ni))
 

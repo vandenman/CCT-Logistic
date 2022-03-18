@@ -4,7 +4,7 @@ assert_counts <- function (np, ni, nr, no_rater_groups) {
     is.count(ni),
     is.count(nr),
     is.count(no_rater_groups),
-    nr > no_rater_groups
+    nr >= no_rater_groups
   )
 }
 
