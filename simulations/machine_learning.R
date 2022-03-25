@@ -5,7 +5,8 @@ library(dplyr)
 library(purrr)
 library(ranger)
 library(gbm)
-library(brms) # <- do this manually
+library(brms)
+library(tidyr)
 
 # functions ----
 get_prediction_accuracy <- function(table) sum(diag(table)) / sum(table)
@@ -241,34 +242,37 @@ fitBoosting <- function(datTrain, datTest, n.trees = 500, cv.folds = 5, shrinkag
 # load data ----
 all_data <- read_long_data()
 data_2_analyze <- all_data |>
-  as_tibble() |>
-  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis_group) & !is.na(crime_group)) |>
-  select(-c(patient_age_group, violent_before, violent_between, violent_after,
-                 treatement_duration_group, diagnosis_group, crime_group)) |>
-  mutate(
-    patient     = normalize_factor(patient),
-    item        = normalize_factor(item),
-    rater       = normalize_factor(rater),
-    time        = normalize_factor(time),
-    rater_group = normalize_factor(rater_group),
-    score       = score + 1 # transform score from 0 -17 to 1 - 18
-  ) |>
+  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
+  select(-c(age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
   arrange(rater_group, patient, item, rater, time)
 
 data_violence <- all_data |>
-  as_tibble() |>
-  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis_group) & !is.na(crime_group)) |>
-  select(c(patient, patient_age_group, violent_before, violent_between, violent_after, treatement_duration_group, diagnosis_group, crime_group)) |>
-  mutate(
-    patient_orig = patient,
-    patient = normalize_factor(patient),
-    violent_after = as.integer(violent_after) - 1L
-  ) |>
+  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
+  select(c(patient, age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
   filter(!duplicated(patient))
 
-wider_imputed_data <- read_wider_imputed_data()
-data_wider <- mice::complete(wider_imputed_data, 1) |>
-  filter(patient %in% data_violence$patient_orig)
+measure_vars <- paste0("IFBE_", 0:22)
+data_wide <- read_wide_data()
+data_wider <- data_wide |>
+  filter(!is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
+  pivot_wider(names_from = time, values_from = all_of(measure_vars), names_sep = "_time_") |>
+  group_by(patient) |>
+  mutate(
+    across(
+      all_of(paste0(measure_vars, "_time_", rep(1:2, length(measure_vars)))),
+      ~ mean(.x, na.rm = TRUE)
+    )
+  ) |>
+  ungroup() |>
+  distinct(patient, .keep_all = TRUE) |>
+  select(-c(rater, rater_group))
+
+# assert that data_wider and data_violence are identical, except that data_wider contains the IFBE items in wide format
+nrow(data_wider) == nrow(data_violence)
+ncol(data_wider) == ncol(data_violence) + 2 * length(measure_vars)
+shared_colnames <- intersect(colnames(data_wider), colnames(data_violence))
+identical(data_wider[shared_colnames], data_violence[shared_colnames]) # data are identical except for the IFBE items in data_wider
+anyNA(data_wider[setdiff(colnames(data_wider), shared_colnames)]) # no NAs in the IFBE items
 
 # fit ML methods ----
 
@@ -278,16 +282,17 @@ all_obs    <- seq_len(n_obs)
 unique_obs <- n_obs
 n_holdout  <- floor(0.2 * unique_obs)
 
-cols <- c("time", "patient", "rater", "item", "score", "patient_age_group",
-          "treatement_duration_group",
+cols <- c("time", "patient", "rater", "item", "score", "age",
+          "treatment_duration",
           "violent_before", "violent_between",
           "violent_after",
-          "diagnosis_group", "crime_group", "rater_group"
+          "diagnosis", "crime", "rater_group"
 )
 cols <- setdiff(colnames(data_wider), c("time", "Aantal_Patienten", "patient"))
 
 mod_ltm <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time.stan", pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels", cpp_options = list(stan_threads=TRUE))
 
+# TODO: repeat this but reset the seed for each model so that it's also reproducible when run out of order
 set.seed(123)
 no_cross_validations <- 10
 seeds <- sample(100000, no_cross_validations)
@@ -348,15 +353,39 @@ for (i in seq_len(no_cross_validations)) {
 
 system("beep_finished.sh")
 
+rowSds <- matrixStats::rowSds
 train_accuracy <- matrix(unlist(map(objs, \(x) x$perf$train$prediction_accuracy)), nrow(objs), ncol(objs), FALSE, dimnames(objs))
 test_accuracy  <- matrix(unlist(map(objs, \(x) x$perf$test $prediction_accuracy)), nrow(objs), ncol(objs), FALSE, dimnames(objs))
 rowMeans(train_accuracy)
 rowMeans(test_accuracy)
+rowSds(train_accuracy)
+rowSds(test_accuracy)
 
 train_mse <- matrix(unlist(map(objs, \(x) x$perf$train$mse)), nrow(objs), ncol(objs), FALSE, dimnames(objs))
 test_mse  <- matrix(unlist(map(objs, \(x) x$perf$test $mse)), nrow(objs), ncol(objs), FALSE, dimnames(objs))
 rowMeans(train_mse)
 rowMeans(test_mse)
+matrixStats::rowSds(train_mse)
+matrixStats::rowSds(test_mse)
+
+rownames <- c("random forest", "gbm", "Bayesian LR", "Frequentist LR", "Intercept only LR", "Bayesian LR + CCT")
+order <- c(5, 4, 3, 6, 1, 2)
+tb_accuracy <- tibble(
+  method              = rownames,
+  mean_train_accuracy = rowMeans(train_accuracy),
+    sd_train_accuracy = rowSds  (train_accuracy),
+  mean_test_accuracy  = rowMeans(test_accuracy),
+    sd_test_accuracy  = rowSds  (test_accuracy),
+)[order, ]
+tb_mse <- tibble(
+  method              = rownames,
+  mean_train_accuracy = rowMeans(train_mse),
+    sd_train_accuracy = rowSds  (train_mse),
+  mean_test_accuracy  = rowMeans(test_mse),
+    sd_test_accuracy  = rowSds  (test_mse),
+)[order, ]
+
+saveRDS(list(tb_accuracy = tb_accuracy, tb_mse = tb_mse), file = file.path("presentations", "prediction_results.rds"))
 
 
 debugonce(brms::brm)

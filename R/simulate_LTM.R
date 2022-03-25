@@ -387,18 +387,26 @@ data_2_stan.data.frame <- function(dat, score = "score", patient = "patient", it
 
   # TODO: add safety checks!
 
+  # this is not very clean but it gets the job done
+  dat <- dat |>
+    mutate(
+      across(all_of(c(patient, item, rater, rater_group, time)),
+             normalize_factor
+      ),
+    )
+
   nc <- nc %||% guess_nc(dat)
 
   np <- max(as.integer(dat[[patient]]))
   ni <- max(as.integer(dat[[item]]))
   nr <- max(as.integer(dat[[rater]]))
-  no_rater_groups <- if (is.null(dat[[rater_group]])) 1L else max(dat[[rater_group]])
+  no_rater_groups <- max_or_1(dat[[rater_group]])
   rater_group_assignment <- dat[[rater_group]][!duplicated(dat[[rater]])]
 
-  idx_time_point <- dat[[time]] %||% integer()
-  no_time_points <- if (is.null(idx_time_point)) 1L else max(idx_time_point)
+  idx_time_point <- as.integer(dat[[time]])
+  no_time_points <- max_or_1(idx_time_point)
 
- data <- stan_data_ltm_inner(
+  data <- stan_data_ltm_inner(
     np, ni, nr, no_rater_groups, nc,
     a_sd_lt, b_sd_lt, a_sd_log_lambda, b_sd_log_lambda, a_sd_log_E, b_sd_log_E, a_sd_log_a, b_sd_log_a,
     a_sd_b, b_sd_b, mu_log_lambda, mu_log_a, mu_b,
@@ -418,7 +426,7 @@ data_2_stan.data.frame <- function(dat, score = "score", patient = "patient", it
     no_covariates <- ncol(design_matrix) - 1L
 
     data$store_predictions        <- store_predictions
-    data$log_reg_outcomes         <- logistic_dat[[logistic_target]]
+    data$log_reg_outcomes         <- normalize_factor(logistic_dat[[logistic_target]]) - 1L
     # we start from 2 because we drop the intercept since Stan's bernoulli_logit_glm has a separate argument for the intercept
     data$design_matrix_covariates <- design_matrix[, -1L, drop = FALSE]
     data$no_covariates            <- no_covariates
@@ -430,4 +438,15 @@ data_2_stan.data.frame <- function(dat, score = "score", patient = "patient", it
 
   return(data)
 
+}
+
+max_or_1 <- function(x) {
+  if (is.null(x))
+    1L
+  else
+    vctrs::vec_unique_count(x)
+  # if (is.factor(x))
+  #   nlevels(x)
+  # else
+  #   max(x)
 }

@@ -75,9 +75,9 @@ compute_mean_probs <- function(fits, cache_filename, force = FALSE) {
 all_data <- read_long_data()
 data_2_analyze <- all_data |>
   as_tibble() |>
-  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis_group) & !is.na(crime_group)) |>
-  select(-c(patient_age_group, violent_before, violent_between, violent_after,
-                 treatement_duration_group, diagnosis_group, crime_group)) |>
+  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
+  select(-c(age, violent_before, violent_between, violent_after,
+                 treatment_duration, diagnosis, crime)) |>
   mutate(
     patient     = normalize_factor(patient),
     item        = normalize_factor(item),
@@ -90,8 +90,8 @@ data_2_analyze <- all_data |>
 
 data_violence <- all_data |>
   as_tibble() |>
-  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis_group) & !is.na(crime_group)) |>
-  select(c(patient, patient_age_group, violent_before, violent_between, violent_after, treatement_duration_group, diagnosis_group, crime_group)) |>
+  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
+  select(c(patient, age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
   mutate(
     patient = normalize_factor(patient),
     violent_after = as.integer(violent_after) - 1L
@@ -194,11 +194,11 @@ tib <- tibble(
 cols <- hcl.colors(3L, "Set 2")
 colors <- c("Observed" = "black", setNames(cols, betterNames))
 
-# ylim <- list(c(-.2, .4), c(0, .4))
-# counter_breaks <<- 0L
-# counter_limits <<- 0L
-# limits_fun <- \(x) {res <- ylim[[counter_limits+1]]; counter_limits <<- (counter_limits+1L) %% 2; res}
-# breaks_fun <- \(x) {res <- jaspGraphs::getPrettyAxisBreaks(ylim[[counter_breaks+1L]]); counter_breaks <<- (counter_breaks + 1L) %% 2; res}
+ylim <- list(c(-.2, .4), c(0, .4))
+counter_breaks <<- 0L
+counter_limits <<- 0L
+limits_fun <- \(x) {res <- ylim[[counter_limits+1]]; counter_limits <<- (counter_limits+1L) %% 2; res}
+breaks_fun <- \(x) {res <- jaspGraphs::getPrettyAxisBreaks(ylim[[counter_breaks+1L]]); counter_breaks <<- (counter_breaks + 1L) %% 2; res}
 
 fit_plot <- ggplot(data = tib, mapping = aes(x = x, y = y, group = fill, fill = fill)) +
     geom_bar(position="dodge", stat="identity", width = .5) +
@@ -219,6 +219,25 @@ plotly::ggplotly(fit_plot)
 
 pp <- plotly::ggplotly(plot_ltm_fit(raw_probabilities_without_lr, observed_proportions, ylim = ylim) + labs(title = "Without logistic regression"))
 pp
+
+plot_for_presentation <- tib |>
+  filter(cols == "Raw" & rows == "without") |>
+  ggplot(mapping = aes(x = x, y = y, group = fill, fill = fill)) +
+    geom_bar(position="dodge", stat="identity", width = .5) +
+    scale_x_continuous(name = "Score", breaks = 1:18, limits = c(0, 19)) +
+    scale_y_continuous(name = "Probability", breaks = seq(0, .4, .1), limits = c(0, .4)) +
+    scale_fill_manual(name = NULL, values = colors) +
+    # jaspGraphs::geom_rangeframe() +
+    jaspGraphs::themeJaspRaw(legend.position = "right") +
+    theme(strip.text = element_text(size = 28)) +
+    geom_segment(x = 1, xend = 18, y = -Inf, yend = -Inf) +
+    geom_segment(x = -Inf, xend = -Inf, y = 0.0, yend = 0.4)
+saveRDS(plot_for_presentation, file = file.path("figure_r_objs", "ltm_fit.rds"))
+pdf("simulation_figures/ltm_only_joined_ggplot2_4plts.pdf", width = 8, height = 8)
+fit_plot
+dev.off()
+
+plotly::ggplotly(plot_for_presentation)
 
 # inspect fit logisitc regression ----
 observed_violence <- fits_with_lr$stan_data$orig$log_reg_outcomes

@@ -15,6 +15,7 @@ RoxygenNote: 7.1.2
 Imports:
     assertthat,
     cmdstanr (>= 0.4.0.9000),
+    dplyr,
     ggplot2,
     grDevices,
     jaspGraphs,
