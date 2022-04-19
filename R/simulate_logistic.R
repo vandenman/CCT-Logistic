@@ -107,8 +107,12 @@ data_2_stan.logistic_regression_ltm_data <- function(dat, store_predictions = FA
 }
 
 data_2_stan_incorporate_missing_log_reg <- function(data, missing_idx) {
-  if (length(missing_idx) == 0L)
+
+  if (length(missing_idx) == 0L) {
+    data$np_log_reg     <-   data$np
+    data$log_reg_np_idx <- 1:data$np
     return(data)
+  }
 
   np <- data$np
   assertthat::assert_that(

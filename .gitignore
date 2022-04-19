@@ -24,3 +24,7 @@ random/*
 
 *.so
 *.o
+*.png
+presentations/*.pdf
+*.rds
+graphicalmodels/split

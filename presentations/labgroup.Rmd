@@ -1,5 +1,5 @@
 ---
-title: "Using Cultural Consensus Theory to Predict Violenct Outbursts in Forensic Psychiatric Hospitals"
+title: "Using Cultural Consensus Theory to Predict Violent Outbursts in Forensic Psychiatric Hospitals"
 author: "Don van den Bergh"
 date: '2022-03-28'
 # output: beamer_presentation
@@ -7,7 +7,7 @@ output:
   ioslides_presentation:
     widescreen: yes
     smaller: yes
-    transition: faster
+    transition: 0
     css: style.css
 runtime: shiny
 revealjs::revealjs_presentation:
@@ -67,16 +67,59 @@ key_crime <- setNames(
   levels(violence_data$crime)
 )
 
-wide_data <- wide_data |> 
+key_treatment_duration <- setNames(
+  c("0-2 years", "2-4 years", "4-6 years", "6+ years"),
+  levels(violence_data$treatment_duration)
+)
+
+wide_data <- wide_data |>
   mutate(
-    diagnosis = recode_factor(diagnosis, !!!key_diagnosis),
-    crime     = recode_factor(crime,     !!!key_crime)
+    diagnosis          = recode_factor(diagnosis,          !!!key_diagnosis),
+    crime              = recode_factor(crime,              !!!key_crime),
+    treatment_duration = recode_factor(treatment_duration, !!!key_treatment_duration)
   )
-violence_data <- violence_data |> 
+violence_data <- violence_data |>
   mutate(
-    diagnosis = recode_factor(diagnosis, !!!key_diagnosis),
-    crime     = recode_factor(crime,     !!!key_crime)
+    diagnosis          = recode_factor(diagnosis,          !!!key_diagnosis),
+    crime              = recode_factor(crime,              !!!key_crime),
+    treatment_duration = recode_factor(treatment_duration, !!!key_treatment_duration)
   )
+
+cols_to_scramble <- c("age", "violent_before", "violent_between", "violent_after", "treatment_duration", "diagnosis", "crime")
+items_to_scramble <- c("IFBE_0", "IFBE_1", "IFBE_2", "IFBE_3", "IFBE_4", "IFBE_5", "IFBE_6", "IFBE_7", "IFBE_8", "IFBE_9", "IFBE_10", 
+"IFBE_11", "IFBE_12", "IFBE_13", "IFBE_14", "IFBE_15", "IFBE_16", "IFBE_17", "IFBE_18", "IFBE_19", "IFBE_20", "IFBE_21", "IFBE_22")
+
+# scramble the columns independently, but in a way that ensures that patient x has the same disorder in 
+# violence_data and wide_data
+set.seed(123)
+new_levels <- setNames(lapply(cols_to_scramble, \(col) sample(levels(wide_data[[col]]))), cols_to_scramble)
+for (col in cols_to_scramble) {
+  levels(wide_data[[col]]) <- new_levels[[col]]
+  levels(violence_data[[col]]) <- new_levels[[col]]
+}
+levels(wide_data[["rater"]]) <- sample(levels(wide_data[["rater"]]))
+for (item in items_to_scramble) {
+  wide_data[[item]] <- sample(1:18, nrow(wide_data), TRUE)
+}
+# print(wide_data, n=30)
+# print(violence_data,n=5)
+
+# permute_tib_columnwise <- function(tib, seed = 123) {
+#   set.seed(seed)
+#   for (i in seq_along(tib))
+#     tib[[i]] <- sample(tib[[i]])
+#   tib <- tib[order(tib$patient), ]
+#   return(tib)
+# }
+# 
+# permute_tib_columnwise_grouped_by_patient <- function(tib, seed = 123) {
+#   tib <- permute_tib_columnwise(tib, seed)
+#   tib |> 
+#     group_by(patient) |>
+#     mutate(across(age:crime, \(x) x[1])) |> 
+#     ungroup() |> 
+#     arrange(patient, time)
+# }
 
 ```
 
@@ -99,7 +142,11 @@ violence_data <- violence_data |>
 
 In addition, we know a patients age (grouped by 10 years) and treatment duration
 
-We know the violence history of a patient: - Violent behavior before time point 1? - Violent behavior between time point 1 and 2? - Violent behavior after time point 2?
+We know the violence history of a patient:
+
+- Violent behavior before time point 1? 
+- Violent behavior between time point 1 and 2?
+- Violent behavior after time point 2?
 
 In total, there are 798 item scores, but only 104 violent outcomes.
 
@@ -107,36 +154,60 @@ In total, there are 798 item scores, but only 104 violent outcomes.
 
 ```{r raw_data, echo = FALSE, warning=FALSE}
 # datatable(wide_data, rownames = FALSE)
-datatable(wide_data, extensions = c("Scroller", "RowGroup", "FixedColumns"),
+datatable(wide_data,
+          extensions = c("Scroller", "RowGroup", "FixedColumns"),
           options = list(rowGroup = list(dataSrc = 1), fixedColumns = list(leftColumns = 2)))
+#datatable(permute_tib_columnwise_grouped_by_patient(wide_data),
+#          extensions = c("Scroller", "RowGroup", "FixedColumns"),
+#          options = list(rowGroup = list(dataSrc = 1), fixedColumns = list(leftColumns = 2)))
 ```
 
 ## Aggregated Data
 
 ```{r aggregated_data, echo = FALSE, warning=FALSE}
 datatable(violence_data, extensions = "Scroller")
+# datatable(permute_tib_columnwise(violence_data), extensions = "Scroller")
 ```
+
+<!-- ## Descriptives -->
+
+<!-- <img class="svg-image"  -->
+<!--   src="/media/dvdb/storage/github/MesdagProject/figures/descriptives_combined_plt.svg" -->
+<!--   alt="descriptives" -->
+<!-- /> -->
+
+<!-- <img src="/media/dvdb/storage/github/MesdagProject/figures/descriptives_combined_plt.svg" -->
+<!--      alt="descriptives" -->
+<!--      style="float: center; margin-right: 10px; height: 500px; "/> -->
 
 ## Descriptives
 
-```{r descriptives_plot, echo = FALSE, fig.height=3, fig.width=10, fig.align='center', echo=FALSE, warning=FALSE}
-f <- tempfile(fileext = ".png")
-ragg::agg_png(filename = f, width = 1050, height = 400, scaling = 0.9)
-load_figure_obj("descriptives_combined_plt.rds")
-invisible(dev.off())
-knitr::include_graphics(f)
-# f <- tempfile(fileext = ".pdf")
-# pdf(file = f, width = 10, height = 3)
-# print(load_figure_obj("descriptives_combined_plt.rds"))
-# dev.off()
-# knitr::include_graphics(f)
-```
+<img class="svg-image" 
+  src="/media/dvdb/storage/github/MesdagProject/figures/descriptives_scores.svg"
+  alt="descriptives"
+  style="max-height:500px;"
+/>
+
+## Descriptives
+
+<img class="svg-image" 
+  src="/media/dvdb/storage/github/MesdagProject/figures/descriptives_raters_by_patients.svg"
+  alt="descriptives"
+/>
+
+
 
 ## The Basic CCT Model
 
-<img src="/media/dvdb/storage/github/MesdagProject/presentations/graphicalmodels_11.svg"
-     alt="model1"
-     style="float: center; margin-right: 10px; height: 500px; "/>
+<img class="svg-image"
+  src="/media/dvdb/storage/github/MesdagProject/presentations/graphicalmodels_11.svg"
+  alt="model1"
+/>
+
+<!-- <img src="/media/dvdb/storage/github/MesdagProject/presentations/graphicalmodels_11.svg" -->
+<!--      alt="model1" -->
+<!--     style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);"/> -->
+<!-- style="float: center; margin-right: 10px; height: 500px; "/> -->
 
 <!-- ```{r graphical_model_original, echo = FALSE} -->
 <!-- knitr::include_graphics(normalizePath("presentations/graphicalmodels_11.svg")) -->
@@ -144,18 +215,21 @@ knitr::include_graphics(f)
 
 ## Free Thresholds
 
+<img class="svg-image" 
+  src="/media/dvdb/storage/github/MesdagProject/presentations/graphicalmodels_7.svg"
+  alt="model2"
+/>
 
-<img src="/media/dvdb/storage/github/MesdagProject/presentations/graphicalmodels_7.svg"
-     alt="model1"
-     style="float: center; margin-right: 10px; height: 500px; "/>
+
+<!-- <img src="/media/dvdb/storage/github/MesdagProject/presentations/graphicalmodels_7.svg" -->
+<!--      alt="model1" -->
+<!--      style="float: center; margin-right: 10px; height: 500px; "/> -->
 
 <!-- ```{r graphical_model_free_thresholds_1a, echo = FALSE} -->
 <!-- knitr::include_graphics(normalizePath("presentations/graphicalmodels_7-2.png")) -->
 <!-- ``` -->
 
 ------------------------------------------------------------------------
-
-<!-- <div style="margin-left:-30px; margin-top:-60px; margin-bottom:-90px; width:900px; height:1200px"> -->
 
 ```{r shiny_one_patient, echo=FALSE}
 # renderSVG <- function(expr, width = 8, height = 3.75, ...) {
@@ -389,30 +463,111 @@ shinyApp(
 
 ```
 
-<!-- </div> -->
-
 ## Model fit
 
-```{r ltm_fit, echo = FALSE, fig.width=9}
-plotly::ggplotly(load_figure_obj("ltm_fit.rds"))
+```{r ltm_fit_shiny, echo = FALSE}
+fit_rawdata <- readRDS("figure_r_objs/ltm_fit_rawdata.rds")
+fit_names <- c("Observed", "Original", "Skew", "Free")
+# names(fit_names) <- fit_names
+# names(fit_names)[2] <- r"{<i class='Original'; background-color='#ED90A4' >Original</i>}"
+cols <- hcl.colors(3L, "Set 2")
+colors <- c("Observed" = "#000000", setNames(cols, fit_names[-1L]))
+
+# css_template <- ".btn-primary.active:nth-child(%s) { background: %s; }"
+css_template <- ".checkbtn:nth-child(%s) { background: %s; }"
+css <- paste(sprintf(css_template, seq_along(colors), colors), collapse = "\n")
+
+shinyApp(
+  ui = fluidPage(
+    # does not work
+    # tags$head(tags$style(HTML(css))),
+    column(width = 2, inputPanel(
+      shinyWidgets::checkboxGroupButtons(
+        inputId = "filter",
+        label = NULL,
+        choices = fit_names,
+        selected = "Observed",
+        status = "primary",
+        direction = "vertical",
+        checkIcon = list(
+          yes = icon("ok",     lib = "glyphicon"),
+          no  = icon("remove", lib = "glyphicon")
+        )
+      )
+      # shinyWidgets::radioGroupButtons(
+      #   inputId = "filter",label = NULL,
+      #   choices = setNames(fit_names, fit_names), 
+      #   selected = "Observed", justified = TRUE
+      # )
+    )),
+    column(width = 10, imageOutput("modelFitPlot", width = "100%", height = "400px"))
+  ),
+  server = function(input, output) {
+    output$modelFitPlot <- renderImage(deleteFile = TRUE, expr = {
+      
+      fit_toshow <- fit_rawdata |> filter(fill %in% input$filter)
+      
+      if (nrow(fit_toshow) == 0L) {
+        
+        plt <- ggplot2::ggplot()
+        
+      } else {
+        
+        plt <- ggplot(fit_toshow, mapping = aes(x = x, y = y, group = fill, fill = fill)) +
+          geom_bar(position="dodge", stat="identity", width = .5)
+        
+      }
+      
+      plt <- plt + 
+        scale_x_continuous(name = "Score", breaks = 1:18, limits = c(0, 19)) +
+        scale_y_continuous(name = "Probability", breaks = seq(0, .3, .1), limits = c(0, .4)) +
+        scale_fill_manual(name = NULL, values = colors[input$filter]) +
+        jaspGraphs::geom_rangeframe() +
+        jaspGraphs::themeJaspRaw(legend.position = "right")
+      
+      outfile <- tempfile(fileext = ".svg")
+
+      height <- 5.5
+      width  <- 8
+      svglite::svglite(outfile, width = width, height = height, 
+                       fix_text_size = FALSE # messes with plotmath
+      )
+      print(plt)
+      invisible(dev.off())
+
+      # Return a list containing the filename
+      list(src = normalizePath(outfile),
+           contentType = 'image/svg+xml',
+           width       = width  * 96,
+           height      = height * 96,
+           alt         = "One patient")
+    })
+  }
+)
 ```
 
-## The Basic CCT Model
+<!-- # ```{r ltm_fit, echo = FALSE, fig.width=9} -->
+<!-- # plotly::ggplotly(load_figure_obj("ltm_fit.rds")) -->
+<!-- # ``` -->
 
-<img src="/media/dvdb/storage/github/MesdagProject/presentations/graphicalmodels_7.svg"
-     alt="model1"
-     style="float: center; margin-right: 10px; height: 500px; "/>
+## Free Thresholds
 
-
-<!-- ```{r graphical_model_1b, echo = FALSE, fig.width=0.1, fig.height=0.1} -->
-<!-- knitr::include_graphics(normalizePath("presentations/graphicalmodels_7-2.png")) -->
-<!-- ``` -->
+<img class="svg-image"
+  src="/media/dvdb/storage/github/MesdagProject/presentations/graphicalmodels_7.svg"
+  alt="model2"
+/>
 
 ## Predicting violence
 
-<img src="/media/dvdb/storage/github/MesdagProject/presentations/graphicalmodels_9.svg"
-     alt="model1"
-     style="float: center; margin-right: 10px; height: 500px; "/>
+<img class="svg-image"
+  src="/media/dvdb/storage/github/MesdagProject/presentations/graphicalmodels_9.svg"
+  alt="model3"
+/>
+
+
+<!-- <img src="/media/dvdb/storage/github/MesdagProject/presentations/graphicalmodels_9.svg" -->
+<!--      alt="model1" -->
+<!--      style="float: center; margin-right: 10px; height: 500px; "/> -->
 
 
 <!-- ```{r graphical_model_2b, echo = FALSE} -->
@@ -528,6 +683,21 @@ show_results_table(tb_mse_pretty, container = sketch_mse)
 ## Interpreting the model
 
 TODO
+
+## Interpreting the model
+
+<img class="svg-image"
+  src="/media/dvdb/storage/github/MesdagProject/figures/posterior_mean_95CRI.svg"
+  alt="estimates"
+  style="margin-left: -20px; margin-right: -40px; width: 1000px; max-width: 1000px"
+/>
+
+Reference group is 0-2 years treatment, age <= 30, diagnosis As_1_Other, crime Arson.
+
+<!-- <img src="/media/dvdb/storage/github/MesdagProject/figures/posterior_mean_95CRI.svg" -->
+<!--      alt="estimates" -->
+<!--      style="float: center; margin-right: 10px; height: 500px; "/> -->
+
 
 
 ## Summary

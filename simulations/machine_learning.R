@@ -7,6 +7,15 @@ library(ranger)
 library(gbm)
 library(brms)
 library(tidyr)
+library(pROC)
+
+# data(aSAH)
+#
+# # Basic example
+# roc_obj <- roc(aSAH$outcome, aSAH$s100b, levels=c("Good", "Poor"))
+# auc_obj <- auc(roc_obj)
+# plot(roc_obj)
+# plot(auc_obj)
 
 # functions ----
 get_prediction_accuracy <- function(table) sum(diag(table)) / sum(table)
@@ -300,6 +309,7 @@ force <- FALSE
 
 ml_methods <- c("random_forest", "gbm", "bayesian_logistic", "frequentist_logistic", "baseline_model")
 objs <- matrix(list(), length(ml_methods) + 1L, no_cross_validations, dimnames = list(c(ml_methods, "CCT"), NULL))
+data_test_objs <- vector("list", length = no_cross_validations)
 
 for (i in seq_len(no_cross_validations)) {
 
@@ -309,6 +319,7 @@ for (i in seq_len(no_cross_validations)) {
 
   data_train <- data_wider[-idx_holdout, cols]
   data_test  <- data_wider[ idx_holdout, cols]
+  data_test_objs[[i]] <- data_test
   cat(sprintf("nrow(data_train) = %d\nnrow(data_test)  = %d\nfold = %s", nrow(data_train), nrow(data_test), i), sep = "\n")
 
   for (method in ml_methods) {
@@ -321,6 +332,7 @@ for (i in seq_len(no_cross_validations)) {
   }
   cat("method: ltm\n")
 
+  # TODO: shouldn't these use data_train somehow?
   ltm_data <- data_2_stan(
     data_2_analyze,
     logistic_dat = data_violence, logistic_target = "violent_after",
@@ -352,6 +364,168 @@ for (i in seq_len(no_cross_validations)) {
 }
 
 system("beep_finished.sh")
+
+rf_probs1 <- objs[["random_forest", 1]]$perf$test$predicted_probs
+labels1   <- data_test_objs[[1]]$violent_after
+debugonce(pROC:::roc.default)
+roc_obj <- roc(as.integer(labels1), rf_probs1, plot = TRUE, legacy.axes=TRUE, xlab = "False positive rate", ylab = "True positive rate")
+
+debugonce(pROC:::plot.roc.roc)
+pROC:::plot.roc
+
+
+se <- sort(roc_obj$sensitivities, decreasing = TRUE)
+sp <- sort(roc_obj$specificities, decreasing = FALSE)
+roc_obj <- roc(as.integer(labels1), rf_probs1, plot = TRUE, legacy.axes=TRUE)
+plot(1-sp, se, type = "b", asp = 1, bty = "n", las = 1); abline(0, 1)
+
+plot(roc_obj)
+points(sp, se, type = "b", asp = 1, bty = "n", las = 1)
+
+
+get_tpr_tnr <- function(observed, predicted) {
+  tb <- table(observed, predicted)
+  tnr <- tb[1, 1] / (tb[1, 1] + tb[1, 2])
+  tpr <- tb[2, 2] / (tb[2, 1] + tb[2, 2])
+  return(c(tpr, tnr))
+}
+
+compute_tpr_tnr_mat <- function(observed, predicted_probs, thresholds) {
+  mm <- matrix(NA_real_, length(thresholds), 2)
+  for (i in seq_along(thresholds)) {
+    predicted <- factor(as.integer(thresholds[i] <= predicted_probs), levels = levels(labels1))
+    mm[i, ] <- get_tpr_tnr(labels1, predicted)
+  }
+
+  se_mm <- sort(mm[, 1], decreasing = TRUE)
+  sp_mm <- sort(mm[, 2], decreasing = FALSE)
+  tibble(tpr = se_mm, tfr = 1 - sp_mm, thresholds = thresholds)
+}
+
+plot(1-se_mm, sp_mm, type = "b", asp = 1, bty = "n", las = 1, main = "mm"); abline(0, 1)
+
+plot(roc_obj)
+points(sp_mm, se_mm, type = "b", asp = 1, bty = "n", las = 1)
+
+no_reps <- length(data_test_objs[[1]]$violent_after)
+objs_tib <- tibble(
+  method     = rep(rownames(objs), each = no_reps, ncol(objs)),
+  iter       = rep(seq_len(ncol(objs)), each = nrow(objs) * no_reps),
+  test_probs = unlist(lapply(objs, \(x) x$perf$test$predicted_probs)),
+  test_label = unlist(lapply(seq_along(data_test_objs), \(i) rep(data_test_objs[[i]]$violent_after, nrow(objs))))
+)
+
+roc_obj$thresholds
+
+roc_tib <- objs_tib |>
+  group_by(method, iter) |>
+  summarise(
+    temp = compute_tpr_tnr_mat(test_label, test_probs, roc_obj$thresholds),
+  ) |>
+  ungroup() |>
+  unnest_wider(temp)
+
+
+roc_tibble <- tibble()
+for (i in seq_along(data_train_objs)) {
+  test_labels <- as.integer(data_train_objs[[i]]$violent_after)
+  for (j in seq_len(nrow(objs))) {
+    temp_roc_obj <- pROC::roc(test_labels, objs[[j, i]]$perf$test$predicted_probs)
+    temp_tib <- tibble(
+      method    = rownames(objs)[j],
+      iteration = i,
+      tpr       =     sort(temp_roc_obj$sensitivities, decreasing = TRUE),
+      fpr       = 1 - sort(temp_roc_obj$specificities, decreasing = FALSE)
+    )
+    roc_tibble <- rbind(roc_tibble, temp_tib)
+  }
+}
+
+i <- j <- 1
+test_labels <- as.integer(data_train_objs[[i]]$violent_after)
+temp_roc_obj <- pROC::roc(test_labels, objs[[j, i]]$perf$test$predicted_probs)
+tt1 <- tibble(
+  method    = rownames(objs)[j],
+  iteration = i,
+  tpr       =     sort(temp_roc_obj$sensitivities, decreasing = TRUE),
+  fpr       = 1 - sort(temp_roc_obj$specificities, decreasing = FALSE)
+)
+temp_roc_obj2 <- cutpointr(x = objs[[j, i]]$perf$test$predicted_probs, class = test_labels, direction = ">=", pos_class = 2)
+tt2 <- temp_roc_obj2 |> select(c("roc_curve")) |>
+    tidyr::unnest(.data$roc_curve) |>
+    select(c("tpr", "tnr")) |>
+    mutate(fnr = 1 - tnr) |>
+    select(-tnr)
+
+tt1$tpr - rev(tt2$tpr)
+tt1$fpr - rev(tt2$fnr)
+
+roc_tibble$tpr - rev(individual_roc_tib$tpr)
+
+ggplot(data = roc_tibble, aes(x = fpr, y = tpr, group = interaction(method, iteration), color = method)) +
+  jaspGraphs::geom_abline2(intercept = 0, slope = 1, color = "grey") +
+  geom_line(alpha = .5) +
+  jaspGraphs::geom_rangeframe() +
+  jaspGraphs::scale_JASPcolor_discrete() +
+  jaspGraphs::themeJaspRaw(legend.position = "right")
+
+library(ggplot2)
+library(cutpointr)
+
+predictions_100_samples <- data.frame(
+    Sample = rep(c(1:100), times = 195),
+    PredictionValues = c(rnorm(n = 9750), rnorm(n = 9750, mean = 1)),
+    RealClass = c(rep("benign", times = 9750), rep("pathogenic", times = 9750))
+)
+
+roc_tib <- tibble()
+individual_roc_tib <- tibble()
+mean_roc_tib <- tibble()
+cutpoints <- seq(0, 1, .05)
+for (j in seq_len(nrow(objs))) {
+
+  method <- rownames(objs)[j]
+  temp_tib <- tibble(
+    probs  = unlist(lapply(seq_len(nrow(objs)), \(i) objs[[i, j]]$perf$test$predicted_probs)),
+    class  = unlist(lapply(seq_len(nrow(objs)), \(i) as.integer(data_train_objs[[i]]$violent_after))),
+    cv     = unlist(lapply(seq_len(nrow(objs)), \(i) rep(i, length(data_train_objs[[i]]$violent_after)))),
+    method = method
+  )
+  roc_tib <- rbind(roc_tib, temp_tib)
+
+  temp_individual_roc_tib <- cutpointr(data = temp_tib, x = probs, class = class, subgroup = cv, direction = ">=", pos_class = 2)
+  plot_roc(temp_individual_roc_tib)
+
+  temp_individual_roc_tib$method <- method
+  temp_individual_roc_tib <- temp_individual_roc_tib |>
+    select(c("roc_curve", "subgroup", "method")) |>
+    tidyr::unnest(.data$roc_curve) |>
+    select(c("tpr", "tnr", "subgroup", "method")) |>
+    mutate(
+      tpr =     sort(tpr, decreasing = TRUE),
+      fpr = 1 - sort(tnr, decreasing = FALSE)
+    ) |>
+    select(-tnr)
+  individual_roc_tib <- rbind(individual_roc_tib, temp_individual_roc_tib)
+
+  temp_mean_roc_tib <- map_df(cutpoints, function(cp) {
+    out <- cutpointr(data = temp_tib, x = probs, class = class, method = oc_manual, cutpoint = cp, direction = ">=", subgroup = cv, pos_class = 2)
+    tibble(cutoff = cp,
+           sensitivity = mean(out$sensitivity),
+           specificity = mean(out$specificity))
+  })
+  temp_mean_roc_tib$method <- method
+  mean_roc_tib <- rbind(mean_roc_tib, temp_mean_roc_tib)
+
+}
+
+ggplot(data = individual_roc_tib, aes(x = fpr, y = tpr, group = interaction(method, subgroup), color = method)) +
+  jaspGraphs::geom_abline2() +
+  geom_line(alpha = .5) +
+  geom_line(data = mean_roc_tib, mapping = aes(x = 1 - specificity, y = sensitivity, group = method, color = method), inherit.aes = FALSE) +
+  jaspGraphs::geom_rangeframe() +
+  jaspGraphs::themeJaspRaw(legend.position = "right")
+
 
 rowSds <- matrixStats::rowSds
 train_accuracy <- matrix(unlist(map(objs, \(x) x$perf$train$prediction_accuracy)), nrow(objs), ncol(objs), FALSE, dimnames(objs))

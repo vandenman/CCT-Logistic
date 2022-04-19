@@ -6,7 +6,7 @@ library(cmdstanr)
 library(dplyr)
 library(purrr)
 
-fit_all_three_models <- function(data, model, logistic_dat = NULL, logistic_target = NULL, iter = 3e4, adapt_iter = 500, output_samples = 2e3, grad_samples = 5, elbo_samples = 5, threads = 8, debug = FALSE, force = FALSE,
+fit_all_three_models <- function(data, model, logistic_dat = NULL, logistic_target = NULL, iter = 3e4, adapt_iter = 500, output_samples = 2e3, grad_samples = 25, elbo_samples = 25, threads = 8, debug = FALSE, force = FALSE,
                                  path_prefix = "", store_predictions = TRUE) {
 
   if (path_prefix != "" && !endsWith(path_prefix, "_"))
@@ -74,29 +74,39 @@ compute_mean_probs <- function(fits, cache_filename, force = FALSE) {
 # TODO: this data-cleaning step should happen elsewhere, so that the data can be easily switched out for something else
 all_data <- read_long_data()
 data_2_analyze <- all_data |>
-  as_tibble() |>
   filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
-  select(-c(age, violent_before, violent_between, violent_after,
-                 treatment_duration, diagnosis, crime)) |>
-  mutate(
-    patient     = normalize_factor(patient),
-    item        = normalize_factor(item),
-    rater       = normalize_factor(rater),
-    time        = normalize_factor(time),
-    rater_group = normalize_factor(rater_group),
-    score       = score + 1 # transform score from 0 -17 to 1 - 18
-  ) |>
+  select(-c(age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
   arrange(rater_group, patient, item, rater, time)
 
 data_violence <- all_data |>
-  as_tibble() |>
   filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
   select(c(patient, age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
-  mutate(
-    patient = normalize_factor(patient),
-    violent_after = as.integer(violent_after) - 1L
-  ) |>
   filter(!duplicated(patient))
+
+# data_2_analyze <- all_data |>
+#   as_tibble() |>
+#   filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
+#   select(-c(age, violent_before, violent_between, violent_after,
+#                  treatment_duration, diagnosis, crime)) |>
+#   mutate(
+#     patient     = normalize_factor(patient),
+#     item        = normalize_factor(item),
+#     rater       = normalize_factor(rater),
+#     time        = normalize_factor(time),
+#     rater_group = normalize_factor(rater_group),
+#     score       = score + 1 # transform score from 0 -17 to 1 - 18
+#   ) |>
+#   arrange(rater_group, patient, item, rater, time)
+
+# data_violence <- all_data |>
+#   as_tibble() |>
+#   filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
+#   select(c(patient, age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
+#   mutate(
+#     patient = normalize_factor(patient),
+#     violent_after = as.integer(violent_after) - 1L
+#   ) |>
+#   filter(!duplicated(patient))
 
 # # omit 2 patients with missing values
 # bad_patients <- unique(which(is.na(data_violence),arr.ind = TRUE)[, 1L])
@@ -116,20 +126,21 @@ colnames(data_2_analyze)
 # [1] "time"        "patient"     "rater"       "item"        "score"       "rater_group"
 colnames(data_violence)
 
-np <- max(data_2_analyze$patient)
-ni <- max(data_2_analyze$item)
-nr <- max(data_2_analyze$rater)
-nt <- max(data_2_analyze$time)
+np <- nlevels(droplevels(data_2_analyze$patient))
+ni <- nlevels(droplevels(data_2_analyze$item))
+nr <- nlevels(droplevels(data_2_analyze$rater))
+nt <- nlevels(droplevels(data_2_analyze$time))
 nc <- 18L
 
 mod_ltm <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time.stan", pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels",
                               cpp_options = list(stan_threads=TRUE))
 
-fits_without_lr <- fit_all_three_models(data_2_analyze, mod_ltm, NULL,          NULL,            path_prefix = "mesdag_ltm_without_logistic_regression")
-fits_with_lr    <- fit_all_three_models(data_2_analyze, mod_ltm, data_violence, "violent_after", path_prefix = "mesdag_ltm_with_logistic_regression")
+fits_without_lr <- fit_all_three_models(data_2_analyze, mod_ltm, NULL,          NULL,            path_prefix = file.path("ltm_only", "mesdag_ltm_without_logistic_regression"))
+# debugonce(fit_all_three_models)
+fits_with_lr    <- fit_all_three_models(data_2_analyze, mod_ltm, data_violence, "violent_after", path_prefix = file.path("ltm_only", "mesdag_ltm_with_logistic_regression"))
 
-mean_probs_without_lr <- compute_mean_probs(fits_without_lr, "fitted_objects/mesdag_ltm_probs_without_logistic_regression.rds")
-mean_probs_with_lr    <- compute_mean_probs(fits_with_lr,    "fitted_objects/mesdag_ltm_probs_with_logistic_regression.rds")
+mean_probs_without_lr <- compute_mean_probs(fits_without_lr, file.path("fitted_objects", "ltm_only", "mesdag_ltm_probs_without_logistic_regression.rds"))
+mean_probs_with_lr    <- compute_mean_probs(fits_with_lr,    file.path("fitted_objects", "ltm_only", "mesdag_ltm_probs_with_logistic_regression.rds"))
 # system("beep_finished.sh 0")
 
 # TODO: the code below should be done for both sets of fits!!
@@ -221,7 +232,7 @@ pp <- plotly::ggplotly(plot_ltm_fit(raw_probabilities_without_lr, observed_propo
 pp
 
 plot_for_presentation <- tib |>
-  filter(cols == "Raw" & rows == "without") |>
+  filter(cols == "Raw" & rows == "with") |>
   ggplot(mapping = aes(x = x, y = y, group = fill, fill = fill)) +
     geom_bar(position="dodge", stat="identity", width = .5) +
     scale_x_continuous(name = "Score", breaks = 1:18, limits = c(0, 19)) +
@@ -233,6 +244,12 @@ plot_for_presentation <- tib |>
     geom_segment(x = 1, xend = 18, y = -Inf, yend = -Inf) +
     geom_segment(x = -Inf, xend = -Inf, y = 0.0, yend = 0.4)
 saveRDS(plot_for_presentation, file = file.path("figure_r_objs", "ltm_fit.rds"))
+
+data_for_plot_presentation <- tib |>
+  filter(cols == "Raw" & rows == "with") |>
+  select(-cols, -rows)
+saveRDS(data_for_plot_presentation, file.path("figure_r_objs", "ltm_fit_rawdata.rds"))
+
 pdf("simulation_figures/ltm_only_joined_ggplot2_4plts.pdf", width = 8, height = 8)
 fit_plot
 dev.off()
@@ -274,33 +291,108 @@ log_reg_results <- map(modelNames, \(nm) {
 
 no_slopes <- length(log_reg_results$orig$log_reg_slopes_means)
 
-covariate_groups <- gsub("[[:digit:]]+", "", colnames(log_reg_results$orig$design_mat))
-covariate_groups <- c(covariate_groups, paste("item", rep(1:ni, 2), "time", rep(1:2, each = ni)))
-length(covariate_groups)
+key_diagnosis <- setNames(
+  c("As_1_Other", "Autism spectrum disorder", "Personality disorder cluster B", "Personality disorder other", "Schizophrenia and other psychotic disorders"),
+  levels(data_violence$diagnosis)
+)
+key_crime <- setNames(
+  c("Arson", "Manslaughter", "Murder", "Power with violence", "Power/medium violence", "Sex offence", "Heavy violence"),
+  levels(data_violence$crime)
+)
+
+key_treatment_duration <- setNames(
+  c("0-2 years", "2-4 years", "4-6 years", "6+ years"),
+  levels(data_violence$treatment_duration)
+)
+
+covariate_groups <-  c("age", "violent_before", "violent_between", "treatment_duration",  "diagnosis", "crime")
+# covariate_groups <- gsub("[[:digit:]]+", "", colnames(log_reg_results$orig$design_mat))
+covariate_groups <- c(covariate_groups, "item T1", "item T2")
+covariate_levels <- c(colnames(log_reg_results$orig$design_mat), paste("item", rep(1:ni, 2), "time", rep(1:2, each = ni)))
+covariate_groups_with_repeats <- rep(
+  covariate_groups,
+  c(sapply(data_violence[covariate_groups[1:6]], nlevels)-1L, ni, ni)
+)
+covariate_levels_stripped <- sapply(seq_along(covariate_levels), \(i) {
+  gsub(covariate_groups_with_repeats[i], "", covariate_levels[i], fixed = TRUE)
+  })
+covariate_levels_stripped[19:64] <- 1:ni
+
+covariate_levels_stripped <- covariate_levels_stripped |>
+  recode(!!!key_diagnosis) |>
+  recode(!!!key_crime) |>
+  recode(!!!key_treatment_duration)
+
 
 log_reg_tib <- tibble(
   fit    = rep(names(modelNames), each = no_slopes),
   item   = rep(seq_len(no_slopes), 3),
-  group  = rep(covariate_groups, 3),
+  group  = rep(covariate_groups_with_repeats, 3),
+  level  = rep(covariate_levels_stripped, 3),
   type   = rep(ifelse(seq_len(no_slopes) <= 18, "covariate", "item"), 3),
   mean   = unlist(map(log_reg_results, `[[`, "log_reg_slopes_means"), use.names = FALSE),
   lower  = unlist(map(log_reg_results, \(x) x[["log_reg_slopes_cris"]][, "lower"]), use.names = FALSE),
   upper  = unlist(map(log_reg_results, \(x) x[["log_reg_slopes_cris"]][, "upper"]), use.names = FALSE),
   median = unlist(map(log_reg_results, \(x) x[["log_reg_slopes_cris"]][, "median"]), use.names = FALSE)
 )
+log_reg_tib$group <- factor(log_reg_tib$group, levels = covariate_groups)
+# all(as.character(log_reg_tib$group) == rep(covariate_groups_with_repeats, 3))
 
 # This figure can become A LOT more informative by labelling the covariates more properly!
 # for the covariates, group by categorical level (e.g., crime).
 # for the items, group by (1) the questionnaire they come from, (2) time point.
 yBreaks <- jaspGraphs::getPrettyAxisBreaks(c(log_reg_tib$lower, log_reg_tib$upper))
-ggplot(data = log_reg_tib |> filter(item < 18),
-       aes(y = mean, group = interaction(fit, item, group), color = fit, x = group)) +
+ggplot(data = log_reg_tib |> filter(fit == "free"),# |> filter(item < 18),
+       aes(y = mean, group = interaction(fit, item, group), x = group)) +
   geom_errorbar(aes(ymin = lower, ymax = upper), position=position_dodge(.5), width = .1) +
   geom_point(position=position_dodge(.5)) +
   scale_y_continuous(breaks = yBreaks, limits = range(yBreaks)) +
   jaspGraphs::geom_rangeframe() +
   jaspGraphs::themeJaspRaw() +
   theme(axis.text.x = element_text(angle = 90))
+
+idx_violence_before <- which(rep(covariate_levels  == "violent_before1", 3))
+idx_violence_between <- which(rep(covariate_levels == "violent_between1", 3))
+log_reg_tib$group
+log_reg_tib2 <- log_reg_tib |>
+  mutate(
+    group = droplevels(recode_factor(group, violent_before = "violent", violent_between = "violent",
+                                     treatment_duration = "treatment\nduration"))
+  )
+log_reg_tib2$level[idx_violence_before]  <- "before"
+log_reg_tib2$level[idx_violence_between] <- "between"
+log_reg_tib2$level <- factor(log_reg_tib2$level, unique(log_reg_tib2$level))
+log_reg_tib2$level <- recode_factor(log_reg_tib2$level,
+  `Autism spectrum disorder`                    = "Autism",
+  `Personality disorder cluster B`              = "Personality B",
+  `Personality disorder other`                  = "Personality Other",
+  `Schizophrenia and other psychotic disorders` = "Schizophrenia"
+)
+tib_segment <- tibble(x = -Inf, xend = -Inf, y = yBreaks[1], yend = yBreaks[length(yBreaks)], group="age")
+
+
+posterior_mean_95CRI <- ggplot(data = log_reg_tib2 |> filter(fit == "free"),# |> mutate(level = abbreviate(level, minlength = 14)),# |> filter(item < 18),
+       aes(y = mean, group = interaction(fit, item, group), x = level)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), position=position_dodge(.5), width = .2) +
+  geom_point(position=position_dodge(.5)) +
+  scale_y_continuous(name = "Posterior mean", breaks = yBreaks, limits = range(yBreaks)) +
+  xlab(NULL) +
+  facet_grid(.~group,space="free_x", scales="free_x", switch="x") +
+  jaspGraphs::geom_rangeframe() +
+  # jaspGraphs::geom_rangeframe(sides = "b") +
+  # geom_segment(data = tib_segment, mapping = aes(x=x,xend=xend,y=y,yend=yend), inherit.aes = FALSE) +
+  # geom_segment(x = -Inf, xend = -Inf, y = yBreaks[1], yend = yBreaks[length(yBreaks)]) +
+  jaspGraphs::themeJaspRaw(fontsize = 12) +
+  theme(
+    panel.grid.major.y = element_line(colour = "grey80"),
+    # panel.grid.minor.y = element_line(colour = "grey40"),
+    axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4),
+    panel.spacing.x = unit(0, "cm"),
+    strip.placement = "outside"
+  )
+
+save_figure(figure = posterior_mean_95CRI, file = "posterior_mean_95CRI.svg", width = 15, height = 7.5)
+
 
 # Preliminary conclusions:
 #  1. It looks like the uncertainty kills any chance of meaningful conclusions.

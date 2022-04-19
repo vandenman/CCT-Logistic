@@ -6,23 +6,33 @@ library(ggplot2)
 
 all_data <- read_long_data()
 data_2_analyze <- all_data |>
-  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis_group) & !is.na(crime_group)) |>
-  select(-c(patient_age_group, violent_before, violent_between, violent_after,
-                 treatement_duration_group, diagnosis_group, crime_group)) |>
+  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
+  select(-c(age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
+  arrange(rater_group, patient, item, rater, time)
+
+data_violence <- all_data |>
+  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
+  select(c(patient, age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
+  filter(!duplicated(patient))
+
+# data_2_analyze <- all_data |>
+#   filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis_group) & !is.na(crime_group)) |>
+#   select(-c(patient_age_group, violent_before, violent_between, violent_after,
+#                  treatement_duration_group, diagnosis, crime)) |>
   # mutate(
   #   across(c(patient, item, rater, time, rater_group), \(x) normalize_factor(factor(x)))
   #   score       = score + 1 # transform score from 0 -17 to 1 - 18
   # ) |>
-  arrange(rater_group, patient, item, rater, time)
+  # arrange(rater_group, patient, item, rater, time)
 
-data_violence <- all_data |>
-  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis_group) & !is.na(crime_group)) |>
-  select(c(patient, patient_age_group, violent_before, violent_between, violent_after, treatement_duration_group, diagnosis_group, crime_group)) |>
+# data_violence <- all_data |>
+#   filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis_group) & !is.na(crime_group)) |>
+#   select(c(patient, patient_age_group, violent_before, violent_between, violent_after, treatement_duration_group, diagnosis_group, crime_group)) |>
   # mutate(
   #   patient = normalize_factor(factor(patient)),
   #   violent_after = as.integer(violent_after) - 1L
   # ) |>
-  filter(!duplicated(patient))
+  # filter(!duplicated(patient))
 
 h <- hist(data_2_analyze$score, breaks = 0:18, plot = FALSE)
 all(h$counts == table(data_2_analyze$score))
@@ -137,6 +147,9 @@ combined_plt <- patchwork::wrap_plots(
 )
 combined_plt
 save_figure_obj(combined_plt, file = "descriptives_combined_plt.rds")
+save_figure(figure = combined_plt, file = "descriptives_combined_plt.svg", width = 15, height = 12)
+save_figure(figure = plot_scores,             file = "descriptives_scores.svg",             width = 12, height = 7)
+save_figure(figure = plot_raters_by_patients, file = "descriptives_raters_by_patients.svg", width = 900 / 96, height = 494 / 96)
 
 set.seed(42)
 patient_idx <- sample(data_2_analyze$patient, 3)
