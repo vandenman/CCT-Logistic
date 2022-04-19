@@ -174,7 +174,7 @@ fit_single_dataset <- function(dataset, model, data_name, debug = TRUE, store_pr
 
   path_prefix <- paste0("data_", data_name)
   fits <- fit_all_three_models(dataset, model, path_prefix = path_prefix, debug = debug, store_predictions = store_predictions)
-browser()
+
   perf_tib <- purrr::map2(fits, c("2-parameter_thresholds", "skew_thresholds", "free_thresholds"), get_performance_tib, dat = dataset)
 
   graphs_retrieval <- map2(fits, perf_tib, get_scatterplot_retrieval)
@@ -224,6 +224,8 @@ dataset_list <- map(c("logistic", "skew_logistic", "free"),
                     \(threshold_type) simulate_data_ltm(np, ni, nr, nc, no_rater_groups = no_rater_groups, no_time_points = no_time_points, threshold_type = threshold_type)
 )
 names(dataset_list) <- threshold_types
+
+fit_test <- fit_all_three_models(dataset_list$logistic, mod_log_reg_ltm, path_prefix = "test", force = TRUE)
 
 # fit all 9 models
 results <- pmap(list(dataset = dataset_list, data_name = names(dataset_list)), fit_single_dataset, model = mod_log_reg_ltm)
@@ -319,7 +321,6 @@ force          <- TRUE
 path_prefix    <- ""
 path_orig <- file.path("fitted_objects", sprintf("%s3_log_reg_models_orig_thresholds.rds", path_prefix))
 
-purrr::map2
 
 
 fit_orig <- save_or_run_model(
@@ -397,4 +398,71 @@ qplot(
 x <- list(1, 1, 1)
 y <- list(10, 20, 30)
 z <- list(100, 200, 300)
+
+
+
+# fit model with missings
+mod_log_reg_ltm <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time.stan", pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels")
+
+set.seed(9123)
+missing_idx <- sort(sample(np, 10))
+non_missing_idx <- (1:np)[-missing_idx]
+
+dat_log_reg_logistic_true <- dataset_log_reg_list$log_reg_logistic
+dat_log_reg_logistic <- dat_log_reg_logistic_true
+
+debugonce(data_2_stan)
+stan_dat_with_missing <- data_2_stan(dat_log_reg_logistic, missing_idx = missing_idx, store_predictions = TRUE)
+str(stan_dat_with_missing[c("log_reg_outcomes", "log_reg_np_idx", "np_log_reg", "design_matrix_covariates")])
+
+fit_with_missing <- mod_log_reg_ltm$variational(data = stan_dat_with_missing,
+  iter = 3e4, adapt_iter = 500, output_samples = 2e3, grad_samples = 5, elbo_samples = 5
+)
+
+log_reg_predictions <- fit_with_missing$draws("log_reg_predictions", format = "draws_matrix")
+mean_pred_probs <- unname(colMeans(log_reg_predictions))
+post_preds <- as.integer(mean_pred_probs >= .5)
+table(dat_log_reg_logistic_true$log_reg$y, post_preds)
+table(dat_log_reg_logistic_true$log_reg$y[missing_idx], post_preds[missing_idx])
+table(dat_log_reg_logistic_true$log_reg$y[non_missing_idx], post_preds[non_missing_idx])
+system("beep_finished.sh")
+
+
+# same experiment, equal patients and items as in actual data set
+np <- 103            # no patients
+ni <- 23             # no items
+nr <- 10             # no raters
+nc <- 5              # no response categories
+no_rater_groups <- 1 # no groups of rater
+no_covariates   <- 5 # no additional covariates
+no_time_points  <- 2
+
+set.seed(4567)
+dat_missing_new <- simulate_data_ltm(np, ni, nr, nc, no_rater_groups = no_rater_groups, no_time_points = no_time_points, threshold_type = "free")
+dat_missing_new_log_reg <- simulate_logistic_regression(dat_missing_new, no_covariates = no_covariates, slopes = seq_len(no_covariates))
+missing_idx <- sort(sample(np, floor(0.2*np)))
+non_missing_idx <- (1:np)[-missing_idx]
+
+stan_dat_with_missing <- data_2_stan(dat_missing_new_log_reg, missing_idx = missing_idx, store_predictions = TRUE)
+
+fit_with_missing <- mod_log_reg_ltm$variational(data = stan_dat_with_missing,
+  iter = 3e4, adapt_iter = 500, output_samples = 2e3, grad_samples = 5, elbo_samples = 5
+)
+
+log_reg_predictions <- fit_with_missing$draws("log_reg_predictions", format = "draws_matrix")
+mean_pred_probs <- unname(colMeans(log_reg_predictions))
+post_preds <- as.integer(mean_pred_probs >= .5)
+
+compute_accuracy <- function(x, y) {
+  tb <- table(x, y)
+  sum(diag(tb)) / sum(tb)
+}
+
+table(dat_missing_new_log_reg$log_reg$y, post_preds)
+compute_accuracy(dat_missing_new_log_reg$log_reg$y, post_preds)
+table(dat_missing_new_log_reg$log_reg$y[missing_idx], post_preds[missing_idx])
+compute_accuracy(dat_missing_new_log_reg$log_reg$y[missing_idx], post_preds[missing_idx])
+table(dat_missing_new_log_reg$log_reg$y[non_missing_idx], post_preds[non_missing_idx])
+compute_accuracy(dat_missing_new_log_reg$log_reg$y[non_missing_idx], post_preds[non_missing_idx])
+system("beep_finished.sh")
 

@@ -95,7 +95,7 @@ For example, suppose a mentally ill patient is scored by multiple raters on aggr
 Multiple scores are obtained that need to be aggregated to arrive at a single score for this patient.
 The naive solution is to average these scores.
 However, as shown in Figure~\ref{fig:misFitMean} averaging may lead to severely biased estimates.
-\DB{Figure here of score means versus true latent parameter for data simulated under the CRM.}
+\DB{Figure here of score means versus true latent parameter for data simulated under the LTM.}
 The average score disregards all additional information that is available.
 It ignores the individual differences between raters, for example, this assumes that all psychiatrists score aggressiveness in the same way, and group differences among raters, for example, there is no difference in scores by psychiatrists as opposed to clinicians, or other staff member.
 In addition, the average ignores any additional information about the patient at hand, such as the committed crimes and diagnoses.
@@ -245,8 +245,9 @@ Conversely, a higher rater competence means that the appraisals are less noisy, 
 There are $\Tncat - 1$ ordered thresholds for each rater, which are assigned a standard normal prior for identification purposes.
 
 There are two differences in the model specification above compared to our previous work \parencite{vandenBergh2020cultural}.
+%We made two changes to the model, because when simulating data with similar characteristics as the Mesdag data, as
 First, we previously modeled the thresholds using two rater specific parameters.
-However, in simulations we noticed that these two parameters provide too little flexibility when the ordinal scale consists of 18 categories, as in the data at hand.
+However, in simulations we noticed that these two parameters provide too little flexibility when the ordinal scale consists of 18 categories, as in the Mesdag data.
 Therefore we decided to model the thresholds individually.
 This complicates interpreting the differences between the thresholds across raters, however, that is also not the goal of this paper.
 Second, we previously allowed the item difficulty parameter to vary across patients, which captures that some items may be more difficulty or easy to assess for some patients (e.g., some patients may cooperate more than others).
@@ -267,9 +268,13 @@ However, we noticed when simulating data with a ratio of raters to patients like
 %Previously we modeled the thresholds using two rater specific parameters. However, during simulations we noticed that this is too restrictive when the ordinal scale consists of 18 categories, as in the data example at hand.
 
 
-\subsection{Augmenting Logistic Regression with the CRM}
-In a next step, we use the information from the LTM to predict violent behavior.
-We use logistic regression to predict violent behavior.
+\subsection{Augmenting Logistic Regression with the LTM}
+In a next step, we use logistic regression for to predict violent behavior, where we use the results from the LTM as additional predictors.
+We do so in a fully Bayesian approach, that is, we constructed a joint model for the violent behavior and then patient ratings.%
+\footnote{%
+An alternative is to fit the LTM separately and then use e.g., the posterior means in a second step in a logistic regression.
+While this would be more computationally efficient, it would also ignore the uncertainty in the analysis of the patient ratings.
+}
 Figure~\ref{model:Logistic_LTM} shows a graphical model of the logistic regression combined with the LTM.
 The latent truth for each patient on each item is seen as a covariate in the logistic regression model.
 
@@ -318,23 +323,33 @@ The latent truth for each patient on each item is seen as a covariate in the log
 
 \subsection{Simulation Study}
 
+Before analyzing the data with the LTM, it is typically a good idea to run a simulation study to
+
 \subsubsection{Do we actually want to report this?}
 
+\subsubsection{Fit of the LTM}
+
+
+
 \subsection{Machine Learning Alternatives}
+A
 This section discusses the four alternative considered, naive logistic regression, random forest, boosted regression trees.
+
+
 \subsubsection{Missing value imputation and data reduction}
-The four methods described above are designed for purely rectangular data.
+The four machine learning methods described above are designed for purely rectangular data.
 That is, each row of the data set contains one outcome (aggressive or not) and a number of predictors.
-However, the raw data contains missing valu
+However, the raw data contains repeated observations.
+For example, some patients were rated multiple times but others only once.
 This means that some preprocessing of the data is needed before these methods can be applied.
 Here we discuss missing data handling and the data reduction techniques applied.
 
 \paragraph{Missing values}
 The four alternative methods do not handle missing values.
-Although listwise deletion is an option, this results in rather
-We use the R package \code{mice} \parencite{vanBuuren2011mice} to impute missing values.
-Rather than imputing one single value for each missing observation, \code{mice} imputes multiple, which leads to multiple data sets.
-While this increases the computational complexity of the procedures, it also propagates uncertainty about the missing observations to the results.
+Although list-wise deletion is an option, this may results in deleting many observations.
+We used the R package \code{mice} \parencite{vanBuuren2011mice} to impute missing values.
+%Rather than imputing one single value for each missing observation, \code{mice} imputes multiple, which leads to multiple data sets.
+%While this increases the computational complexity of the procedures, it also propagates uncertainty about the missing observations to the results.
 
 
 \paragraph{Data reduction}
@@ -349,6 +364,10 @@ doei
 Summary
 
 Hybrid is probably most predictive.
+
+\subsection{Suggestions for future data collection}
+
+
 
 \subsection{Limitations}
 

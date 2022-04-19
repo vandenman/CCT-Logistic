@@ -1,0 +1,733 @@
+---
+title: "Using Cultural Consensus Theory to Predict Violent Outbursts in Forensic Psychiatric Hospitals"
+author: "Don van den Bergh"
+date: '2022-03-28'
+# output: beamer_presentation
+output:
+  ioslides_presentation:
+    widescreen: yes
+    smaller: yes
+    transition: 0
+    css: style.css
+runtime: shiny
+revealjs::revealjs_presentation:
+  theme: night
+  center: true
+width: 1920
+height: 1080
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_knit$set(root.dir = "~/storage/github/MesdagProject")
+library(shiny)
+library(shinyWidgets)
+library(CCTLogistic)
+library(ggplot2)
+library(patchwork)
+library(dplyr)
+library(DT)
+library(tibble)
+library(rlang)
+
+options(DT.options = list(
+  scrollX     = TRUE,
+  scrollY     = 450,
+  deferRender = TRUE,
+  scroller    = TRUE,
+  dom         = "tpri"
+))
+
+pdf_page_to_png <- function(infile = "graphicalmodels/graphicalmodels.pdf", page = 11, outfile = sprintf("graphicalmodels_%d-2.png", page)) {
+  # eh no piping
+  temp1 <- tempfile(fileext = ".pdf")
+  temp2 <- tempfile(fileext = ".png")
+  cmd1 <- sprintf("pdftk %s cat %d output %s", infile, page, temp1)
+  cmd2 <- sprintf("pdftoppm -r 300 %s %s -png", temp1, temp2)
+  cmd3 <- sprintf("convert %s -transparent white %s", paste0(temp2, "-1.png"), outfile)#file.path(normalizePath(dirname(outfile)), outfile))
+  system(cmd1)
+  system(cmd2)
+  system(cmd3)
+}
+
+```
+
+```{r read data}
+
+wide_data     <- read_wide_data()
+long_data     <- read_long_data()
+violence_data <- read_violence_data()
+
+key_diagnosis <- setNames(
+  c("As_1_Other", "Autism spectrum disorder", "Personality disorder cluster B", "Personality disorder other", "Schizophrenia and other psychotic disorders"),
+  levels(violence_data$diagnosis)
+)
+key_crime <- setNames(
+  c("Arson", "Manslaughter", "Murder", "Power with violence", "Power/medium violence", "Sex offence", "Heavy violence"),
+  levels(violence_data$crime)
+)
+
+key_treatment_duration <- setNames(
+  c("0-2 years", "2-4 years", "4-6 years", "6+ years"),
+  levels(violence_data$treatment_duration)
+)
+
+wide_data <- wide_data |>
+  mutate(
+    diagnosis          = recode_factor(diagnosis,          !!!key_diagnosis),
+    crime              = recode_factor(crime,              !!!key_crime),
+    treatment_duration = recode_factor(treatment_duration, !!!key_treatment_duration)
+  )
+violence_data <- violence_data |>
+  mutate(
+    diagnosis          = recode_factor(diagnosis,          !!!key_diagnosis),
+    crime              = recode_factor(crime,              !!!key_crime),
+    treatment_duration = recode_factor(treatment_duration, !!!key_treatment_duration)
+  )
+
+cols_to_scramble <- c("age", "violent_before", "violent_between", "violent_after", "treatment_duration", "diagnosis", "crime")
+items_to_scramble <- c("IFBE_0", "IFBE_1", "IFBE_2", "IFBE_3", "IFBE_4", "IFBE_5", "IFBE_6", "IFBE_7", "IFBE_8", "IFBE_9", "IFBE_10", 
+"IFBE_11", "IFBE_12", "IFBE_13", "IFBE_14", "IFBE_15", "IFBE_16", "IFBE_17", "IFBE_18", "IFBE_19", "IFBE_20", "IFBE_21", "IFBE_22")
+
+# scramble the columns independently, but in a way that ensures that patient x has the same disorder in 
+# violence_data and wide_data
+set.seed(123)
+new_levels <- setNames(lapply(cols_to_scramble, \(col) sample(levels(wide_data[[col]]))), cols_to_scramble)
+for (col in cols_to_scramble) {
+  levels(wide_data[[col]]) <- new_levels[[col]]
+  levels(violence_data[[col]]) <- new_levels[[col]]
+}
+levels(wide_data[["rater"]]) <- sample(levels(wide_data[["rater"]]))
+for (item in items_to_scramble) {
+  wide_data[[item]] <- sample(1:18, nrow(wide_data), TRUE)
+}
+# print(wide_data, n=30)
+# print(violence_data,n=5)
+
+# permute_tib_columnwise <- function(tib, seed = 123) {
+#   set.seed(seed)
+#   for (i in seq_along(tib))
+#     tib[[i]] <- sample(tib[[i]])
+#   tib <- tib[order(tib$patient), ]
+#   return(tib)
+# }
+# 
+# permute_tib_columnwise_grouped_by_patient <- function(tib, seed = 123) {
+#   tib <- permute_tib_columnwise(tib, seed)
+#   tib |> 
+#     group_by(patient) |>
+#     mutate(across(age:crime, \(x) x[1])) |> 
+#     ungroup() |> 
+#     arrange(patient, time)
+# }
+
+```
+
+## Outline
+
+### The Data
+
+### The CCT Models
+
+### Predictive Performance
+
+### Summary
+
+## Mesdag Data
+
+-   The data consist of 104 patients, 23 items, 188 raters, and in total 18354 observations
+-   Patients are divided into 8 crime groups with 6 disorders
+-   Raters are subdivided into 4 groups
+-   The IFBE items were scored at 2 time points
+
+In addition, we know a patients age (grouped by 10 years) and treatment duration
+
+We know the violence history of a patient:
+
+- Violent behavior before time point 1? 
+- Violent behavior between time point 1 and 2?
+- Violent behavior after time point 2?
+
+In total, there are 798 item scores, but only 104 violent outcomes.
+
+## Raw Data
+
+```{r raw_data, echo = FALSE, warning=FALSE}
+# datatable(wide_data, rownames = FALSE)
+datatable(wide_data,
+          extensions = c("Scroller", "RowGroup", "FixedColumns"),
+          options = list(rowGroup = list(dataSrc = 1), fixedColumns = list(leftColumns = 2)))
+#datatable(permute_tib_columnwise_grouped_by_patient(wide_data),
+#          extensions = c("Scroller", "RowGroup", "FixedColumns"),
+#          options = list(rowGroup = list(dataSrc = 1), fixedColumns = list(leftColumns = 2)))
+```
+
+## Aggregated Data
+
+```{r aggregated_data, echo = FALSE, warning=FALSE}
+datatable(violence_data, extensions = "Scroller")
+# datatable(permute_tib_columnwise(violence_data), extensions = "Scroller")
+```
+
+<!-- ## Descriptives -->
+
+<!-- <img class="svg-image"  -->
+<!--   src="/media/dvdb/storage/github/MesdagProject/figures/descriptives_combined_plt.svg" -->
+<!--   alt="descriptives" -->
+<!-- /> -->
+
+<!-- <img src="/media/dvdb/storage/github/MesdagProject/figures/descriptives_combined_plt.svg" -->
+<!--      alt="descriptives" -->
+<!--      style="float: center; margin-right: 10px; height: 500px; "/> -->
+
+## Descriptives
+
+<img class="svg-image" 
+  src="/media/dvdb/storage/github/MesdagProject/figures/descriptives_scores.svg"
+  alt="descriptives"
+  style="max-height:500px;"
+/>
+
+## Descriptives
+
+<img class="svg-image" 
+  src="/media/dvdb/storage/github/MesdagProject/figures/descriptives_raters_by_patients.svg"
+  alt="descriptives"
+/>
+
+
+
+## The Basic CCT Model
+
+<img class="svg-image"
+  src="/media/dvdb/storage/github/MesdagProject/presentations/graphicalmodels_11.svg"
+  alt="model1"
+/>
+
+<!-- <img src="/media/dvdb/storage/github/MesdagProject/presentations/graphicalmodels_11.svg" -->
+<!--      alt="model1" -->
+<!--     style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);"/> -->
+<!-- style="float: center; margin-right: 10px; height: 500px; "/> -->
+
+<!-- ```{r graphical_model_original, echo = FALSE} -->
+<!-- knitr::include_graphics(normalizePath("presentations/graphicalmodels_11.svg")) -->
+<!-- ``` -->
+
+## Free Thresholds
+
+<img class="svg-image" 
+  src="/media/dvdb/storage/github/MesdagProject/presentations/graphicalmodels_7.svg"
+  alt="model2"
+/>
+
+
+<!-- <img src="/media/dvdb/storage/github/MesdagProject/presentations/graphicalmodels_7.svg" -->
+<!--      alt="model1" -->
+<!--      style="float: center; margin-right: 10px; height: 500px; "/> -->
+
+<!-- ```{r graphical_model_free_thresholds_1a, echo = FALSE} -->
+<!-- knitr::include_graphics(normalizePath("presentations/graphicalmodels_7-2.png")) -->
+<!-- ``` -->
+
+------------------------------------------------------------------------
+
+```{r shiny_one_patient, echo=FALSE}
+# renderSVG <- function(expr, width = 8, height = 3.75, ...) {
+#   file <- htmltools::capturePlot(
+#     expr, tempfile(fileext = ".svg"),
+#     grDevices::svg,
+#     width = width, height, ...
+#   )
+#   renderImage(list(src = file), deleteFile = TRUE)
+# }
+
+fallback_thresholds <- function(thresholds, nc, mustwork = FALSE) {
+  
+  if (identical(thresholds, "random")) {
+    thresholds <- sort(rnorm(nc - 1))
+  } else if (identical(thresholds, "uniform") || mustwork) {
+    thresholds <- (1:(nc - 1))
+    thresholds <- log(thresholds / (nc - thresholds))
+  }
+  return(thresholds)
+}
+
+sliderInput2 <- function(...) {
+  div(style="height: 60px;", sliderInput(...))
+}
+
+shinyApp(
+  # ui = sidebarLayout(
+  #   sidebarPanel = sidebarPanel(
+  #     sidebarPanel(
+  #       sliderInput("nc",     label = "No. outcome categories:",       value = 5, min =  2,   max = 30, step = 1  ),
+  #       sliderInput("lt",     label = "Latent truth:",                 value = 0, min = -3,   max =  3, step = 0.1),
+  #       sliderInput("lambda", label = "Item difficulty:",              value = 1, min =  0.1, max =  3, step = 0.1),
+  #       sliderInput("E",      label = "Rater accuracy:",               value = 1, min =  0.1, max =  3, step = 0.1),
+  #       textInput("thresholds", "Thresholds:", value = "uniform"),
+  #       numericInput("seed", "Seed:", value = 42)
+  #     )
+  #   ),
+  #   mainPanel = mainPanel(imageOutput("modelPlot", width = "100%", height = "400px"))
+  # ),
+  ui = fluidPage(
+    tags$head(
+      tags$style(
+        "body {overflow-y: hidden;}"#,
+        #"font-size:50px;"
+      )
+    ),
+    column(width = 4, inputPanel(
+      shinyWidgets::radioGroupButtons("model_type", "Thresholds Model", c(Original = "orig", Free = "free"), selected = "orig", justified = TRUE),
+      # div(style="height: 27px;",
+          # selectInput("model_type", "Thresholds Model", c(Original = "orig", Free = "free"), selected = "orig"),
+          sliderInput2("nc",    label = "No. outcome categories:",       value = 5, min =  2,   max = 30, step = 1,   ticks = FALSE),
+          sliderInput2("lt",    label = "Latent truth:",                 value = 0, min = -3,   max =  3, step = 0.1, ticks = FALSE),
+          sliderInput2("lambda", label = "Item difficulty:",              value = 1, min =  0.1, max =  3, step = 0.1, ticks = FALSE),
+          sliderInput2("E",      label = "Rater accuracy:",               value = 1, min =  0.1, max =  3, step = 0.1, ticks = FALSE),
+          # shinyWidgets::noUiSliderInput("E",      label = "Rater accuracy:",               value = 1, min =  0.1, max =  3, step = 0.1),
+          conditionalPanel(
+            condition = "input.model_type == 'orig'",
+            sliderInput2("rater_shift", label = "Rater shift:",           value = 0, min = -3,   max =  3, step = 0.1, ticks = FALSE),
+            sliderInput2("rater_scale", label = "Rater scale:",           value = 1, min =  0.1, max =  3, step = 0.1, ticks = FALSE),
+          ),
+          conditionalPanel(
+            condition = "input.model_type == 'free'",
+            div(style="height: 60px;", textInput("thresholds", "Thresholds:", value = "uniform")),
+          ),
+          div(style="height: 60px;", numericInput("seed", "Seed:", value = 42))
+      # )
+    )),
+    column(width = 8, imageOutput("modelPlot", width = "100%", height = "400px"))
+  ),
+  server = function(input, output) {
+    output$modelPlot <- renderImage(deleteFile = TRUE, expr = {
+      # renderPlot({
+      # renderSVG({
+      
+      # input <- list(
+      #   model_type  = "orig",
+      #   nc          = 5,
+      #   thresholds  = "uniform",
+      #   lt          = 0,
+      #   lambda      = 1,
+      #   E           = 1,
+      #   rater_shift = 0.0,
+      #   rater_scale = 1.0
+      # )
+
+      nc          <- input$nc
+      thresholds  <- trimws(input$thresholds)
+      lt          <- input$lt
+      log_lambda  <- log(input$lambda)
+      log_E       <- log(input$E)
+      model_type  <- input$model_type
+      rater_scale <- input$rater_scale
+      rater_shift <- input$rater_shift
+      
+      set.seed(input$seed)
+
+      if (model_type == "free") {
+        thresholds <- fallback_thresholds(thresholds, nc)
+        if (is.character(thresholds)) {
+          
+          thresholds <- gsub(",", " ", thresholds, fixed = TRUE)
+          temp <- strsplit(thresholds, "\\s+")[[1L]]
+          thresholds <- suppressWarnings(as.numeric(temp))
+          
+          if (anyNA(thresholds) || length(thresholds) != (nc - 1))
+            thresholds <- fallback_thresholds("uniform", nc)
+          
+        }
+        thresholds <- matrix(thresholds, 1, nc - 1)
+      } else {
+        threshold_probs <- seq_len(nc - 1L) / nc
+        thresholds <- matrix(qELGW(threshold_probs, location = rater_shift, scale = rater_scale, shape = 0.0), 1, nc - 1)
+      }
+
+      dat <- simulate_data_ltm(
+        np = 1, ni = 1, nr = 1, no_rater_groups = 1,
+        nc = nc, lt = matrix(lt, 1, 1), log_lambda = matrix(log_lambda, 1, 1),
+        log_E = log_E, thresholds = thresholds,
+        log_a = log(rater_scale), b = rater_shift,
+        threshold_type = if (model_type == "free") "free" else "logistic",
+        store_probabilities = TRUE
+      )
+      
+      df_prob <- tibble(
+        outcome     = factor(seq_len(nc)),
+        probability = c(dat$parameters$probabilities)
+      )
+      g1 <- ggplot(data = df_prob, aes(x = outcome, y = probability, fill = outcome)) +
+        geom_col(col = "black") +
+        scale_y_continuous(breaks = seq(0, 1, .5), limits = c(0, 1)) +
+        labs(x = "Score", y = "Probability") +
+        jaspGraphs::scale_JASPfill_discrete() +
+        jaspGraphs::geom_rangeframe() +
+        jaspGraphs::themeJaspRaw() +
+        # ggtitle(expression(P(Logistic(theta~phantom()[pit], frac(xi~phantom()[r], kappa~phantom()[i])) %in% 
+        #                        phantom()~group("[",list(tau~phantom()[i], tau~phantom()[i+1]),"]")))) + 
+        ggtitle(expression(P(Latent~~Truth %in% phantom()~group("[",list(tau~phantom()[i], tau~phantom()[i+1]),"]")))) + 
+        theme(text = element_text("FiraCode"), plot.margin = margin(t = unit(15, "mm")))
+      
+      n_points <- 2^9
+      h <- 1 / (n_points + 1)
+      uniform_grid <- seq(h, 1 - h, h)
+      grid <- sort(c(
+        qlogis(uniform_grid, dat$parameters$lt, exp(dat$parameters$log_lambda[1] - dat$parameters$log_E[1])),
+        dat$parameters$free_thresholds
+      ))
+      
+      densFun <- function(x) {
+        dlogis(x, dat$parameters$lt, exp(dat$parameters$log_lambda[1] - dat$parameters$log_E[1]))
+      }
+      
+      bounds <- c(-Inf, dat$parameters$free_thresholds, Inf)
+      boundsDensity <- densFun(bounds)
+      
+      df_latent <- tibble(
+        x = grid, y = densFun(grid),
+        g = factor(findInterval(grid, bounds))
+      )
+      
+      df_thresholds <- tibble(
+        x = rep(dat$parameters$free_thresholds, 2),
+        y = c(rep(0, input$nc - 1), densFun(dat$parameters$free_thresholds)),
+        g = rep(1:(input$nc - 1), 2)
+      )
+      
+      # xBreaks <- jaspGraphs::getPrettyAxisBreaks(df_latent$x)
+      xBreaks <- jaspGraphs::getPrettyAxisBreaks(c(-10, 10))
+      yBreaks <- jaspGraphs::getPrettyAxisBreaks(df_latent$y, n = 3)
+      # if (length(yBreaks) >= 5) {
+      #   if (length(yBreaks) %% 2 == 0) {
+      #     yBreaks <- c(
+      #       yBreaks[1],
+      #       (yBreaks[seq(3, length(yBreaks)-2, 2)] + yBreaks[seq(4, length(yBreaks)-2, 2)]) / 2,
+      #       yBreaks[length(yBreaks)]
+      #     )
+      #   } else {
+      #     yBreaks <- yBreaks[seq(1, length(yBreaks), 2)]
+      #   }
+      # }
+        
+      # yLimits <- range(yBreaks, -0.05 * yBreaks[length(yBreaks)])
+      yLimits <- range(yBreaks, 0.9 * 0.25 * abs(yBreaks[1] - yBreaks[length(yBreaks)]))
+      
+      df_text <- tibble(
+        x = c(dat$parameters$free_thresholds),
+        # y = 1 * rep(yLimits[1L] / 2, nc - 1),
+        y = rep(yLimits[1L] * .9 + .1 * yBreaks[1], nc - 1) ,
+        label = paste0("tau~phantom()[", seq_len(nc - 1), "]")
+      )
+      
+      g2 <- ggplot(data = df_latent, aes(x = x, y = y)) +
+        geom_line() +
+        geom_ribbon(aes(x = x, ymax = y, ymin = 0, group = g, fill = g)) +
+        geom_line(data = df_thresholds, mapping = aes(x = x, y = y, group = g)) +
+        geom_text(data = df_text, aes(x = x, y = y, label = label, family = "FiraCode"), parse = TRUE, size = 6, hjust = "center", vjust = "center") +
+        scale_x_continuous(name = "Latent Truth", breaks = xBreaks, limits = range(xBreaks)) +
+        scale_y_continuous(name = "Density",      breaks = yBreaks, limits = yLimits) +
+        jaspGraphs::scale_JASPfill_discrete() +
+        jaspGraphs::geom_rangeframe() +
+        jaspGraphs::themeJaspRaw() +
+        # ggtitle(expression(Logistic(theta~phantom()[pit], frac(xi~phantom()[r], kappa~phantom()[i])))) + 
+        ggtitle(expression(Latent~~Truth %~% Logistic(theta~phantom()[pit],
+                                                      frac(kappa~phantom()[i], xi~phantom()[r])))) +
+                                                      # frac(xi~phantom()[r], kappa~phantom()[i])))) + 
+        theme(text = element_text("FiraCode"))
+      
+      plt_joined <- g2 / g1
+
+      outfile <- tempfile(fileext = ".svg")
+
+      height <- 5.5
+      width  <- 6
+      svglite::svglite(outfile, width = width, height = height, 
+                       fix_text_size = FALSE # messes with plotmath
+      )
+      print(plt_joined)
+      invisible(dev.off())
+
+      # Return a list containing the filename
+      list(src = normalizePath(outfile),
+           contentType = 'image/svg+xml',
+           width       = width  * 96,
+           height      = height * 96,
+           alt         = "One patient")
+      
+    })
+  },
+  options = list(height = 900)
+)
+
+```
+
+## Model fit
+
+```{r ltm_fit_shiny, echo = FALSE}
+fit_rawdata <- readRDS("figure_r_objs/ltm_fit_rawdata.rds")
+fit_names <- c("Observed", "Original", "Skew", "Free")
+# names(fit_names) <- fit_names
+# names(fit_names)[2] <- r"{<i class='Original'; background-color='#ED90A4' >Original</i>}"
+cols <- hcl.colors(3L, "Set 2")
+colors <- c("Observed" = "#000000", setNames(cols, fit_names[-1L]))
+
+# css_template <- ".btn-primary.active:nth-child(%s) { background: %s; }"
+css_template <- ".checkbtn:nth-child(%s) { background: %s; }"
+css <- paste(sprintf(css_template, seq_along(colors), colors), collapse = "\n")
+
+shinyApp(
+  ui = fluidPage(
+    # does not work
+    # tags$head(tags$style(HTML(css))),
+    column(width = 2, inputPanel(
+      shinyWidgets::checkboxGroupButtons(
+        inputId = "filter",
+        label = NULL,
+        choices = fit_names,
+        selected = "Observed",
+        status = "primary",
+        direction = "vertical",
+        checkIcon = list(
+          yes = icon("ok",     lib = "glyphicon"),
+          no  = icon("remove", lib = "glyphicon")
+        )
+      )
+      # shinyWidgets::radioGroupButtons(
+      #   inputId = "filter",label = NULL,
+      #   choices = setNames(fit_names, fit_names), 
+      #   selected = "Observed", justified = TRUE
+      # )
+    )),
+    column(width = 10, imageOutput("modelFitPlot", width = "100%", height = "400px"))
+  ),
+  server = function(input, output) {
+    output$modelFitPlot <- renderImage(deleteFile = TRUE, expr = {
+      
+      fit_toshow <- fit_rawdata |> filter(fill %in% input$filter)
+      
+      if (nrow(fit_toshow) == 0L) {
+        
+        plt <- ggplot2::ggplot()
+        
+      } else {
+        
+        plt <- ggplot(fit_toshow, mapping = aes(x = x, y = y, group = fill, fill = fill)) +
+          geom_bar(position="dodge", stat="identity", width = .5)
+        
+      }
+      
+      plt <- plt + 
+        scale_x_continuous(name = "Score", breaks = 1:18, limits = c(0, 19)) +
+        scale_y_continuous(name = "Probability", breaks = seq(0, .3, .1), limits = c(0, .4)) +
+        scale_fill_manual(name = NULL, values = colors[input$filter]) +
+        jaspGraphs::geom_rangeframe() +
+        jaspGraphs::themeJaspRaw(legend.position = "right")
+      
+      outfile <- tempfile(fileext = ".svg")
+
+      height <- 5.5
+      width  <- 8
+      svglite::svglite(outfile, width = width, height = height, 
+                       fix_text_size = FALSE # messes with plotmath
+      )
+      print(plt)
+      invisible(dev.off())
+
+      # Return a list containing the filename
+      list(src = normalizePath(outfile),
+           contentType = 'image/svg+xml',
+           width       = width  * 96,
+           height      = height * 96,
+           alt         = "One patient")
+    })
+  }
+)
+```
+
+<!-- # ```{r ltm_fit, echo = FALSE, fig.width=9} -->
+<!-- # plotly::ggplotly(load_figure_obj("ltm_fit.rds")) -->
+<!-- # ``` -->
+
+## Free Thresholds
+
+<img class="svg-image"
+  src="/media/dvdb/storage/github/MesdagProject/presentations/graphicalmodels_7.svg"
+  alt="model2"
+/>
+
+## Predicting violence
+
+<img class="svg-image"
+  src="/media/dvdb/storage/github/MesdagProject/presentations/graphicalmodels_9.svg"
+  alt="model3"
+/>
+
+
+<!-- <img src="/media/dvdb/storage/github/MesdagProject/presentations/graphicalmodels_9.svg" -->
+<!--      alt="model1" -->
+<!--      style="float: center; margin-right: 10px; height: 500px; "/> -->
+
+
+<!-- ```{r graphical_model_2b, echo = FALSE} -->
+<!-- knitr::include_graphics(normalizePath("presentations/graphicalmodels_9-2.png")) -->
+<!-- ``` -->
+
+## Fitting
+
+-   The models are fit with Stan and CmdstanR
+-   The posterior is approximated with variational inference rather than MCMC
+
+## Predictive performance 
+<!-- {.columns-2 .two-column-slide} -->
+<!-- ::: columns -->
+<!-- :::: column -->
+<div style="float: left; width: 45%;">
+### Models
+
+-   Intercept only frequentist logistic regression (stats)
+-   Frequentist logistic regression (stats)
+-   Bayesian logistic regression (brms)
+-   Bayesian logistic regression + LTM (custom)
+-   Random forest (ranger)
+-   Gradient boosting machines (gbm)
+
+### Crossvalidation setup
+
+-   10 fold crossvalidation
+-   Data split
+    -   80% training: $N_{train} = 84$
+    -   20% validation: $N_{validation} = 20$
+
+</div>
+<div style="float: right; width: 45%;">
+
+### Evaluation Metrics
+
+-   prediction accuracy: $\frac{\text{True positives}}{\text{Total observations}}$
+    -   A model predicts 1 if $\hat{y}_p \geq 0.5$
+-   Brier score / MSE in probability space: $\frac{1}{P}\sum_{p=1}^P\left(\hat{y}_p-y_{p}\right)^2$
+
+</div>
+
+## Results
+
+```{r load_prediction_results, echo = FALSE}
+prediction_results <- readRDS("presentations/prediction_results.rds")
+format_mean_sd <- function(mean, sd) {
+  # paste(sprintf("%.3f", mean),
+  #                "\U00B1",#"+/-",
+  #                crayon::italic(sprintf("%.3f", sd)))
+  sprintf("%.3f \U00B1 <em>%.3f</em>", mean, sd)
+}
+show_results_table <- function(tb, container) {
+  datatable(tb, escape = FALSE, rownames = FALSE, container = container,
+            options = list(dom = "t",
+                           columnDefs = list(list(className = 'dt-center', targets = 1:2))))
+}
+```
+<div style="float: left; width: 45%;">
+```{r show_accuracy_table, echo = FALSE}
+sketch_accuracy <- htmltools::withTags(table(
+  class = 'display',
+  thead(
+    tr(
+      th(rowspan = 2, "Model"),
+      th(colspan = 2, htmltools::HTML('Mean Accuracy \U00B1 <em>SD</em>'))
+    ),
+    tr(
+      lapply(c("Train", "Test"), th)
+    )
+  )
+))
+tb_accuracy_pretty <- tibble(
+  Model = prediction_results$tb_accuracy$method,
+  train  = format_mean_sd(prediction_results$tb_accuracy$mean_train_accuracy, 
+                          prediction_results$tb_accuracy$sd_train_accuracy),
+  test   = format_mean_sd(prediction_results$tb_accuracy$mean_test_accuracy, 
+                          prediction_results$tb_accuracy$sd_test_accuracy)
+)
+show_results_table(tb_accuracy_pretty, container = sketch_accuracy)
+```
+
+</div>
+
+<div style="float: right; width: 45%;">
+```{r show_mse_table, echo = FALSE}
+sketch_mse <- htmltools::withTags(table(
+  class = 'display',
+  thead(
+    tr(
+      th(rowspan = 2, "Model"),
+      th(colspan = 2, htmltools::HTML('Mean MSE \U00B1 <em>SD</em>'))
+    ),
+    tr(
+      lapply(c("Train", "Test"), th)
+    )
+  )
+))
+tb_mse_pretty <- tibble(
+  Model = prediction_results$tb_accuracy$method,
+  train  = format_mean_sd(prediction_results$tb_mse$mean_train_accuracy, 
+                          prediction_results$tb_mse$sd_train_accuracy),
+  test   = format_mean_sd(prediction_results$tb_mse$mean_test_accuracy, 
+                          prediction_results$tb_mse$sd_test_accuracy)
+)
+show_results_table(tb_mse_pretty, container = sketch_mse)
+
+```
+
+</div>
+
+## Interpreting the model
+
+TODO
+
+## Interpreting the model
+
+<img class="svg-image"
+  src="/media/dvdb/storage/github/MesdagProject/figures/posterior_mean_95CRI.svg"
+  alt="estimates"
+  style="margin-left: -20px; margin-right: -40px; width: 1000px; max-width: 1000px"
+/>
+
+Reference group is 0-2 years treatment, age <= 30, diagnosis As_1_Other, crime Arson.
+
+<!-- <img src="/media/dvdb/storage/github/MesdagProject/figures/posterior_mean_95CRI.svg" -->
+<!--      alt="estimates" -->
+<!--      style="float: center; margin-right: 10px; height: 500px; "/> -->
+
+
+
+## Summary
+
+<div style="float: left; width: 45%;">
+-   An intercept only logistic regression performs remarkably well
+
+-   The best predictor of future violence is prior violence
+
+-   Including the IFBE improves predictive performance
+
+    -   Using the LTM as data reduction tool performs better than the mean
+    -   Not investigated if other data-reduction methods than the LTM yield similar results (e.g., factor analysis),
+        -   Alternatives are scarce due to the sparse nature and few observations of the patient-rater combinations.
+</div>
+<div style="float: right; width: 45%;">
+-   The data contains oddities that practitioners should avoid:
+
+    1.  18 outcome categories is overkill and may facilitate weird patterns (more even scores than odd scores)
+
+        -   this necessitates a more complex model of the thresholds which harms interpretability and power
+
+    2.  Time points are suboptimal
+
+        -   Measurements once every 6 months is too infrequent for proper time series
+        -   It is not credible that all ratings of one patient at time 1 (or 2) occured at the same day, i.e., the time grid should not be smoothed.
+        -   This harms forecasting of violence over time.
+
+### TODO:
+
+-   Study the IFBE substantially
+-   ???
+</div>

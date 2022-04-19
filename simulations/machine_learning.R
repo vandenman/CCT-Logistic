@@ -1,12 +1,23 @@
 rm(list = ls())
-library(data.table)
+library(CCTLogistic)
+library(data.table) # do we need this one?
+library(dplyr)
+library(purrr)
 library(ranger)
 library(gbm)
 library(brms)
+library(tidyr)
+library(pROC)
 
-source(file.path("simulations", "utils.R"))
-# source(file.path("simulations", "mlhelpers.R")) # <- TODO make this file and put all common ml stuff in there
+# data(aSAH)
+#
+# # Basic example
+# roc_obj <- roc(aSAH$outcome, aSAH$s100b, levels=c("Good", "Poor"))
+# auc_obj <- auc(roc_obj)
+# plot(roc_obj)
+# plot(auc_obj)
 
+# functions ----
 get_prediction_accuracy <- function(table) sum(diag(table)) / sum(table)
 
 get_confusion_table <- function(predictions, observed, maxCategories = 2, round = FALSE) {
@@ -24,7 +35,7 @@ get_confusion_table <- function(predictions, observed, maxCategories = 2, round 
 fit_rf <- function(data, target = "violent_after") {
   rf_obj <- ranger::ranger(
     dependent.variable.name = target,
-    data = data, oob.error = TRUE, verbose = TRUE, num.trees = 1e4, importance = "impurity")
+    data = data, oob.error = TRUE, verbose = TRUE, num.trees = 1e4, importance = "impurity", probability = TRUE)
   return(rf_obj)
 }
 
@@ -38,7 +49,7 @@ fit_gbm <- function(data, target = "violent_after") {
 
 }
 
-fit_logistic_regression_bay <- function(data, target = "violent_after", ...) {
+fit_logistic_regression_bay <- function(data, target = "violent_after", i, ...) {
 
   data <- data[, which(!names(data) %in% c("rater", "patient", "item"))]
   # data[[target]] <- as.character(data[[target]])
@@ -47,12 +58,13 @@ fit_logistic_regression_bay <- function(data, target = "violent_after", ...) {
                    iter       = 5000,
                    warmup     = 2000,
                    chains     = 6,
-                   file       = "saved_stan_models/logistic_fit.RData",
+                   cores      = 8,
+                   silent     = 2,
+                   refresh    = 1000,
                    save_model = "saved_stan_models/logistic_fit.stan",
+                   backend    = "cmdstanr",
                    ...
   ))
-
-    # BAS::bas.glm(f, data = data, family = stats::binomial()))
 
 }
 
@@ -64,6 +76,29 @@ fit_logistic_regression_freq <- function(data, target = "violent_after") {
 
 }
 
+fit_baseline_model <- function(data, target = "violent_after") {
+  data <- data[, which(!names(data) %in% c("rater", "patient", "item"))]
+  f <- as.formula(sprintf("%s ~ 1", target)) # intercept only
+  return(glm(f, data = data, family = binomial()))
+}
+
+do_ml <- function(data_train, data_test,
+                  method = c("random_forest", "gbm", "bayesian_logistic", "frequentist_logistic", "baseline_model"),
+                  target = "violent_after") {
+
+  method <- match.arg(method)
+
+  fit <- switch(method,
+    "random_forest"        = fit_rf(data_train, target),
+    "gbm"                  = fit_gbm(data_train, target),
+    "bayesian_logistic"    = fit_logistic_regression_bay(data_train, target, prior = brms::prior(normal(0, 3), class = "b")),
+    "frequentist_logistic" = fit_logistic_regression_freq(data_train, target),
+    "baseline_model"       = fit_baseline_model(data_train, target)
+  )
+  perf <- assess_performance(fit, data_train, data_test)
+  list(fit = fit, perf = perf)
+}
+
 summarize_predictive_performance <- function(predictions, observed) {
   if (is.list(predictions))
     predictions <- predictions[["predictions"]]
@@ -72,35 +107,72 @@ summarize_predictive_performance <- function(predictions, observed) {
   return(list(confusion_table = confusion_table, prediction_accuracy = prediction_accuracy))
 }
 
+compute_mse <- function(predicted_probs, outcomes_factor) {
+  outcomes <- as.integer(outcomes_factor) - 1L
+  return(mean((predicted_probs - outcomes)^2))
+}
+
+compute_log_loss <- function(predicted_probs, outcomes_factor) {
+  outcomes <- as.integer(outcomes_factor) - 1L
+  return(sum(dbinom(outcomes, 1, predicted_probs, log = TRUE)))
+}
+# TODO: refactor into a prediction S3 method that returns the probabilities and use one function for assess_performance
 assess_performance <- function(obj, data_train, data_test, target = "violent_after", ...) {
   UseMethod("assess_performance", obj)
 }
 
+assess_performance2 <- function(predicted_probs_train, predicted_probs_test, data_train, data_test, target) {
+
+  predicted_outcome_train <- factor(as.integer(predicted_probs_train >= 0.5), levels = levels(data_train[[target]]))
+  predicted_outcome_test  <- factor(as.integer(predicted_probs_test  >= 0.5), levels = levels(data_test[[target]]))
+
+  performance_train <- summarize_predictive_performance(predicted_outcome_train, data_train[[target]])
+  performance_test  <- summarize_predictive_performance(predicted_outcome_test,  data_test[[target]])
+
+  mse_train <- compute_mse(predicted_probs_train, data_train[[target]])
+  mse_test  <- compute_mse(predicted_probs_test,   data_test[[target]])
+
+  log_loss_train <- compute_log_loss(predicted_probs_train, data_train[[target]])
+  log_loss_test  <- compute_log_loss(predicted_probs_test,   data_test[[target]])
+
+  return(list(
+    train = c(performance_train, list(
+      predicted_probs = predicted_probs_train,
+      mse             = mse_train,
+      log_loss        = log_loss_train
+    )),
+    test = c(performance_test, list(
+      predicted_probs = predicted_probs_test,
+      mse             = mse_test,
+      log_loss        = log_loss_test
+    ))
+  ))
+}
+
 assess_performance.gbm <- function(obj, data_train, data_test, target = "violent_after", ...) {
 
-  data_train[[target]] <- as.character(data_train[[target]])
-  data_test[[target]] <- as.character(data_test[[target]])
+  data_train_temp <- data_train
+  data_test_temp  <- data_test
 
-  predictions_gbm_train <- as.factor(round(predict(obj, data_train, type = "response")))
-  predictions_gbm_test  <- as.factor(round(predict(obj, data_test, type = "response")))
+  data_train_temp[[target]] <- as.character(data_train[[target]])
+   data_test_temp[[target]] <- as.character( data_test[[target]])
 
-  performance_gbm_train <- summarize_predictive_performance(predictions_gbm_train, data_train[[target]])
-  performance_gbm_test  <- summarize_predictive_performance(predictions_gbm_test,  data_test[[target]])
+  predicted_probs_train <- predict(obj, data_train_temp, type = "response")
+  predicted_probs_test  <- predict(obj, data_test_temp,  type = "response")
 
-  return(list(performance_train = performance_gbm_train,
-              performance_test  = performance_gbm_test))
+  return(assess_performance2(predicted_probs_train, predicted_probs_test, data_train, data_test, target))
 
 }
 
 assess_performance.ranger <- function(obj, data_train, data_test, target = "violent_after", ...) {
-  predictions_rf_train <- predict(obj, data_train)
-  predictions_rf_test  <- predict(obj, data_test)
 
-  performance_rf_train <- summarize_predictive_performance(predictions_rf_train, data_train[[target]])
-  performance_rf_test  <- summarize_predictive_performance(predictions_rf_test,  data_test[[target]])
+  raw_predictions_rf_train <- predict(obj, data_train)
+  raw_predictions_rf_test  <- predict(obj, data_test)
 
-  return(list(performance_train = performance_rf_train,
-              performance_test  = performance_rf_test))
+  predicted_probs_train <- raw_predictions_rf_train[["predictions"]][, 2L]
+  predicted_probs_test  <- raw_predictions_rf_test[["predictions"]][, 2L]
+
+  return(assess_performance2(predicted_probs_train, predicted_probs_test, data_train, data_test, target))
 
 }
 
@@ -109,17 +181,10 @@ assess_performance.brmsfit <- function(obj, data_train, data_test, target = "vio
   data_test  <- data_test[,  which(!names(data_train) %in% c("rater", "patient", "item"))]
   data_train <- data_train[, which(!names(data_train) %in% c("rater", "patient", "item"))]
 
-  predictions_brmsfit_train <- predict(obj, data_train)
-  predictions_brmsfit_test  <- predict(obj, data_test)
+  predicted_probs_train <- predict(obj, data_train)[, "Estimate"]
+  predicted_probs_test  <- predict(obj, data_test)[, "Estimate"]
 
-  predictions_brmsfit_train <- factor(1 * (predictions_brmsfit_train[, "Estimate"] >= 0.5), levels = levels(data_train[[target]]))
-  predictions_brmsfit_test  <- factor(1 * (predictions_brmsfit_test[, "Estimate"] >= 0.5),  levels = levels(data_train[[target]]))
-
-  performance_brmsfit_train <- summarize_predictive_performance(predictions_brmsfit_train, data_train[[target]])
-  performance_brmsfit_test  <- summarize_predictive_performance(predictions_brmsfit_test,  data_test[[target]])
-
-  return(list(performance_train = performance_brmsfit_train,
-              performance_test  = performance_brmsfit_test))
+  return(assess_performance2(predicted_probs_train, predicted_probs_test, data_train, data_test, target))
 
 }
 
@@ -128,17 +193,12 @@ assess_performance.glm <- function(obj, data_train, data_test, target = "violent
   data_test  <- data_test[,  which(!names(data_train) %in% c("rater", "patient", "item"))]
   data_train <- data_train[, which(!names(data_train) %in% c("rater", "patient", "item"))]
 
-  predictions_glm_train <- predict(obj, data_train, type = "response")
-  predictions_glm_test  <- predict(obj, data_test,  type = "response")
+  predicted_probs_train <- predict(obj, data_train, type = "response")
+  predicted_probs_test  <- predict(obj, data_test, type = "response")
 
-  performance_glm_train <- summarize_predictive_performance(1 * (predictions_glm_train >= 0.5), data_train[[target]])
-  performance_glm_test  <- summarize_predictive_performance(1 * (predictions_glm_test  >= 0.5),  data_test[[target]])
-
-  return(list(performance_train = performance_glm_train,
-              performance_test  = performance_glm_test))
+  return(assess_performance2(predicted_probs_train, predicted_probs_test, data_train, data_test, target))
 
 }
-
 
 fitRandomforest <- function(dat_train, dat_test) {
 
@@ -188,123 +248,327 @@ fitBoosting <- function(datTrain, datTest, n.trees = 500, cv.folds = 5, shrinkag
   ))
 }
 
+# load data ----
+all_data <- read_long_data()
+data_2_analyze <- all_data |>
+  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
+  select(-c(age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
+  arrange(rater_group, patient, item, rater, time)
 
+data_violence <- all_data |>
+  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
+  select(c(patient, age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
+  filter(!duplicated(patient))
 
-# reshape so that there is a single outcome per patient! This doesn't make any sense!
-# data_long <- read_long_data()
-# data_long <- data_long[complete.cases(data_long), ]
+measure_vars <- paste0("IFBE_", 0:22)
+data_wide <- read_wide_data()
+data_wider <- data_wide |>
+  filter(!is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
+  pivot_wider(names_from = time, values_from = all_of(measure_vars), names_sep = "_time_") |>
+  group_by(patient) |>
+  mutate(
+    across(
+      all_of(paste0(measure_vars, "_time_", rep(1:2, length(measure_vars)))),
+      ~ mean(.x, na.rm = TRUE)
+    )
+  ) |>
+  ungroup() |>
+  distinct(patient, .keep_all = TRUE) |>
+  select(-c(rater, rater_group))
 
-# data_wide <- read_wide_data()
-wider_imputed_data <- read_wider_imputed_data()
-data_wider <- mice::complete(wider_imputed_data, 1)
-nrow(data_wider)
-# length(unique(data_wide$patient))
+# assert that data_wider and data_violence are identical, except that data_wider contains the IFBE items in wide format
+nrow(data_wider) == nrow(data_violence)
+ncol(data_wider) == ncol(data_violence) + 2 * length(measure_vars)
+shared_colnames <- intersect(colnames(data_wider), colnames(data_violence))
+identical(data_wider[shared_colnames], data_violence[shared_colnames]) # data are identical except for the IFBE items in data_wider
+anyNA(data_wider[setdiff(colnames(data_wider), shared_colnames)]) # no NAs in the IFBE items
 
-mice::md.pattern(data_wider, plot = FALSE)
+# fit ML methods ----
 
-# data_wider <- data_wider[complete.cases(data_wider), ]
-# data_wider_imputed <- mice::mice(data_wider, m = 5, maxit = 50, method = 'pmm', seed = 500)
-
-
-# create a training data set and a test data set
-set.seed(123)
-n_obs <- nrow(data_wider)
-
-# all_obs <- paste(data_long$time, data_long$patient)
-all_obs <- seq_len(n_obs)
-# unique_obs <- unique(all_obs)
+# meta information
+n_obs      <- nrow(data_wider)
+all_obs    <- seq_len(n_obs)
 unique_obs <- n_obs
-n_holdout <- floor(0.2 * unique_obs)
+n_holdout  <- floor(0.2 * unique_obs)
 
-idx_unique_obs <- sample(unique_obs, n_holdout)
-idx_holdout    <- which(all_obs %in% idx_unique_obs)
-
-cols <- c("time", "patient", "rater", "item", "score", "patient_age_group",
-          "treatement_duration_group",
+cols <- c("time", "patient", "rater", "item", "score", "age",
+          "treatment_duration",
           "violent_before", "violent_between",
           "violent_after",
-          "diagnosis_group", "crime_group", "rater_group"
+          "diagnosis", "crime", "rater_group"
 )
 cols <- setdiff(colnames(data_wider), c("time", "Aantal_Patienten", "patient"))
 
-data_train <- data_wider[-idx_holdout, cols]
-data_test  <- data_wider[ idx_holdout, cols]
-cat(sprintf("nrow(data_train) = %d\nnrow(data_test)  = %d", nrow(data_train), nrow(data_test)), sep = '\n')
+mod_ltm <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time.stan", pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels", cpp_options = list(stan_threads=TRUE))
 
-rf_obj <- fit_rf(data_train)
-sort(importance(rf_obj), TRUE)
+# TODO: repeat this but reset the seed for each model so that it's also reproducible when run out of order
+set.seed(123)
+no_cross_validations <- 10
+seeds <- sample(100000, no_cross_validations)
+force <- FALSE
 
-rf_perf <- assess_performance(rf_obj, data_train, data_test)
+ml_methods <- c("random_forest", "gbm", "bayesian_logistic", "frequentist_logistic", "baseline_model")
+objs <- matrix(list(), length(ml_methods) + 1L, no_cross_validations, dimnames = list(c(ml_methods, "CCT"), NULL))
+data_test_objs <- vector("list", length = no_cross_validations)
 
-gbm_obj <- fit_gbm(data_train)
-sort(gbm::relative.influence(gbm_obj), TRUE)
-gbm_perf <- assess_performance(gbm_obj, data_train, data_test)
+for (i in seq_len(no_cross_validations)) {
 
-options(mc.cores = 6)
-brms_obj <- fit_logistic_regression_bay(data_train, prior = brms::prior(normal(0, 3), class = "b"))
-summary(brms_obj)
-brms_perf <- assess_performance(brms_obj, data_train, data_test)
+  set.seed(seeds[i])
+  idx_unique_obs <- sample(unique_obs, n_holdout)
+  idx_holdout    <- which(all_obs %in% idx_unique_obs)
+
+  data_train <- data_wider[-idx_holdout, cols]
+  data_test  <- data_wider[ idx_holdout, cols]
+  data_test_objs[[i]] <- data_test
+  cat(sprintf("nrow(data_train) = %d\nnrow(data_test)  = %d\nfold = %s", nrow(data_train), nrow(data_test), i), sep = "\n")
+
+  for (method in ml_methods) {
+    cat("method:", method, "\n")
+    objs[[method, i]] <- CCTLogistic::save_or_run_model(
+      do_ml(data_train, data_test, method),
+      path = sprintf("fitted_objects/prediction_fitting/%s-%d.rds", method, i),
+      force = force
+    )
+  }
+  cat("method: ltm\n")
+
+  # TODO: shouldn't these use data_train somehow?
+  ltm_data <- data_2_stan(
+    data_2_analyze,
+    logistic_dat = data_violence, logistic_target = "violent_after",
+    store_predictions = TRUE, debug = FALSE, nc = 18,
+    use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE,
+    missing_idx = sort(idx_holdout)
+  )
+
+  ltm_fit <- CCTLogistic::save_or_run_model(
+    mod_ltm$variational(data = ltm_data, iter = 3e4, adapt_iter = 500, output_samples = 2e3, grad_samples = 5, elbo_samples = 5, threads = 8),
+    path = sprintf("fitted_objects/prediction_fitting/cct-%d.rds", i), force = force
+  )
+
+  log_reg_predictions <- ltm_fit$draws("log_reg_predictions", format = "draws_matrix")
+  mean_pred_probs <- unname(colMeans(log_reg_predictions))
+
+  ltm_perf <- assess_performance2(
+    predicted_probs_train = mean_pred_probs[-idx_holdout],
+    predicted_probs_test  = mean_pred_probs[ idx_holdout],
+    data_train            = data_train,
+    data_test             = data_test,
+    target                = "violent_after"
+  )
+
+  ltm_obj <- list(fit = ltm_fit, perf = ltm_perf)
+
+  objs[["CCT", i]] <- ltm_obj
+
+}
+
+system("beep_finished.sh")
+
+rf_probs1 <- objs[["random_forest", 1]]$perf$test$predicted_probs
+labels1   <- data_test_objs[[1]]$violent_after
+debugonce(pROC:::roc.default)
+roc_obj <- roc(as.integer(labels1), rf_probs1, plot = TRUE, legacy.axes=TRUE, xlab = "False positive rate", ylab = "True positive rate")
+
+debugonce(pROC:::plot.roc.roc)
+pROC:::plot.roc
 
 
-glm_obj <- fit_logistic_regression_freq(data_train)
-summary(glm_obj)
-glm_perf <- assess_performance(glm_obj, data_train, data_test)
-beepr::beep(5)
+se <- sort(roc_obj$sensitivities, decreasing = TRUE)
+sp <- sort(roc_obj$specificities, decreasing = FALSE)
+roc_obj <- roc(as.integer(labels1), rf_probs1, plot = TRUE, legacy.axes=TRUE)
+plot(1-sp, se, type = "b", asp = 1, bty = "n", las = 1); abline(0, 1)
 
-perf_list <- list(rf = rf_perf, gbm = gbm_perf, brms = brms_perf, glm = glm_perf)
+plot(roc_obj)
+points(sp, se, type = "b", asp = 1, bty = "n", las = 1)
 
-do.call(cbind, lapply(perf_list, \(x) x[["performance_train"]][["confusion_table"]]))
-do.call(cbind, lapply(perf_list, \(x) x[["performance_test"]][["confusion_table"]]))
-sapply(perf_list, \(x) x[["performance_train"]][["prediction_accuracy"]])
-sapply(perf_list, \(x) x[["performance_test"]][["prediction_accuracy"]])
 
-# what happened below?
-# cont_vars <- sapply(data_wider, is.numeric)
-# diffs <- aggregate(data_wider[, cont_vars], list(data_wider$violent_after), mean)[, -2]
-# o <- order(abs(apply(diffs[, -1L], 2L, diff)), decreasing = TRUE)
-# diffs[, c(1L, o + 1L)]
-# apply(diffs[, c(1L, o + 1L)][, -1L], 2L, diff)
-#
-#
-# cc <- coef(glm_obj)
-# names(cc)[1] <- "Intercept"
-# oo <- order(abs(cc), decreasing = TRUE)
-# cc <- cc[oo]
-#
-# ff <- fixef(brms_obj)
-# oo <- order(abs(ff[, "Estimate"]), decreasing = TRUE)
-# ff <- ff[oo, "Estimate"]
-#
-# length(intersect(names(cc), names(ff))) == length(cc)
-# length(intersect(names(cc), names(ff))) == length(ff)
-#
-# options(scipen = 100)
-# print(cbind(cc, ff[names(cc)]), digits = 3)
-# print(cbind(ff, cc[names(ff)]), digits = 3)
-#
-#
-# cat_vars <- which(sapply(data_wider, \(x) !is.numeric(x) && (nlevels(x) <= 20)))
-# cat_vars <- cat_vars[setdiff(names(cat_vars), c("violent_after", "time"))]
-# sapply(data_wider[, ..cat_vars], nlevels)
-#
-# result <- setNames(vector("list", length(cat_vars)), names(cat_vars))
-# for (i in seq_along(cat_vars)) {
-#   tb <- table(data_wider[["violent_after"]], data_wider[[cat_vars[i]]])
-#   result[[i]] <- tb / sum(tb)
-# }
-# result
-#
-# diffs <- aggregate(data_wider[, ..cat_vars], list(data_wider[, ..cat_vars]), \(x) {tb <- table(x); tb / sum(tb)}, na.rm = TRUE)[, -2]
-# o <- order(abs(apply(diffs[, -1L], 2L, diff)), decreasing = TRUE)
-# diffs[, c(1L, o + 1L)]
-# apply(diffs[, c(1L, o + 1L)][, -1L], 2L, diff)
-#
-# (\(x) {
-#   tb <- table(x)
-#   tb / sum(tb)
-# })(c(1, 2, 3))
-#
-# (function(x) {
-#   tb <- table(x)
-#   tb / sum(tb)
-# })(c(1, 2, 3))
+get_tpr_tnr <- function(observed, predicted) {
+  tb <- table(observed, predicted)
+  tnr <- tb[1, 1] / (tb[1, 1] + tb[1, 2])
+  tpr <- tb[2, 2] / (tb[2, 1] + tb[2, 2])
+  return(c(tpr, tnr))
+}
+
+compute_tpr_tnr_mat <- function(observed, predicted_probs, thresholds) {
+  mm <- matrix(NA_real_, length(thresholds), 2)
+  for (i in seq_along(thresholds)) {
+    predicted <- factor(as.integer(thresholds[i] <= predicted_probs), levels = levels(labels1))
+    mm[i, ] <- get_tpr_tnr(labels1, predicted)
+  }
+
+  se_mm <- sort(mm[, 1], decreasing = TRUE)
+  sp_mm <- sort(mm[, 2], decreasing = FALSE)
+  tibble(tpr = se_mm, tfr = 1 - sp_mm, thresholds = thresholds)
+}
+
+plot(1-se_mm, sp_mm, type = "b", asp = 1, bty = "n", las = 1, main = "mm"); abline(0, 1)
+
+plot(roc_obj)
+points(sp_mm, se_mm, type = "b", asp = 1, bty = "n", las = 1)
+
+no_reps <- length(data_test_objs[[1]]$violent_after)
+objs_tib <- tibble(
+  method     = rep(rownames(objs), each = no_reps, ncol(objs)),
+  iter       = rep(seq_len(ncol(objs)), each = nrow(objs) * no_reps),
+  test_probs = unlist(lapply(objs, \(x) x$perf$test$predicted_probs)),
+  test_label = unlist(lapply(seq_along(data_test_objs), \(i) rep(data_test_objs[[i]]$violent_after, nrow(objs))))
+)
+
+roc_obj$thresholds
+
+roc_tib <- objs_tib |>
+  group_by(method, iter) |>
+  summarise(
+    temp = compute_tpr_tnr_mat(test_label, test_probs, roc_obj$thresholds),
+  ) |>
+  ungroup() |>
+  unnest_wider(temp)
+
+
+roc_tibble <- tibble()
+for (i in seq_along(data_train_objs)) {
+  test_labels <- as.integer(data_train_objs[[i]]$violent_after)
+  for (j in seq_len(nrow(objs))) {
+    temp_roc_obj <- pROC::roc(test_labels, objs[[j, i]]$perf$test$predicted_probs)
+    temp_tib <- tibble(
+      method    = rownames(objs)[j],
+      iteration = i,
+      tpr       =     sort(temp_roc_obj$sensitivities, decreasing = TRUE),
+      fpr       = 1 - sort(temp_roc_obj$specificities, decreasing = FALSE)
+    )
+    roc_tibble <- rbind(roc_tibble, temp_tib)
+  }
+}
+
+i <- j <- 1
+test_labels <- as.integer(data_train_objs[[i]]$violent_after)
+temp_roc_obj <- pROC::roc(test_labels, objs[[j, i]]$perf$test$predicted_probs)
+tt1 <- tibble(
+  method    = rownames(objs)[j],
+  iteration = i,
+  tpr       =     sort(temp_roc_obj$sensitivities, decreasing = TRUE),
+  fpr       = 1 - sort(temp_roc_obj$specificities, decreasing = FALSE)
+)
+temp_roc_obj2 <- cutpointr(x = objs[[j, i]]$perf$test$predicted_probs, class = test_labels, direction = ">=", pos_class = 2)
+tt2 <- temp_roc_obj2 |> select(c("roc_curve")) |>
+    tidyr::unnest(.data$roc_curve) |>
+    select(c("tpr", "tnr")) |>
+    mutate(fnr = 1 - tnr) |>
+    select(-tnr)
+
+tt1$tpr - rev(tt2$tpr)
+tt1$fpr - rev(tt2$fnr)
+
+roc_tibble$tpr - rev(individual_roc_tib$tpr)
+
+ggplot(data = roc_tibble, aes(x = fpr, y = tpr, group = interaction(method, iteration), color = method)) +
+  jaspGraphs::geom_abline2(intercept = 0, slope = 1, color = "grey") +
+  geom_line(alpha = .5) +
+  jaspGraphs::geom_rangeframe() +
+  jaspGraphs::scale_JASPcolor_discrete() +
+  jaspGraphs::themeJaspRaw(legend.position = "right")
+
+library(ggplot2)
+library(cutpointr)
+
+predictions_100_samples <- data.frame(
+    Sample = rep(c(1:100), times = 195),
+    PredictionValues = c(rnorm(n = 9750), rnorm(n = 9750, mean = 1)),
+    RealClass = c(rep("benign", times = 9750), rep("pathogenic", times = 9750))
+)
+
+roc_tib <- tibble()
+individual_roc_tib <- tibble()
+mean_roc_tib <- tibble()
+cutpoints <- seq(0, 1, .05)
+for (j in seq_len(nrow(objs))) {
+
+  method <- rownames(objs)[j]
+  temp_tib <- tibble(
+    probs  = unlist(lapply(seq_len(nrow(objs)), \(i) objs[[i, j]]$perf$test$predicted_probs)),
+    class  = unlist(lapply(seq_len(nrow(objs)), \(i) as.integer(data_train_objs[[i]]$violent_after))),
+    cv     = unlist(lapply(seq_len(nrow(objs)), \(i) rep(i, length(data_train_objs[[i]]$violent_after)))),
+    method = method
+  )
+  roc_tib <- rbind(roc_tib, temp_tib)
+
+  temp_individual_roc_tib <- cutpointr(data = temp_tib, x = probs, class = class, subgroup = cv, direction = ">=", pos_class = 2)
+  plot_roc(temp_individual_roc_tib)
+
+  temp_individual_roc_tib$method <- method
+  temp_individual_roc_tib <- temp_individual_roc_tib |>
+    select(c("roc_curve", "subgroup", "method")) |>
+    tidyr::unnest(.data$roc_curve) |>
+    select(c("tpr", "tnr", "subgroup", "method")) |>
+    mutate(
+      tpr =     sort(tpr, decreasing = TRUE),
+      fpr = 1 - sort(tnr, decreasing = FALSE)
+    ) |>
+    select(-tnr)
+  individual_roc_tib <- rbind(individual_roc_tib, temp_individual_roc_tib)
+
+  temp_mean_roc_tib <- map_df(cutpoints, function(cp) {
+    out <- cutpointr(data = temp_tib, x = probs, class = class, method = oc_manual, cutpoint = cp, direction = ">=", subgroup = cv, pos_class = 2)
+    tibble(cutoff = cp,
+           sensitivity = mean(out$sensitivity),
+           specificity = mean(out$specificity))
+  })
+  temp_mean_roc_tib$method <- method
+  mean_roc_tib <- rbind(mean_roc_tib, temp_mean_roc_tib)
+
+}
+
+ggplot(data = individual_roc_tib, aes(x = fpr, y = tpr, group = interaction(method, subgroup), color = method)) +
+  jaspGraphs::geom_abline2() +
+  geom_line(alpha = .5) +
+  geom_line(data = mean_roc_tib, mapping = aes(x = 1 - specificity, y = sensitivity, group = method, color = method), inherit.aes = FALSE) +
+  jaspGraphs::geom_rangeframe() +
+  jaspGraphs::themeJaspRaw(legend.position = "right")
+
+
+rowSds <- matrixStats::rowSds
+train_accuracy <- matrix(unlist(map(objs, \(x) x$perf$train$prediction_accuracy)), nrow(objs), ncol(objs), FALSE, dimnames(objs))
+test_accuracy  <- matrix(unlist(map(objs, \(x) x$perf$test $prediction_accuracy)), nrow(objs), ncol(objs), FALSE, dimnames(objs))
+rowMeans(train_accuracy)
+rowMeans(test_accuracy)
+rowSds(train_accuracy)
+rowSds(test_accuracy)
+
+train_mse <- matrix(unlist(map(objs, \(x) x$perf$train$mse)), nrow(objs), ncol(objs), FALSE, dimnames(objs))
+test_mse  <- matrix(unlist(map(objs, \(x) x$perf$test $mse)), nrow(objs), ncol(objs), FALSE, dimnames(objs))
+rowMeans(train_mse)
+rowMeans(test_mse)
+matrixStats::rowSds(train_mse)
+matrixStats::rowSds(test_mse)
+
+rownames <- c("random forest", "gbm", "Bayesian LR", "Frequentist LR", "Intercept only LR", "Bayesian LR + CCT")
+order <- c(5, 4, 3, 6, 1, 2)
+tb_accuracy <- tibble(
+  method              = rownames,
+  mean_train_accuracy = rowMeans(train_accuracy),
+    sd_train_accuracy = rowSds  (train_accuracy),
+  mean_test_accuracy  = rowMeans(test_accuracy),
+    sd_test_accuracy  = rowSds  (test_accuracy),
+)[order, ]
+tb_mse <- tibble(
+  method              = rownames,
+  mean_train_accuracy = rowMeans(train_mse),
+    sd_train_accuracy = rowSds  (train_mse),
+  mean_test_accuracy  = rowMeans(test_mse),
+    sd_test_accuracy  = rowSds  (test_mse),
+)[order, ]
+
+saveRDS(list(tb_accuracy = tb_accuracy, tb_mse = tb_mse), file = file.path("presentations", "prediction_results.rds"))
+
+
+debugonce(brms::brm)
+ff <- brms::brm(formula = violent_after ~ ., data = data_train,
+          family = brms::bernoulli(link = "logit"),
+          iter       = 5000,
+          warmup     = 2000,
+          chains     = 6,
+          backend    = "cmdstanr"
+          # file       = "saved_stan_models/logistic_fit.RData",
+          # save_model = "saved_stan_models/logistic_fit.stan"
+)

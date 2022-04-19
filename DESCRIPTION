@@ -3,8 +3,8 @@ Type: Package
 Title: What the Package Does in One 'Title Case' Line
 Version: 1.0
 Date: 2019-06-28
-Author: Your Name
-Maintainer: Your Name <your@email.com>
+Author: Don van den Bergh
+Maintainer: Don van den Bergh <donvdbergh@hotmail.com>
 Description: One paragraph description of what the package does as one or more
         full sentences.
 License: GPL (>= 2)
@@ -15,10 +15,13 @@ RoxygenNote: 7.1.2
 Imports:
     assertthat,
     cmdstanr (>= 0.4.0.9000),
+    dplyr,
     ggplot2,
     grDevices,
     jaspGraphs,
     progress,
+    Rcpp,
+    rlang,
     svglite,
     tibble,
     tools,
@@ -28,3 +31,5 @@ Roxygen: list(markdown = TRUE)
 Remotes: 
     stan-dev/cmdstanr,
     jasp-stats/jaspGraphs
+LinkingTo:
+  Rcpp

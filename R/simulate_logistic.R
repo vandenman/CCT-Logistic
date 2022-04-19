@@ -82,7 +82,7 @@ is.logistic_regression_ltm_data <- function(x) {
 }
 
 #' @export
-data_2_stan.logistic_regression_ltm_data <- function(dat, store_predictions = FALSE, ...) {
+data_2_stan.logistic_regression_ltm_data <- function(dat, store_predictions = FALSE, missing_idx = integer(), ...) {
 
   assert_that(is.flag(store_predictions), inherits(dat, "logistic_regression_ltm_data"))
 
@@ -90,16 +90,40 @@ data_2_stan.logistic_regression_ltm_data <- function(dat, store_predictions = FA
   no_time_points <- dat$ltm_data$no_time_points
   no_covariates  <- ncol(dat$log_reg$design_matrix) - 1L - ni * no_time_points
 
-  res <- data_2_stan(dat$ltm_data, ...)
+  data <- data_2_stan(dat$ltm_data, ...)
 
-  res$store_predictions        <- store_predictions
-  res$log_reg_outcomes         <- dat$log_reg$y
+  data$store_predictions        <- store_predictions
+  data$log_reg_outcomes         <- dat$log_reg$y
   # we start from 2 because we drop the intercept since Stan's bernoulli_logit_glm has a separate argument for the intercept
   # the final columns contain the true values for lt, which we also drop
-  res$design_matrix_covariates <- dat$log_reg$design_matrix[, seq(2L, 1L + no_covariates), drop = FALSE]
-  res$no_covariates            <- no_covariates
-  res$fit_logistic             <- 1L
+  data$design_matrix_covariates <- dat$log_reg$design_matrix[, seq(2L, 1L + no_covariates), drop = FALSE]
+  data$no_covariates            <- no_covariates
+  data$fit_logistic             <- 1L
 
-  return(res)
+  data <- data_2_stan_incorporate_missing_log_reg(data, missing_idx)
 
+  return(data)
+
+}
+
+data_2_stan_incorporate_missing_log_reg <- function(data, missing_idx) {
+
+  if (length(missing_idx) == 0L) {
+    data$np_log_reg     <-   data$np
+    data$log_reg_np_idx <- 1:data$np
+    return(data)
+  }
+
+  np <- data$np
+  assertthat::assert_that(
+    all(missing_idx > 0L & missing_idx <= np)
+  )
+  non_missing_idx <- setdiff(1:np, missing_idx)
+
+  if (length(data$log_reg_outcomes) == np)
+    data$log_reg_outcomes <- data$log_reg_outcomes[non_missing_idx]
+
+  data$log_reg_np_idx <- non_missing_idx
+  data$np_log_reg     <- length(non_missing_idx)
+  return(data)
 }

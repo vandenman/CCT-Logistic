@@ -1,0 +1,20 @@
+.shiny-frame{
+  width: 1150px;
+  height: 1000px;
+}
+
+.two-column-slide{
+  height: 1500px;
+}
+
+.svg-image{
+  max-width:  900px;
+  max-height: 600px;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 900px;
+  /*height: auto;*/
+  display: block;
+}

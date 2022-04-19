@@ -3,7 +3,7 @@ simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L, no_time_poin
                           lt = NULL, log_lambda = NULL, log_a = NULL, b = NULL, log_E = NULL, threshold_shape = NULL,
                           mu_log_a = NULL, sd_log_a = NULL, mu_b = NULL, sd_b = NULL, mu_log_E = NULL, sd_log_E = NULL,
                           return_mus_sds = TRUE, vary_lambda_across_patients = NULL, store_probabilities = FALSE,
-                          threshold_type = c("logistic", "skew_logistic", "free")) {
+                          threshold_type = c("logistic", "skew_logistic", "free"), thresholds = NULL) {
 
   threshold_type <- match.arg(threshold_type)
   use_skew_thresholds <- threshold_type == "skew"
@@ -11,12 +11,12 @@ simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L, no_time_poin
 
   assert_counts(np, ni, nr, no_rater_groups)
   assert_that(
-    is.count(nc),
     is.flag(store_probabilities),
     is.flag(use_skew_thresholds),
     is.flag(use_free_thresholds),
     !(use_skew_thresholds && use_free_thresholds),
-    is.count(no_time_points) && no_time_points >= 1L && no_time_points <= 2L
+    is.count(no_time_points) && no_time_points >= 1L && no_time_points <= 2L,
+    is.null(thresholds) || (is.matrix(thresholds) && is.numeric(thresholds) && nrow(thresholds) == nr && ncol(thresholds) == nc - 1)
   )
 
 
@@ -86,13 +86,17 @@ simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L, no_time_poin
   probs <- if (store_probabilities) matrix(NA_real_, nrow(df), nc) else NULL
 
   # free_thresholds <- NULL
-  free_thresholds <- matrix(NA, nr, nc - 1)
-  if (use_free_thresholds) {
-    for (r in seq_len(nr))
-      free_thresholds[r, ] <- sort(rlogis(nc - 1))
+  if (!is.null(thresholds)) {
+    free_thresholds <- thresholds
   } else {
-    for (r in seq_len(nr))
-      free_thresholds[r, ] <- qELGW(threshold_probs, location = b[r], scale = exp(log_a[r]), shape = threshold_shape[r])
+    free_thresholds <- matrix(NA, nr, nc - 1)
+    if (use_free_thresholds) {
+      for (r in seq_len(nr))
+        free_thresholds[r, ] <- sort(rlogis(nc - 1))
+    } else {
+      for (r in seq_len(nr))
+        free_thresholds[r, ] <- qELGW(threshold_probs, location = b[r], scale = exp(log_a[r]), shape = threshold_shape[r])
+    }
   }
 
   for (o in seq_len(nrow(df))) {
@@ -158,11 +162,11 @@ simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L, no_time_poin
 #' @export
 is.ltm_data <- function(x) inherits(x, "ltm_data")
 
-guess_nc <- function(df) {
-  nc <- if (is.factor(df$score)) {
-
+guess_nc <- function(dat, score = "score") {
+  nc <- if (is.factor(dat[[score]])) {
+    nlevels(dat[[score]])
   } else {
-    length(unique())
+    vctrs::vec_unique_count(dat[[score]])
   }
   message("Guessing nc at ", nc)
   nc
@@ -241,46 +245,39 @@ data_2_stan <- function(dat, ...) {
 }
 
 #' @export
-data_2_stan.ltm_data <- function(dat, nc = NULL, prior_only = FALSE, debug = TRUE, vary_lambda_across_patients = FALSE, vectorized = FALSE,
-                            use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE,
-                       mu_log_lambda = 0, mu_log_a = 0, mu_b = 0,
-                       a_sd_lt         = 1,   b_sd_lt         = 1,
-                       a_sd_log_lambda = 1.1, b_sd_log_lambda = 1.1,
-                       a_sd_log_E      = 1,   b_sd_log_E      = 1,
-                       a_sd_log_a      = 1,   b_sd_log_a      = 1,
-                       a_sd_b          = 1,   b_sd_b          = 1,
-                       ...
-                       ) {
+data_2_stan.ltm_data <- function(dat, nc = NULL, prior_only = FALSE, debug = TRUE, vary_lambda_across_patients = FALSE,
+                           use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE,
+                           mu_log_lambda = 0, mu_log_a = 0, mu_b = 0,
+                           a_sd_lt         = 1,   b_sd_lt         = 1,
+                           a_sd_log_lambda = 1.1, b_sd_log_lambda = 1.1,
+                           a_sd_log_E      = 1,   b_sd_log_E      = 1,
+                           a_sd_log_a      = 1,   b_sd_log_a      = 1,
+                           a_sd_b          = 1,   b_sd_b          = 1,
+                           ...
+                           ) {
 
+  x_df <- dat$df
+  np   <- dat$np
+  ni   <- dat$ni
+  nr   <- dat$nr
+  nc   <- dat$nc
+  no_rater_groups <- dat$no_rater_groups
+  rater_group_assignment <- dat$rater_group_assignment
+  no_time_points <- dat$no_time_points
+  idx_time_point <- as.integer(x_df$time_point)
 
-  if (!is.data.frame(dat)) {
+  data <- stan_data_ltm_inner(
+    np, ni, nr, no_rater_groups, nc,
+    a_sd_lt, b_sd_lt, a_sd_log_lambda, b_sd_log_lambda, a_sd_log_E, b_sd_log_E, a_sd_log_a, b_sd_log_a,
+    a_sd_b, b_sd_b, mu_log_lambda, mu_log_a, mu_b,
+    prior_only, vary_lambda_across_patients,  use_skew_logistic_thresholds, use_free_logistic_thresholds,
+    rater_group_assignment, x_df, no_time_points, idx_time_point, debug
+  )
 
-    x_df <- dat$df
-    np   <- dat$np
-    ni   <- dat$ni
-    nr   <- dat$nr
-    nc   <- dat$nc
-    no_rater_groups <- dat$no_rater_groups
-    rater_group_assignment <- dat$rater_group_assignment
-    no_time_points <- dat$no_time_points
-    idx_time_point <- as.integer(x_df$time_point)
+  return(data)
+}
 
-
-  } else {
-
-    nc <- nc %||% guess_nc(dat)
-
-    x_df <- dat
-    np <- max(as.integer(x_df$patient))
-    ni <- max(as.integer(x_df$item))
-    nr <- max(as.integer(x_df$rater))
-    no_rater_groups <- if (!is.null(x_df$rater_group)) max(x_df$rater_group) else 1L
-    rater_group_assignment <- x_df$rater_group[!duplicated(x_df$rater)]
-
-    idx_time_point <- x_df$time_point %||% integer()
-    no_time_points <- max(idx_time_point)
-  }
-
+stan_data_ltm_inner <- function(np, ni, nr, no_rater_groups, nc, a_sd_lt, b_sd_lt, a_sd_log_lambda, b_sd_log_lambda, a_sd_log_E, b_sd_log_E, a_sd_log_a, b_sd_log_a, a_sd_b, b_sd_b, mu_log_lambda, mu_log_a, mu_b, prior_only, vary_lambda_across_patients, use_skew_logistic_thresholds, use_free_logistic_thresholds, rater_group_assignment, x_df, no_time_points, idx_time_point, debug) {
   assert_counts(np, ni, nr, no_rater_groups)
   assert_that(is.positive_int(nc, larger_than = 2L))
 
@@ -305,14 +302,13 @@ data_2_stan.ltm_data <- function(dat, nc = NULL, prior_only = FALSE, debug = TRU
     is.number(b_sd_log_lambda) && b_sd_log_lambda > 0,
     is.flag(prior_only),
     is.flag(vary_lambda_across_patients),
-    is.flag(vectorized),
     is.flag(use_skew_logistic_thresholds),
     is.flag(use_free_logistic_thresholds),
     !is.unsorted(rater_group_assignment),
     !(use_skew_logistic_thresholds && use_free_logistic_thresholds)
   )
 
-  data <- list(
+  return(list(
     x                   = x_df$score,
     np                  = np,
     ni                  = ni,
@@ -354,50 +350,103 @@ data_2_stan.ltm_data <- function(dat, nc = NULL, prior_only = FALSE, debug = TRU
     debug                        = as.integer(debug),
     prior_only                   = as.integer(prior_only),
     vary_lambda_across_patients  = as.integer(vary_lambda_across_patients),
-    vectorized                   = as.integer(vectorized),
+    # vectorized                   = as.integer(vectorized),
     use_skew_logistic_thresholds = as.integer(use_skew_logistic_thresholds),
     use_free_logistic_thresholds = as.integer(use_free_logistic_thresholds),
 
     # these may be overwritten by data_2_stan.logistic_regression_ltm_data
     fit_logistic             = 0L,
     store_predictions        = 0L,
-    log_reg_outcomes         = numeric(0L),
+    log_reg_outcomes         = integer(),
     no_covariates            = 0L,
-    design_matrix_covariates = matrix(NA_real_, 0L, 0L)
+    design_matrix_covariates = matrix(NA_real_, 0L, 0L),
+    np_log_reg               = 0L,
+    log_reg_np_idx           = integer()
 
+  ))
+}
+
+
+#TODO: this function need individual documentation! maybe it shouldn't even be an S3 method?
+#' @export
+data_2_stan.data.frame <- function(dat, score = "score", patient = "patient", item = "item",
+                               rater = "rater", time = "time", rater_group = "rater_group",
+                               nc = NULL,
+                               logistic_dat = NULL, logistic_target = NULL, logistic_patient = "patient",
+                               missing_idx = integer(),
+                               store_predictions = FALSE,
+                               prior_only = FALSE, debug = TRUE, vary_lambda_across_patients = FALSE,
+                               use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE,
+                               mu_log_lambda = 0, mu_log_a = 0, mu_b = 0,
+                               a_sd_lt         = 1,   b_sd_lt         = 1,
+                               a_sd_log_lambda = 1.1, b_sd_log_lambda = 1.1,
+                               a_sd_log_E      = 1,   b_sd_log_E      = 1,
+                               a_sd_log_a      = 1,   b_sd_log_a      = 1,
+                               a_sd_b          = 1,   b_sd_b          = 1,
+                               ...) {
+
+  # TODO: add safety checks!
+
+  # this is not very clean but it gets the job done
+  dat <- dat |>
+    mutate(
+      across(all_of(c(patient, item, rater, rater_group, time)),
+             normalize_factor
+      ),
+    )
+
+  nc <- nc %||% guess_nc(dat)
+
+  np <- max(as.integer(dat[[patient]]))
+  ni <- max(as.integer(dat[[item]]))
+  nr <- max(as.integer(dat[[rater]]))
+  no_rater_groups <- max_or_1(dat[[rater_group]])
+  rater_group_assignment <- dat[[rater_group]][!duplicated(dat[[rater]])]
+
+  idx_time_point <- as.integer(dat[[time]])
+  no_time_points <- max_or_1(idx_time_point)
+
+  data <- stan_data_ltm_inner(
+    np, ni, nr, no_rater_groups, nc,
+    a_sd_lt, b_sd_lt, a_sd_log_lambda, b_sd_log_lambda, a_sd_log_E, b_sd_log_E, a_sd_log_a, b_sd_log_a,
+    a_sd_b, b_sd_b, mu_log_lambda, mu_log_a, mu_b,
+    prior_only, vary_lambda_across_patients,  use_skew_logistic_thresholds, use_free_logistic_thresholds,
+    rater_group_assignment, dat, no_time_points, idx_time_point, debug
   )
-  return(data)
-}
 
-get_probs_ordered <- function(delta, location, scale, cdf = plogis) {
+  if (!is.null(logistic_dat)) {
 
-  # replica of what Stan does
-  nc <- length(delta) + 1L
-  prob <- numeric(nc)
+    # TODO: should this be a separate function so it can be done without ltm? the model doesnt support that though
+    f <- paste0(logistic_target, "~ 1")
+    if (ncol(logistic_dat) > 2L)
+      f <- paste(f, "+", paste(setdiff(colnames(logistic_dat), c(logistic_target, logistic_patient)), collapse = " + "))
+    f <- as.formula(f)
+    design_matrix <- model.matrix(f, logistic_dat)
 
-  vals <- cdf(location - delta, 0, scale)
-  prob[1] <- 1 - vals[1]
-  for (c in 2:(nc - 1)) {
-    prob[c] <- vals[c - 1L] - vals[c]
+    no_covariates <- ncol(design_matrix) - 1L
+
+    data$store_predictions        <- store_predictions
+    data$log_reg_outcomes         <- normalize_factor(logistic_dat[[logistic_target]]) - 1L
+    # we start from 2 because we drop the intercept since Stan's bernoulli_logit_glm has a separate argument for the intercept
+    data$design_matrix_covariates <- design_matrix[, -1L, drop = FALSE]
+    data$no_covariates            <- no_covariates
+    data$fit_logistic             <- 1L
+
+    data <- data_2_stan_incorporate_missing_log_reg(data, missing_idx)
+
   }
-  prob[nc] <- vals[nc - 1]
 
-  return(prob)
+  return(data)
+
 }
 
-#' @export
-rordered <- function(n, delta, location = 0, scale = 1, cdf = stats::plogis) {
-  assert_that(is.integer(n) && n >= 0L, length(delta) >= 1L, scale > 0L, is.function(cdf))
-  if (n == 0L) return(integer())
-
-  prob <- get_probs_ordered(delta, location, scale, cdf = cdf)
-  sample(length(delta) + 1L, size = n, replace = TRUE, prob = prob)
-}
-
-#' @export
-dordered <- function(x, delta, location = 0, scale = 1, log = TRUE, cdf = stats::plogis) {
-  prob <- get_probs_ordered(delta, location, scale, cdf = cdf)
-  if (log)
-    return(log(prob[x]))
-  else return(prob[x])
+max_or_1 <- function(x) {
+  if (is.null(x))
+    1L
+  else
+    vctrs::vec_unique_count(x)
+  # if (is.factor(x))
+  #   nlevels(x)
+  # else
+  #   max(x)
 }
