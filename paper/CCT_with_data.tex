@@ -50,13 +50,25 @@
 \section{Introduction}
 The mental health and forensic risk factors of patients in forensic psychiatric hospitals is regularly monitored with methods such as
 Routine Outcome Monitoring \parencite{deBeurs2011ROM}.
+A staff member (e.g., a clinician or psychiatrist), henceforth a \emph{rater}, scores a patient on variety of criteria, such as ....
+Using these scores raters can monitor the mental state of a patient over time, answer questions about the effectiveness of a treatment, or warn staff members about which patients are at risk for turning violent. 
 
-Forensic psychiatric hospitals routinely assess the
 
-Forensic psychiatric hospitals monitor the mental health and forensic risk factors of their patients at regular intervals, typically using a method such as Routine Outcome Monitoring \parencite{deBeurs2011ROM}.
+For each patient, there are usually multiple scores available on different items, given by different raters.
+The added value of the scores hinges on the method used to aggregate the scores.
+Standard practice is to average the scores.
+This is suboptimal, as this treats raters as exchangeable and analyzes patients independently.
+
+
+In previous work, we used Cultural Consensus Theory \parencite[CCT;][]{romney1986culture, batchelder1988test, batchelder2012cultural} to develop an appropriate model to analyze such data that accounts for the hierarchical structure among patients, raters, and items \parencite{vandenBergh2020cultural}.
+Here, we apply this model to data and uses its inferences to predict whether or not a patient becomes violent.
+Furthermore, we compare the predictive performance to that of frequently used machine learning models.
+In addition, we interpret the model and ...
+The paper is concluded with a discussion on ...
+
 
 \section{Data of 105 patients in the Mesdag clinic}
-\subsection{How it was collected}
+\subsection{Method of collection}
 \subsection{IFTE}
 
 The data were collected using a Routine Outcome Monitoring instrument called the the Instrument for Forensic Treatment Evaluation (IFTE).
@@ -97,8 +109,6 @@ In addition, the average ignores any additional information about the patient at
 Cultural consensus theory (CCT) provides a model-based framework for pooling information from multiple raters to form a consensus \parencite{anders2014cultural}.
 There exist a variety of CCT models, each applicable to different types of data.
 For example, the General Condorcet model \parencite{Batchelder1986statistical} applies to dichotomous data, the Latent Truth Rater model \parencite{Anders2015cultural} is suited for ordinal data, and the Continous Response model \parencite{anders2014cultural}.
-
-small description
 
 \iffalse
 \subsection{The Continuous Response Model}
@@ -243,7 +253,7 @@ This complicates interpreting the differences between the thresholds across rate
 Second, we previously allowed the item difficulty parameter to vary across patients, which captures that some items may be more difficulty or easy to assess for some patients (e.g., some patients may cooperate more than others).
 This parameter is mainly informed by the number or raters and there needs to be a sufficient amount of raters that score each patient for a reliable estimate.
 However, we noticed when simulating data with a ratio of raters to patients like in the data at hand that there are simply too few observations to reliably estimate the deviations in item difficulty across patients.
-%\DB{We could also look at a patient specific ``cooperativeness'' parameter. Rather than doing $\ItemDifficulty_{\Ipatient\Iitem}$, which introduces $\Tpatient\times\Titem$ parameters, the logistic scale would become $\frac{\ItemDifficulty_\Iitem}{\RaterCompetence_\Irater \times\text{Cooperativeness}_\Ipatient}$. This introduces an additional $\Tpatient$ parameters.}
+% \DB{We could also look at a patient specific ``cooperativeness'' parameter. Rather than doing $\ItemDifficulty_{\Ipatient\Iitem}$, which introduces $\Tpatient\times\Titem$ parameters, the logistic scale would become $\frac{\ItemDifficulty_\Iitem}{\RaterCompetence_\Irater \times\text{Cooperativeness}_\Ipatient}$. This introduces an additional $\Tpatient$ parameters.}
 
 
 %$\Appraisal_{\Ipatient\Iitem\Irater} \leq \Threshold_{\Irater1}$ implies that $x_{\Ipatient\Iitem\Irater} = 1$, $\Threshold_{\Irater, \Incat - 1} < \Appraisal_{\Ipatient\Iitem\Irater} \leq \Threshold_{\Irater\Incat}$ implies that $x_{\Ipatient\Iitem\Irater} = \Incat$, and $\Appraisal_{\Ipatient\Iitem\Irater} > \Threshold_{\Irater\Tncat}$ implies that $x_{\Ipatient\Iitem\Irater} = \Tncat$.
