@@ -15,6 +15,10 @@ data_violence <- all_data |>
   select(c(patient, age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
   filter(!duplicated(patient))
 
+unique(data_violence$diagnosis)
+unique(data_violence$crime)
+length(unique(data_2_analyze$score))
+
 # data_2_analyze <- all_data |>
 #   filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis_group) & !is.na(crime_group)) |>
 #   select(-c(patient_age_group, violent_before, violent_between, violent_after,
