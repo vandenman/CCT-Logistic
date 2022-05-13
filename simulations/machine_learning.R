@@ -398,6 +398,27 @@ for (i in seq_len(no_cross_validations)) {
 
 system("beep_finished.sh")
 
+# names used in manuscript ----
+name_map <- c(baseline_model         = "LR-Intercept",
+              baseline_no_item       = "LR-No IFTE",
+              baseline_no_violence   = "LR-No violence",
+              baseline_violence_only = "LR-Violence",
+              frequentist_logistic   = "LR",
+              gbm                    = "GBM",
+              random_forest          = "Random forest",
+              CCT                    = "LR-LTM")
+
+method_order <- c(
+  "LR-LTM",
+  "LR-Violence",
+  "LR-No IFTE",
+  "LR-No violence",
+  "Random forest",
+  "GBM",
+  "LR",
+  "LR-Intercept"
+)
+
 # plot ROC curves ----
 get_tpr_tnr <- function(observed, predicted) {
   tb <- table(observed, predicted)
@@ -499,31 +520,11 @@ filt <- identity
 
 roc_tib_to_plt_tib <- function(tib) {
   skip <- c("LR-No violence", "LR-Intercept")
-  legend_order <- setdiff(c(
-    "LR-LTM",
-    "LR-Intercept",
-    "LR-Violence",
-    "LR-No IFTE",
-    "LR-No violence",
-    "Random forest",
-    "GBM",
-    "LR"
-  ), skip)
+  legend_order <- setdiff(method_order, skip)
   tib |>
-    mutate(method = recode(method,
-                           baseline_model         = "LR-Intercept",
-                           baseline_no_item       = "LR-No IFTE",
-                           baseline_no_violence   = "LR-No violence",
-                           baseline_violence_only = "LR-Violence",
-                           frequentist_logistic   = "LR",
-                           gbm                    = "GBM",
-                           random_forest          = "Random forest",
-                           CCT                    = "LR-LTM"
-  )) |>
+    mutate(method = recode(method, name_map)) |>
     filter(!(method %in% skip)) |>
-    mutate(
-      method = factor(method, levels = legend_order)
-    )
+    mutate(method = factor(method, levels = legend_order))
 }
 
 roc_tib_plt <- roc_tib_to_plt_tib(roc_tib)
@@ -666,17 +667,52 @@ matrixStats::rowSds(test_mse)
 
 rownames <- rownames(test_mse)# c("random forest", "gbm", "Bayesian LR", "Frequentist LR", "Intercept only LR", "Bayesian LR + CCT")
 order <- order(rowMeans(test_mse))# c(5, 4, 3, 6, 1, 2)
+
+method_names <- name_map[match(rownames, names(name_map))]
+order <- match(method_order, method_names)
+method_names[order]
+skip <- c("LR-No violence")
+order <- order[!(method_names[order] %in% skip)]
+
 tb_accuracy <- tibble(
-  method              = rownames,
+  # temp                = rownames,
+  method              = method_names,
   mean_train_accuracy = rowMeans(train_accuracy),
     sd_train_accuracy = rowSds  (train_accuracy),
   mean_test_accuracy  = rowMeans(test_accuracy ),
     sd_test_accuracy  = rowSds  (test_accuracy ),
 )[order, ]
 tb_mse <- tibble(
-  method              = rownames,
+  # temp                = rownames,
+  method              = method_names,
   mean_train_accuracy = rowMeans(train_mse),
     sd_train_accuracy = rowSds  (train_mse),
   mean_test_accuracy  = rowMeans(test_mse ),
     sd_test_accuracy  = rowSds  (test_mse ),
 )[order, ]
+
+tb_joined <- cbind(tb_accuracy, tb_mse[-1])
+
+format_tb <- function(tb) {
+  tibble(
+    method = tb[[1]],
+    train_acc  = sprintf("%.3f (%.3f)", tb[[2]], tb[[3]]),
+    test_acc   = sprintf("%.3f (%.3f)", tb[[4]], tb[[5]]),
+    train_mse  = sprintf("%.3f (%.3f)", tb[[6]], tb[[7]]),
+    test_mse   = sprintf("%.3f (%.3f)", tb[[8]], tb[[9]])
+  )
+}
+
+do_xtable <- function(tb) {
+  print(xtable::xtable(tb), include.rownames = FALSE, floating = FALSE, sanitize.text.function = identity)
+}
+
+tb_joined |>
+  format_tb() |>
+  do_xtable()
+
+# tb_mse |>
+#   format_tb() |>
+#   do_xtable()
+
+print(xtable::xtable(format_tb(tb_mse)),      include.rownames = FALSE, floating = FALSE, sanitize.text.function = identity)
