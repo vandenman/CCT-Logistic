@@ -307,13 +307,18 @@ Each fold consisted of 8 nonviolent observations and 2 or 3 violent observations
 % The models were fit on the training set and made predictions for the test set.
 To quantify model performance, we used two metrics, prediction accuracy and the Brier score.
 Prediction accuracy is defined as the fraction of correct predictions.
-We converted model probabilities for violent or non-violent behavior into binary predictions by comparing with 0.5. In other words, if a model prediction for observation $i$, $\hat{y}_i$, is larger than 0.5 then the predicted label is violent, otherwise it is non-violent.
-The Brier score is defined using $N^{-1}\sum_{i=1}^N\left(\hat{y}_i-y_{i}\right)^2$, i.e., the mean squared error between the observed labels, $y$ and the model predictions.
+We converted model probabilities for violent or non-violent behavior into binary predictions by comparing with 0.5. In other words, if a model prediction for observation $i$, $\hat{y}_i\in [0, 1]$, is larger than 0.5 then the predicted label is violent, otherwise it is non-violent.
+The Brier score is defined as $N^{-1}\sum_{i=1}^N\left(\hat{y}_i-y_{i}\right)^2$, i.e., the mean squared error between the observed labels, $y\in\{0,1\}$ and the model predictions.
 
-\autoref{tb:predictions} shows the prediction accuracy and the Brier score averaged across the 20-folds.
+\autoref{tb:predictions} shows the prediction accuracy and the Brier score averaged over the 10-folds.
+The LR-LTM has the best classification of violence and the lowest Brier score, and the LR-Violence performs second-best.
+The difference in classification performance is $0.894 - 0.866 = 0.028$, which for a data set of 104 patients implies that the LR-LTM makes more accurate predictions than the LR-Violence for about 3 patients.
+
+
+
 
 \begin{table}[!ht]
-    \caption{Predictive performance for multiple methods. Values are averaged across 20 cross validations, }
+    \caption{Predictive performance of violent behavior. The values are the average of 10 cross validations; the standard deviation is shown in parentheses.}
     \label{tb:predictions}
     \centering
     \begin{tabular}{lrrrr}
@@ -322,24 +327,28 @@ The Brier score is defined using $N^{-1}\sum_{i=1}^N\left(\hat{y}_i-y_{i}\right)
         \cmidrule(lr){2-3}  \cmidrule(lr){4-5}
         Method & Train & Test & Train & Test \\
         \midrule \\
-        LR-LTM              &   &   &   & \\
-        LR-Intercept        &   &   &   & \\
-        LR-No IFTE          &   &   &   & \\
-        LR-Violence         &   &   &   & \\
-        LR                  &   &   &   & \\
-        Random forest       &   &   &   & \\
-        GBM                 &   &   &   & \\
+        LR-LTM & 0.980 (0.017) & 0.894 (0.074) & 0.043 (0.005) & 0.093 (0.034) \\ 
+        LR-Violence & 0.865 (0.007) & 0.866 (0.063) & 0.100 (0.003) & 0.107 (0.030) \\ 
+        LR-No IFTE & 0.948 (0.034) & 0.837 (0.105) & 0.032 (0.020) & 0.142 (0.109) \\ 
+        Random forest & 1.000 (0.000) & 0.835 (0.084) & 0.032 (0.002) & 0.114 (0.033) \\ 
+        GBM & 0.867 (0.009) & 0.828 (0.073) & 0.095 (0.002) & 0.126 (0.020) \\ 
+        LR & 1.000 (0.000) & 0.735 (0.144) & 0.000 (0.000) & 0.257 (0.147) \\ 
+        LR-Intercept & 0.769 (0.004) & 0.771 (0.038) & 0.177 (0.002) & 0.177 (0.020) \\ 
         \bottomrule
     \end{tabular}
 \end{table}
 
-
+\autoref{fig:roc_curves} show the Receiver Operating Characteristic (ROC) curve for all methods except the LR-Intercept.\footnote{The ROC for the intercept only model is by definition the identity function with an area under the curve of 0.5.}
+The legend shows the area under the curve (AUC) for each method.
+For each cross-validation run, we fitted an ROC curve using the same thresholds and afterward we averaged these.
+The AUC was obtained by averaging the AUCs of each individual cross-validation, rather than computing the AUC for the averaged ROC curve.
+In line with the previous results, the LR-LTM performs best and the LR-Violence method performs second best.
 
 \begin{figure}[!ht]
     \centering
-    % \includegraphics{}
-    \missingfigure{}
-    \caption{ROC curves.}
+    \includesvg[width=\textwidth]{roc_curve_cv}
+    % \missingfigure{}
+    \caption{ROC curves for the considered methods. The area under the curve is shown in the legend.}
     \label{fig:roc_curves}
 \end{figure}
 
@@ -353,7 +362,7 @@ Summary
 
 Hybrid is probably most predictive.
 
-\subsection{Suggestions for future data collection}
+\subsection{Suggestions for Future Data Collection}
 
 
 
