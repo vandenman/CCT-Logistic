@@ -66,25 +66,26 @@
 <text x='691.10' y='536.61' text-anchor='middle' style='font-size: 17.00px; font-family: "Arimo";' textLength='37.85px' lengthAdjust='spacingAndGlyphs'>1.00</text>
 <text x='402.10' y='567.48' text-anchor='middle' style='font-size: 17.00px; font-family: "Arimo";' textLength='154.71px' lengthAdjust='spacingAndGlyphs'>False positive rate</text>
 <text transform='translate(17.37,254.37) rotate(-90)' text-anchor='middle' style='font-size: 17.00px; font-family: "Arimo";' textLength='148.15px' lengthAdjust='spacingAndGlyphs'>True positive rate</text>
-<rect x='570.15' y='254.37' width='172.55' height='189.51' style='stroke-width: 0.75; stroke: none;' />
-<rect x='570.15' y='254.37' width='172.55' height='189.51' style='stroke-width: 10.67; stroke: none;' />
-<rect x='575.62' y='268.32' width='28.35' height='28.35' style='stroke-width: 10.67; stroke: none;' />
-<line x1='578.46' y1='282.49' x2='601.14' y2='282.49' style='stroke-width: 1.92; stroke: #1B9E77; stroke-linecap: butt;' />
-<rect x='575.62' y='296.67' width='28.35' height='28.35' style='stroke-width: 10.67; stroke: none;' />
-<line x1='578.46' y1='310.84' x2='601.14' y2='310.84' style='stroke-width: 1.92; stroke: #BE6657; stroke-linecap: butt;' />
-<rect x='575.62' y='325.01' width='28.35' height='28.35' style='stroke-width: 10.67; stroke: none;' />
-<line x1='578.46' y1='339.19' x2='601.14' y2='339.19' style='stroke-width: 1.92; stroke: #D44292; stroke-linecap: butt;' />
-<rect x='575.62' y='353.36' width='28.35' height='28.35' style='stroke-width: 10.67; stroke: none;' />
-<line x1='578.46' y1='367.53' x2='601.14' y2='367.53' style='stroke-width: 1.92; stroke: #83A81A; stroke-linecap: butt;' />
-<rect x='575.62' y='381.71' width='28.35' height='28.35' style='stroke-width: 10.67; stroke: none;' />
-<line x1='578.46' y1='395.88' x2='601.14' y2='395.88' style='stroke-width: 1.92; stroke: #BF8B18; stroke-linecap: butt;' />
-<rect x='575.62' y='410.05' width='28.35' height='28.35' style='stroke-width: 10.67; stroke: none;' />
-<line x1='578.46' y1='424.23' x2='601.14' y2='424.23' style='stroke-width: 1.92; stroke: #666666; stroke-linecap: butt;' />
-<text x='612.44' y='288.69' style='font-size: 17.00px; font-family: "Arimo";' textLength='58.90px' lengthAdjust='spacingAndGlyphs'>LR-LTM</text>
-<text x='612.44' y='317.04' style='font-size: 17.00px; font-family: "Arimo";' textLength='97.87px' lengthAdjust='spacingAndGlyphs'>LR-Violence</text>
-<text x='612.44' y='345.38' style='font-size: 17.00px; font-family: "Arimo";' textLength='90.86px' lengthAdjust='spacingAndGlyphs'>LR-No IFTE</text>
-<text x='612.44' y='373.73' style='font-size: 17.00px; font-family: "Arimo";' textLength='124.78px' lengthAdjust='spacingAndGlyphs'>Random forest</text>
-<text x='612.44' y='402.07' style='font-size: 17.00px; font-family: "Arimo";' textLength='39.51px' lengthAdjust='spacingAndGlyphs'>GBM</text>
-<text x='612.44' y='430.42' style='font-size: 17.00px; font-family: "Arimo";' textLength='21.28px' lengthAdjust='spacingAndGlyphs'>LR</text>
+<rect x='536.48' y='254.37' width='239.88' height='205.43' style='stroke-width: 0.75; stroke: none;' />
+<rect x='536.48' y='254.37' width='239.88' height='205.43' style='stroke-width: 10.67; stroke: none;' />
+<text x='656.42' y='274.01' text-anchor='middle' style='font-size: 17.00px; font-family: "Arimo";' textLength='118.38px' lengthAdjust='spacingAndGlyphs'>Method (AUC)</text>
+<rect x='541.96' y='284.25' width='28.35' height='28.35' style='stroke-width: 10.67; stroke: none;' />
+<line x1='544.79' y1='298.42' x2='567.47' y2='298.42' style='stroke-width: 1.92; stroke: #1B9E77; stroke-linecap: butt;' />
+<rect x='541.96' y='312.59' width='28.35' height='28.35' style='stroke-width: 10.67; stroke: none;' />
+<line x1='544.79' y1='326.77' x2='567.47' y2='326.77' style='stroke-width: 1.92; stroke: #BE6657; stroke-linecap: butt;' />
+<rect x='541.96' y='340.94' width='28.35' height='28.35' style='stroke-width: 10.67; stroke: none;' />
+<line x1='544.79' y1='355.11' x2='567.47' y2='355.11' style='stroke-width: 1.92; stroke: #D44292; stroke-linecap: butt;' />
+<rect x='541.96' y='369.29' width='28.35' height='28.35' style='stroke-width: 10.67; stroke: none;' />
+<line x1='544.79' y1='383.46' x2='567.47' y2='383.46' style='stroke-width: 1.92; stroke: #83A81A; stroke-linecap: butt;' />
+<rect x='541.96' y='397.63' width='28.35' height='28.35' style='stroke-width: 10.67; stroke: none;' />
+<line x1='544.79' y1='411.81' x2='567.47' y2='411.81' style='stroke-width: 1.92; stroke: #BF8B18; stroke-linecap: butt;' />
+<rect x='541.96' y='425.98' width='28.35' height='28.35' style='stroke-width: 10.67; stroke: none;' />
+<line x1='544.79' y1='440.15' x2='567.47' y2='440.15' style='stroke-width: 1.92; stroke: #666666; stroke-linecap: butt;' />
+<text x='578.77' y='304.61' style='font-size: 17.00px; font-family: "Arimo";' textLength='126.23px' lengthAdjust='spacingAndGlyphs'>LR-LTM (0.954)</text>
+<text x='578.77' y='332.96' style='font-size: 17.00px; font-family: "Arimo";' textLength='165.20px' lengthAdjust='spacingAndGlyphs'>LR-Violence (0.885)</text>
+<text x='578.77' y='361.31' style='font-size: 17.00px; font-family: "Arimo";' textLength='158.20px' lengthAdjust='spacingAndGlyphs'>LR-No IFTE (0.828)</text>
+<text x='578.77' y='389.65' style='font-size: 17.00px; font-family: "Arimo";' textLength='192.11px' lengthAdjust='spacingAndGlyphs'>Random forest (0.890)</text>
+<text x='578.77' y='418.00' style='font-size: 17.00px; font-family: "Arimo";' textLength='106.84px' lengthAdjust='spacingAndGlyphs'>GBM (0.863)</text>
+<text x='578.77' y='446.35' style='font-size: 17.00px; font-family: "Arimo";' textLength='88.61px' lengthAdjust='spacingAndGlyphs'>LR (0.741)</text>
 </g>
 </svg>

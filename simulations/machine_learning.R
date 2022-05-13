@@ -453,6 +453,8 @@ roc_obj_rf1_remade <- compute_tpr_tnr_mat_from_obj(objs, data_test_objs, roc_obj
 roc_obj_rf1$sensitivities - roc_obj_rf1_remade$tpr
 roc_obj_rf1$specificities - (1 - roc_obj_rf1_remade$tfr)
 plot(roc_obj_rf1)
+auc(roc_obj_rf1)
+str(roc_obj_rf1)
 
 plot_roc <- function(objs, data_test_objs, method, cv_fold) {
   probs <- objs[[method, cv_fold]]$perf$test$predicted_probs
@@ -474,30 +476,38 @@ objs_tib <- tibble(
   test_label = unlist(lapply(seq_along(data_test_objs), \(i) rep(data_test_objs[[i]]$violent_after, nrow(objs))))
 )
 
-
+# TODO: compute roc once
 roc_thresholds_method <- objs_tib |>
   group_by(method) |>
   summarize(thresholds = roc(test_label, test_probs, plot = FALSE)$thresholds)
 
+roc_auc_method_iter <- objs_tib |>
+  group_by(method, iter) |>
+  summarize(auc = c(roc(test_label, test_probs, plot = FALSE)$auc))
+
+roc_auc_method <-roc_auc_method_iter |>
+  group_by(method) |>
+  summarize(mean_auc = mean(auc))
 
 # roc_thresholds <- roc_obj$thresholds
-roc_thresholds <- c(-Inf, seq(0.01, 0.99, length.out = 40), Inf)
+# roc_thresholds <- c(-Inf, seq(0.01, 0.99, length.out = 40), Inf)
 
-roc_tib2 <- objs_tib |>
-  group_by(method, iter) |>
-  summarise(
-    temp = roc(
-      as.integer(data_test_objs[[iter[[1L]]]]$violent_after),
-      objs[[method[[1L]], iter[[1L]]]]$perf$test$predicted_probs,
-      plot = FALSE,
-      direction = "<"
-    )[c("sensitivities", "specificities")],
-    tpr = temp$sensitivities,
-    tfr = 1 - temp$specificities
-  ) |>
-  select(-temp)
-  ungroup() |>
-  unnest_wider(temp)
+# roc_tib2 <- objs_tib |>
+#   group_by(method, iter) |>
+#   summarise(
+#     temp = roc(
+#       as.integer(data_test_objs[[iter[[1L]]]]$violent_after),
+#       objs[[method[[1L]], iter[[1L]]]]$perf$test$predicted_probs,
+#       plot = FALSE,
+#       direction = "<"
+#     )[c("sensitivities", "specificities", "auc")],
+#     tpr = temp$sensitivities,
+#     tfr = 1 - temp$specificities,
+#     auc = temp$auc
+#   ) |>
+#   select(-temp)
+#   ungroup() |>
+#   unnest_wider(temp)
 
 roc_tib <- objs_tib |>
   group_by(method, iter) |>
@@ -518,17 +528,28 @@ roc_mean_tib <- roc_tib |>
 # filt <- function(data) data |> filter(!(method %in% c("CCT", "baseline_violence_only")))
 filt <- identity
 
-roc_tib_to_plt_tib <- function(tib) {
+roc_tib_to_plt_tib <- function(tib, method_order, name_map2, name_map) {
   skip <- c("LR-No violence", "LR-Intercept")
+  idx1 <- match(skip, names(name_map2))
+  skip <- name_map2[idx1]
+
+  method_order_idx <- match(method_order, names(name_map2))
+  method_order <- name_map2[method_order_idx]
+
   legend_order <- setdiff(method_order, skip)
+  names(name_map2) <- names(name_map)
   tib |>
-    mutate(method = recode(method, name_map)) |>
+    mutate(method = recode(method, !!!name_map2)) |>
     filter(!(method %in% skip)) |>
     mutate(method = factor(method, levels = legend_order))
 }
 
-roc_tib_plt <- roc_tib_to_plt_tib(roc_tib)
-roc_mean_tib_plt <- roc_tib_to_plt_tib(roc_mean_tib)
+
+auc_idx <- match(names(name_map), roc_auc_method$method)
+name_map2 <- setNames(sprintf("%s (%.3f)", name_map, roc_auc_method$mean_auc[auc_idx]), name_map)
+
+roc_tib_plt <- roc_tib_to_plt_tib(roc_tib,           method_order, name_map2, name_map)
+roc_mean_tib_plt <- roc_tib_to_plt_tib(roc_mean_tib, method_order, name_map2, name_map)
 
 roc_plot <- ggplot(
   data = roc_tib_plt |> filt(),
@@ -539,11 +560,28 @@ roc_plot <- ggplot(
   jaspGraphs::geom_abline2(intercept = 0, slope = 1, color = "grey") +
   # geom_line(alpha = .3) + # <- showing the individual curves does not help
   geom_line(data = roc_mean_tib_plt |> filt(), aes(x = mean_tfr, y = mean_tpr, color = method, group = method), size = 0.9) +
-  labs(x = "False positive rate", y = "True positive rate") +
   jaspGraphs::geom_rangeframe() +
-  jaspGraphs::scale_JASPcolor_discrete(name = NULL) +
+  jaspGraphs::scale_JASPcolor_discrete(name = "Method (AUC)") +
+  labs(x = "False positive rate", y = "True positive rate") +
   jaspGraphs::themeJaspRaw(legend.position = c(0.9, 0.50))
 roc_plot
+
+# a rough double check for the AUC
+# roc_mean_tib |>
+#   group_by(method) |>
+#   summarise(
+#     temp = {
+#       yy <- mean_tpr
+#       xx <- mean_tfr
+#       sy <- split(yy, xx)
+#       xx <- as.numeric(names(sy))
+#       yy <- sapply(sy, max)
+#       list(list(xx = xx, yy = yy))
+#     },
+#     af  = list(approxfun(temp[[1]]$xx, temp[[1]]$yy, yleft = 0, yright = 1)),
+#     auc = integrate(af[[1]], 0, 1)$value
+#   )
+# roc_auc_method
 
 save_figure(roc_plot, "roc_curve_cv.svg")
 
