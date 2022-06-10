@@ -62,7 +62,7 @@ The mental health and forensic risk factors of patients in forensic psychiatric 
 Routine Outcome Monitoring \parencite{deBeurs2011ROM}.
 A staff member (e.g., a clinician or psychiatrist), henceforth a \emph{rater}, scores a patient on variety of criteria, such as problematic behavior (e.g., hostility) or protective behavior (e.g., coping skills).
 These scores are used to track the mental state of patients over time, to measure the effectiveness of treatment, and as a risk indicator for violent outbursts by patients.
-% Using these scores raters can monitor the mental state of a patient over time, answer questions about the effectiveness of a treatment, or warn staff members about which patients are at risk for turning violent. 
+% Using these scores raters can monitor the mental state of a patient over time, answer questions about the effectiveness of a treatment, or warn staff members about which patients are at risk for turning violent.
 
 Typically, multiple raters score each patient on different items.
 Standard practice is to average the scores across raters and use the averages to inform decisions.
@@ -74,7 +74,7 @@ For example, taking the average implies that raters are interchangeable and pati
 % Standard practice is to average the scores across raters and use those to inform decisions.
 % This practice is suboptimal, as it treats raters as exchangeable and analyzes patients independently.
 
-An improvement over averaging the scores is to use Cultural Consensus Theory \parencite[CCT;][]{romney1986culture, batchelder1988test, batchelder2012cultural} to construct an appropriate model for the scores that accounts for the hierarchical structure among patients, raters, and items. 
+An improvement over averaging the scores is to use Cultural Consensus Theory \parencite[CCT;][]{romney1986culture, batchelder1988test, batchelder2012cultural} to construct an appropriate model for the scores that accounts for the hierarchical structure among patients, raters, and items.
 In previous work, we developed such a model based on the Latent Truth Rater model \parencite[LTM; ][]{Anders2015cultural}, and demonstrated that, in theory, this model predicted better than the average and several machine learning alternatives.
 However, due to the lack of an empirical dataset, we could not demonstrate whether the theoretical claims hold up in practice.
 
@@ -224,7 +224,7 @@ This complicates interpreting the differences between the thresholds across rate
 Second, we previously allowed the item difficulty parameter to vary across patients, which captures that some items may be more difficulty or easy to assess for some patients (e.g., some patients may cooperate more than others).
 This parameter is mainly informed by the number or raters and there needs to be a sufficient amount of raters that score each patient for a reliable estimate.
 However, when simulating data with a ratio of raters to patients similar to that in the data at hand that we noticed that there are simply too few observations to reliably estimate the deviations in item difficulty across patients.
-Therefore, we only vary item difficulty across items and not across patients. 
+Therefore, we only vary item difficulty across items and not across patients.
 % \DB{We could also look at a patient specific ``cooperativeness'' parameter. Rather than doing $\ItemDifficulty_{\Ipatient\Iitem}$, which introduces $\Tpatient\times\Titem$ parameters, the logistic scale would become $\frac{\ItemDifficulty_\Iitem}{\RaterCompetence_\Irater \times\text{Cooperativeness}_\Ipatient}$. This introduces an additional $\Tpatient$ parameters.}
 
 
@@ -252,9 +252,9 @@ The latent truth for each patient on each item is seen as a covariate in the log
 
 \subsection{Implementation}
 We estimated the parameters of the LTM and the combined LTM -- Logistic regression using a Bayesian approach.
-To explore the posterior distributions of the model parameters we used Stan \parencite{CarpenterEtAl2017Stan}. 
-Rather than Markov chain Monte Carlo (MCMC) we used variational inference, as variational inference was computationally fast while providing similar results in terms of parameter retrieval and model predictions \parencite{kucukelbir2017automatic}. 
-All analyses were done using R \parencite{R} and Stan models were run using the R package \code{cmdstanr} \parencite{cmdstanr}. 
+To explore the posterior distributions of the model parameters we used Stan \parencite{CarpenterEtAl2017Stan}.
+Rather than Markov chain Monte Carlo (MCMC) we used variational inference, as variational inference was computationally fast while providing similar results in terms of parameter retrieval and model predictions \parencite{kucukelbir2017automatic}.
+All analyses were done using R \parencite{R} and Stan models were run using the R package \code{cmdstanr} \parencite{cmdstanr}.
 Code for the analyses is available in the online appendix at \githuburl{}.
 
 %with a logistic regression
@@ -334,13 +334,13 @@ The standard logistic regression model clearly suffers from overfitting, as indi
         \cmidrule(lr){2-3}  \cmidrule(lr){4-5}
         Method & Train & Test & Train & Test \\
         \midrule \\
-        LR-LTM & 0.980 (0.017) & 0.894 (0.074) & 0.043 (0.005) & 0.093 (0.034) \\ 
-        LR-Violence & 0.865 (0.007) & 0.866 (0.063) & 0.100 (0.003) & 0.107 (0.030) \\ 
-        LR-No IFTE & 0.948 (0.034) & 0.837 (0.105) & 0.032 (0.020) & 0.142 (0.109) \\ 
-        Random forest & 1.000 (0.000) & 0.835 (0.084) & 0.032 (0.002) & 0.114 (0.033) \\ 
-        GBM & 0.867 (0.009) & 0.828 (0.073) & 0.095 (0.002) & 0.126 (0.020) \\ 
-        LR & 1.000 (0.000) & 0.735 (0.144) & 0.000 (0.000) & 0.257 (0.147) \\ 
-        LR-Intercept & 0.769 (0.004) & 0.771 (0.038) & 0.177 (0.002) & 0.177 (0.020) \\ 
+        LR-LTM & 0.980 (0.017) & 0.894 (0.074) & 0.043 (0.005) & 0.093 (0.034) \\
+        LR-Violence & 0.865 (0.007) & 0.866 (0.063) & 0.100 (0.003) & 0.107 (0.030) \\
+        LR-No IFTE & 0.948 (0.034) & 0.837 (0.105) & 0.032 (0.020) & 0.142 (0.109) \\
+        Random forest & 1.000 (0.000) & 0.835 (0.084) & 0.032 (0.002) & 0.114 (0.033) \\
+        GBM & 0.867 (0.009) & 0.828 (0.073) & 0.095 (0.002) & 0.126 (0.020) \\
+        LR & 1.000 (0.000) & 0.735 (0.144) & 0.000 (0.000) & 0.257 (0.147) \\
+        LR-Intercept & 0.769 (0.004) & 0.771 (0.038) & 0.177 (0.002) & 0.177 (0.020) \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -378,7 +378,7 @@ However, unlike the other coefficients the IFTE coefficients should be interpret
 Here we applied a Cultural Consensus Theory model to scores of patients in a Forensic Psychiatric Center.
 We used this CCT model to augment the predictive performance of a logistic regression model and showed that our CCT-infused logistic regression model outpredicted all other candidate models.
 
-An alternative approach to 
+An alternative approach to
 Hybrid is probably most predictive.
 
 \subsection{Suggestions for Future Data Collection}

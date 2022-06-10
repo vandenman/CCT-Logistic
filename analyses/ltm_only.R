@@ -348,7 +348,7 @@ log_reg_tib$group
 log_reg_tib2 <- log_reg_tib |>
   mutate(
     group = droplevels(recode_factor(group, violent_before = "Violent", violent_between = "Violent",
-                                     treatment_duration = "Treatment\nduration",
+                                     treatment_duration = "Treatment\n\nduration",
                                      crime = "Offence", age = "Age", diagnosis = "Diagnosis",
                                      `item T1` = "IFTE T1", `item T2` = "IFTE T2"
                                      )
@@ -367,7 +367,7 @@ log_reg_tib2$level <- recode_factor(log_reg_tib2$level,
                                                   #Power/medium violence
   `Power with violence`                         = "VPC",
   `Power/medium violence`                       = "MPC",
-  `Heavy violence`                              = "aggravated assault",
+  `Heavy violence`                              = "AA",
   `Manslaughter`                                = "manslaughter",
   `Murder`                                      = "murder",
   `Sex offence`                                 = "sex offence"
@@ -377,8 +377,8 @@ tib_segment <- tibble(x = -Inf, xend = -Inf, y = yBreaks[1], yend = yBreaks[leng
 
 posterior_mean_95CRI <- ggplot(data = log_reg_tib2 |> filter(fit == "free"),# |> mutate(level = abbreviate(level, minlength = 14)),# |> filter(item < 18),
        aes(y = mean, group = interaction(fit, item, group), x = level)) +
-  geom_errorbar(aes(ymin = lower, ymax = upper), position=position_dodge(.5), width = .2) +
-  geom_point(position=position_dodge(.5)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), position=position_dodge(.5), width = .3) +
+  geom_point(position=position_dodge(.5), size = 3) +
   scale_y_continuous(name = "Posterior mean", breaks = yBreaks, limits = range(yBreaks)) +
   xlab(NULL) +
   facet_grid(.~group,space="free_x", scales="free_x", switch="x") +
@@ -399,11 +399,14 @@ posterior_mean_95CRI <- ggplot(data = log_reg_tib2 |> filter(fit == "free"),# |>
 
 gt = ggplot_gtable(ggplot_build(posterior_mean_95CRI))
 idx_null <- which(vapply(gt$widths, \(x) grid::unitType(x) == "null", FUN.VALUE = logical(1)))
-gt$widths[idx_null] <- gt$widths[idx_null] * c(2 / 2.2, 3 / 3.2, 3 / 3.2, 4 / 4.2, 6 / 6.2, 8 / 23.2, 8 / 23.2)
+gt$widths[idx_null] <- gt$widths[idx_null] * c(3 / 2.2, 4 / 3.2, 7 / 6.2, 4 / 3.2, 5/ 4.2,  7 / 23.2, 7 / 23.2)
+
+# required because Latex renders the text in the svg
+gt$heights[8] <- unit(8, "cm")
 
 gt$grobs[[23]]$children$axis$grobs$`1`$children[[1]]$rot <- 0
-for (i in 16:20)
-  gt$grobs[[i]]$children$axis$grobs$`1`$children[[1]]$rot <- 45
+# for (i in 16:20)
+#   gt$grobs[[i]]$children$axis$grobs$`1`$children[[1]]$rot <- 45
 
 gt$grobs[[21]]$children$axis$grobs$`1`$children[[1]]$rot <- 0
 gt$grobs[[22]]$children$axis$grobs$`1`$children[[1]]$rot <- 0
@@ -411,13 +414,14 @@ gt$grobs[[21]]$children$axis$grobs$`1`$children[[1]]$hjust <- 0.5
 gt$grobs[[22]]$children$axis$grobs$`1`$children[[1]]$hjust <- 0.5
 gt$grobs[[21]]$children$axis$grobs$`1`$children[[1]]$vjust <- 1.0
 gt$grobs[[22]]$children$axis$grobs$`1`$children[[1]]$vjust <- 1.0
-gt$grobs[[21]]$children$axis$grobs$`1`$children[[1]]$label[seq(2, 23, 2)] <- ""
-gt$grobs[[22]]$children$axis$grobs$`1`$children[[1]]$label[seq(2, 23, 2)] <- ""
+gt$grobs[[21]]$children$axis$grobs$`1`$children[[1]]$label[(1:23)[-c(1, 5, 10, 15, 20)]] <- ""
+gt$grobs[[22]]$children$axis$grobs$`1`$children[[1]]$label[(1:23)[-c(1, 5, 10, 15, 20)]] <- ""
 
 grid::grid.newpage()
 grid::grid.draw(gt)
 save_figure(figure = gt, file = "posterior_mean_95CRI2.svg", width = 15, height = 15)
 
+gtable::gtable_show_layout(gt)
 
 ggplot(data = log_reg_tib2 |> filter(fit == "free"),# |> filter(item < 18),
        aes(y = mean, group = interaction(fit, item, group), x = group)) +
