@@ -9,8 +9,11 @@ ni <- 10
 nr <- 10
 nc <- 7
 
+patient_idx <- 1:3
+
 set.seed(42)
-data_obj <- simulate_data_ltm(np, ni, nr, nc, threshold_type = "free")
+# thresholds <- t(apply((matrix(rnorm(n = (nc - 1) * nr, 2, 2), nr, nc - 1)), 1, sort))
+data_obj <- simulate_data_ltm(np, ni, nr, nc, threshold_type = "free")#, thresholds = thresholds)
 observed_data <- data_obj$df |>
   filter(patient %in% patient_idx) |>
   group_by(patient, item) |>
@@ -42,7 +45,7 @@ ltm_fit <- CCTLogistic::save_or_run_model({
   ltm_model <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time.stan", pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels", cpp_options = list(stan_threads=TRUE))
   ltm_data  <- data_2_stan(data_obj)
   ltm_model$variational(data = ltm_data, iter = 3e4, adapt_iter = 500, output_samples = 2e3, grad_samples = 5, elbo_samples = 5, threads = 8)
-}, force = FALSE, path = "fitted_objects/figure_misfitMean.rds")
+}, force = FALSE, path = "fitted_objects/figure_misfitMean2.rds")
 
 lt_samples <- ltm_fit$draws("lt", format = "draws_matrix")
 lt_post_means <- matrix(colMeans(lt_samples), nrow = np, ncol = ni)

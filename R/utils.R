@@ -22,6 +22,11 @@ read_wider_imputed_data <- function()
 read_violence_data <- function()
   read_data("data_violence.rds")
 
+#' @export
+read_ifte_data <- function()
+  read_data("data_ifte.rds")
+
+
 #' @importFrom rlang %||%
 #TODO: just import rlang::`%||%`?
 # `%||%` <- function(a, b) {

@@ -114,6 +114,12 @@ data_violence <- data_long22 |>
   select(c(patient, age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
   filter(!duplicated(patient))
 
+data_ifte <- data_long22 |>
+  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
+  select(-c(age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
+  arrange(rater_group, patient, item, rater, time)
+
 saveRDS(data_wide22,   file.path("data", "data_wide.rds"))
 saveRDS(data_long22,   file.path("data", "data_long.rds"))
+saveRDS(data_ifte,     file.path("data", "data_ifte.rds"))
 saveRDS(data_violence, file.path("data", "data_violence.rds"))
