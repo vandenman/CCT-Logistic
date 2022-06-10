@@ -28,10 +28,6 @@ read_ifte_data <- function()
 
 
 #' @importFrom rlang %||%
-#TODO: just import rlang::`%||%`?
-# `%||%` <- function(a, b) {
-#   if (!is.null(a)) a else b
-# }
 
 #' @export
 save_figure <- function(figure, file, dir = "figures", extension = c("svg", "pdf"), ...) {
@@ -47,14 +43,23 @@ save_figure <- function(figure, file, dir = "figures", extension = c("svg", "pdf
 
   if (extension == "svg") {
     svglite::svglite(file = file, ...)
-    plot(figure)
+    redraw_figure(figure)
     dev.off()
   } else if (extension == "pdf") {
     grDevices::cairo_pdf(filename = file, ...)
-    plot(figure)
+    redraw_figure(figure)
     dev.off()
   } else {
     stop("Invalid extension '", extension, "'")
+  }
+}
+
+redraw_figure <- function(figure) {
+  if (inherits(figure, "gtable")) {
+    grid::grid.newpage()
+    grid::grid.draw(figure)
+  } else {
+    plot(figure)
   }
 }
 

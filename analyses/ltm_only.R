@@ -384,6 +384,31 @@ posterior_mean_95CRI <- ggplot(data = log_reg_tib2 |> filter(fit == "free"),# |>
 
 save_figure(figure = posterior_mean_95CRI, file = "posterior_mean_95CRI.svg", width = 15, height = 7.5)
 
+gt = ggplot_gtable(ggplot_build(posterior_mean_95CRI))
+idx_null <- which(vapply(gt$widths, \(x) grid::unitType(x) == "null", FUN.VALUE = logical(1)))
+gt$widths[idx_null] <- gt$widths[idx_null] * c(2 / 2.2, 3 / 3.2, 3 / 3.2, 4 / 4.2, 6 / 6.2, 8 / 23.2, 8 / 23.2)
+
+gt$grobs[[21]]$children$axis$grobs$`1`$children[[1]]$rot <- 0
+gt$grobs[[22]]$children$axis$grobs$`1`$children[[1]]$rot <- 0
+gt$grobs[[21]]$children$axis$grobs$`1`$children[[1]]$hjust <- 0.5
+gt$grobs[[22]]$children$axis$grobs$`1`$children[[1]]$hjust <- 0.5
+gt$grobs[[21]]$children$axis$grobs$`1`$children[[1]]$label[seq(2, 23, 2)] <- ""
+gt$grobs[[22]]$children$axis$grobs$`1`$children[[1]]$label[seq(2, 23, 2)] <- ""
+
+grid::grid.newpage()
+grid::grid.draw(gt)
+save_figure(figure = gt, file = "posterior_mean_95CRI2.svg", width = 15, height = 7.5)
+
+
+ggplot(data = log_reg_tib2 |> filter(fit == "free"),# |> filter(item < 18),
+       aes(y = mean, group = interaction(fit, item, group), x = group)) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), position=position_dodge(.5), width = .1) +
+  geom_point(position=position_dodge(.5)) +
+  scale_y_continuous(breaks = yBreaks, limits = range(yBreaks)) +
+  jaspGraphs::geom_rangeframe() +
+  jaspGraphs::themeJaspRaw() +
+  theme(axis.text.x = element_text(angle = 90))
+
 
 # Preliminary conclusions:
 #  1. It looks like the uncertainty kills any chance of meaningful conclusions.
