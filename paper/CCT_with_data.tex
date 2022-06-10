@@ -105,7 +105,7 @@ All items are scored on a 18 point scale.
 
 \subsection{Covariates}
 In addition to the IFTE, several other background variables about the patients are considered for predicting violent behavior.
-These are age (0-30, 31-40, 41-50, or 55+), treatment duration (0-2 years, 2-4 years, or 6+ years), diagnosis (Schizophrenia or other psychotic disorder, Personality disorder, Personality disorder B, Autism spectrum disorder, As 1 overig), Offence (Manslaughter, Heavy violence, Murder, Arson, Power with violence, Power/ medium violence), violent behavior before measurement 1, and violent behavior inbetween measurements 1 and 2.
+These are age (0-30, 31-40, 41-50, or 55+), treatment duration (0-2 years, 2-4 years, 4-6 years, or 6+ years), diagnosis (Autism spectrum disorder, Personality disorder, Personality disorder B, Schizophrenia or other psychotic disorders, As 1 overig), offence (Manslaughter, Aggravated assault, Murder, Arson, Violent property crime, Moderately violent property crime, Sexual offence), violent behavior before measurement 1, and violent behavior in between measurements 1 and 2.
 \DB{Check de juiste engelse vertalingen.}
 
 
@@ -363,12 +363,13 @@ The logistic regression model with only violence (LR-Violence) outperformed the 
 This indicates that the IFTE has added value for prediction, but only if it is analyzed properly.
 
 \section{Interpretation of the LTM}
-
+\autoref{fig:parameters} shows the posterior means and 95\% credible intervals for the LTM fitted to the complete data.
+Prior history of violence has the largest coefficients, whereas the other coefficients 
 \begin{figure}
     \centering
-    \includesvg[width=\textwidth]{posterior_mean_95CRI}
-    \caption{Posterior means and 95\% credible intervals for the coefficients of the logistic regression model ($\CovariateBeta_{\Icovariate}$ and $\CovariateBeta_{\Iitem}$ in \autoref{model:Logistic_LTM}).}
-    \label{fig:my_label}
+    \includesvg[width=\textwidth]{posterior_mean_95CRI2}
+    \caption{Posterior means and 95\% credible intervals for the coefficients of the logistic regression model ($\CovariateBeta_{\Icovariate}$ and $\CovariateBeta_{\Iitem}$ in \autoref{model:Logistic_LTM}). The reference category is 0-2 years treatment duration, As 1 overig diagnosis, and arson as offence.}
+    \label{fig:parameters}
 \end{figure}
 
 \section{Discussion}
