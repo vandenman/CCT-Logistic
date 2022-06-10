@@ -365,8 +365,8 @@ log_reg_tib2$level <- recode_factor(log_reg_tib2$level,
 
                                                   #Manslaughter
                                                   #Power/medium violence
-  `Power with violence`                         = "violent property crime",
-  `Power/medium violence`                       = "moderate property crime",
+  `Power with violence`                         = "VPC",
+  `Power/medium violence`                       = "MPC",
   `Heavy violence`                              = "aggravated assault",
   `Manslaughter`                                = "manslaughter",
   `Murder`                                      = "murder",
@@ -401,6 +401,7 @@ gt = ggplot_gtable(ggplot_build(posterior_mean_95CRI))
 idx_null <- which(vapply(gt$widths, \(x) grid::unitType(x) == "null", FUN.VALUE = logical(1)))
 gt$widths[idx_null] <- gt$widths[idx_null] * c(2 / 2.2, 3 / 3.2, 3 / 3.2, 4 / 4.2, 6 / 6.2, 8 / 23.2, 8 / 23.2)
 
+gt$grobs[[23]]$children$axis$grobs$`1`$children[[1]]$rot <- 0
 for (i in 16:20)
   gt$grobs[[i]]$children$axis$grobs$`1`$children[[1]]$rot <- 45
 
@@ -415,7 +416,7 @@ gt$grobs[[22]]$children$axis$grobs$`1`$children[[1]]$label[seq(2, 23, 2)] <- ""
 
 grid::grid.newpage()
 grid::grid.draw(gt)
-save_figure(figure = gt, file = "posterior_mean_95CRI2.svg", width = 15, height = 12)
+save_figure(figure = gt, file = "posterior_mean_95CRI2.svg", width = 15, height = 15)
 
 
 ggplot(data = log_reg_tib2 |> filter(fit == "free"),# |> filter(item < 18),
