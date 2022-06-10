@@ -593,4 +593,17 @@ generated quantities {
       // bernoulli_logit_glm_lpmf(ones_np | append_col(design_matrix_covariates, lt), log_reg_intercept, log_reg_slopes);
     }
   }
+
+  // array[fit_logistic * store_slopes ? np : 0, fit_logistic * store_slopes ? ni : 0, fit_logistic * store_slopes ? no_time_points : 0] real log_reg_derived_slopes;
+  // if (fit_logistic * store_slopes) {
+  //   for (p in 1:np) {
+  //     if (no_time_points == 1) {
+  //       log_reg_derived_slopes[p, , 1] = lt[p, ] .* log_reg_slopes[(no_covariates + 1):(no_covariates + ni)]
+  //     } else {
+  //       log_reg_derived_slopes[p, , 1] = (lt[p, ] - offset_lt[p, ]) .* log_reg_slopes[(no_covariates      + 1):(no_covariates +   ni)]
+  //       log_reg_derived_slopes[p, , 2] = (lt[p, ] - offset_lt[p, ]) .* log_reg_slopes[(no_covariates + ni + 1):(no_covariates + 2*ni)]
+  //     }
+  //   }
+  // }
+
 }

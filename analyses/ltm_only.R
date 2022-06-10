@@ -436,3 +436,19 @@ tib <- tibble(
 
 
 log_reg_results$orig$log_reg_slopes_means
+
+# multiply slopes of with value of lt
+raw_samples <- fits_with_lr$fit$free$draws(format = "draws_matrix")
+no_covariates <- fits_with_lr$stan_data$free$no_covariates
+colnames(raw_samples)
+derived <- array(NA, c(np, ni, nt))
+for (p in seq_len(np)) for (i in seq_len(ni)) for (t in seq_len(nt)) {
+  lt        <- raw_samples[, sprintf("lt[%d,%d]", p, i)]
+  offset_lt <- raw_samples[, sprintf("offset_lt[%d,%d]", p, t)]
+  slope     <- raw_samples[, sprintf("log_reg_slopes[%d]", no_covariates + i)]
+  tt <- 2*t - 1
+  derived[p, i, t] <- mean(lt + tt*offset_lt * slope)
+}
+lt_idx <- startsWith(colnames(raw_samples), "lt[")
+lt_means <- colMeans(raw_samples[, lt_idx])
+plot(c(derived)) # plot is not compelling
