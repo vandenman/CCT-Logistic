@@ -347,17 +347,30 @@ idx_violence_between <- which(rep(covariate_levels == "violent_between1", 3))
 log_reg_tib$group
 log_reg_tib2 <- log_reg_tib |>
   mutate(
-    group = droplevels(recode_factor(group, violent_before = "violent", violent_between = "violent",
-                                     treatment_duration = "treatment\nduration"))
+    group = droplevels(recode_factor(group, violent_before = "Violent", violent_between = "Violent",
+                                     treatment_duration = "Treatment\nduration",
+                                     crime = "Offence", age = "Age", diagnosis = "Diagnosis",
+                                     `item T1` = "IFTE T1", `item T2` = "IFTE T2"
+                                     )
+                       )
   )
 log_reg_tib2$level[idx_violence_before]  <- "before"
 log_reg_tib2$level[idx_violence_between] <- "between"
 log_reg_tib2$level <- factor(log_reg_tib2$level, unique(log_reg_tib2$level))
 log_reg_tib2$level <- recode_factor(log_reg_tib2$level,
-  `Autism spectrum disorder`                    = "Autism",
-  `Personality disorder cluster B`              = "Personality B",
-  `Personality disorder other`                  = "Personality Other",
-  `Schizophrenia and other psychotic disorders` = "Schizophrenia"
+  `Autism spectrum disorder`                    = "autism",
+  `Personality disorder cluster B`              = "personality B",
+  `Personality disorder other`                  = "personality Other",
+  `Schizophrenia and other psychotic disorders` = "schizophrenia",
+
+                                                  #Manslaughter
+                                                  #Power/medium violence
+  `Power with violence`                         = "violent property crime",
+  `Power/medium violence`                       = "moderate property crime",
+  `Heavy violence`                              = "aggravated assault",
+  `Manslaughter`                                = "manslaughter",
+  `Murder`                                      = "murder",
+  `Sex offence`                                 = "sex offence"
 )
 tib_segment <- tibble(x = -Inf, xend = -Inf, y = yBreaks[1], yend = yBreaks[length(yBreaks)], group="age")
 
@@ -382,22 +395,27 @@ posterior_mean_95CRI <- ggplot(data = log_reg_tib2 |> filter(fit == "free"),# |>
     strip.placement = "outside"
   )
 
-save_figure(figure = posterior_mean_95CRI, file = "posterior_mean_95CRI.svg", width = 15, height = 7.5)
+# save_figure(figure = posterior_mean_95CRI, file = "posterior_mean_95CRI.svg", width = 15, height = 7.5)
 
 gt = ggplot_gtable(ggplot_build(posterior_mean_95CRI))
 idx_null <- which(vapply(gt$widths, \(x) grid::unitType(x) == "null", FUN.VALUE = logical(1)))
 gt$widths[idx_null] <- gt$widths[idx_null] * c(2 / 2.2, 3 / 3.2, 3 / 3.2, 4 / 4.2, 6 / 6.2, 8 / 23.2, 8 / 23.2)
 
+for (i in 16:20)
+  gt$grobs[[i]]$children$axis$grobs$`1`$children[[1]]$rot <- 45
+
 gt$grobs[[21]]$children$axis$grobs$`1`$children[[1]]$rot <- 0
 gt$grobs[[22]]$children$axis$grobs$`1`$children[[1]]$rot <- 0
 gt$grobs[[21]]$children$axis$grobs$`1`$children[[1]]$hjust <- 0.5
 gt$grobs[[22]]$children$axis$grobs$`1`$children[[1]]$hjust <- 0.5
+gt$grobs[[21]]$children$axis$grobs$`1`$children[[1]]$vjust <- 1.0
+gt$grobs[[22]]$children$axis$grobs$`1`$children[[1]]$vjust <- 1.0
 gt$grobs[[21]]$children$axis$grobs$`1`$children[[1]]$label[seq(2, 23, 2)] <- ""
 gt$grobs[[22]]$children$axis$grobs$`1`$children[[1]]$label[seq(2, 23, 2)] <- ""
 
 grid::grid.newpage()
 grid::grid.draw(gt)
-save_figure(figure = gt, file = "posterior_mean_95CRI2.svg", width = 15, height = 7.5)
+save_figure(figure = gt, file = "posterior_mean_95CRI2.svg", width = 15, height = 12)
 
 
 ggplot(data = log_reg_tib2 |> filter(fit == "free"),# |> filter(item < 18),
