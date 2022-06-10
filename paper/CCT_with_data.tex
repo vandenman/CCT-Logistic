@@ -250,6 +250,13 @@ While this would be more computationally efficient, it would also ignore the unc
 \autoref{model:Logistic_LTM} shows a graphical model of the logistic regression combined with the LTM.
 The latent truth for each patient on each item is seen as a covariate in the logistic regression model.
 
+\subsection{Implementation}
+We estimated the parameters of the LTM and the combined LTM -- Logistic regression using a Bayesian approach.
+To explore the posterior distributions of the model parameters we used Stan \parencite{CarpenterEtAl2017Stan}. 
+Rather than Markov chain Monte Carlo (MCMC) we used variational inference, as variational inference was computationally fast while providing similar results in terms of parameter retrieval and model predictions \parencite{kucukelbir2017automatic}. 
+All analyses were done using R \parencite{R} and Stan models were run using the R package \code{cmdstanr} \parencite{cmdstanr}. 
+Code for the analyses is available in the online appendix at \githuburl{}.
+
 %with a logistic regression
 %In our application we are not directly interested in the results of the LTM, but rather, we wish to predict violent behavior
 %The CRM applies an information pooling strategy. Here, we use the results from the CRM, specifically the item truths for each patient, to augment prediction of aggressiveness.
@@ -313,8 +320,8 @@ The Brier score is defined as $N^{-1}\sum_{i=1}^N\left(\hat{y}_i-y_{i}\right)^2$
 \autoref{tb:predictions} shows the prediction accuracy and the Brier score averaged over the 10-folds.
 The LR-LTM has the best classification of violence and the lowest Brier score, and the LR-Violence performs second-best.
 The difference in classification performance is $0.894 - 0.866 = 0.028$, which for a data set of 104 patients implies that the LR-LTM makes more accurate predictions than the LR-Violence for about 3 patients.
-
-
+Possibly striking is the poor performance of the LR.
+The standard logistic regression model clearly suffers from overfitting, as indicated by the high training performance but poor test performance. This result makes sense as the standard logistic regression model does not do anything special to combat overfitting, unlike the machine learning alternatives or Bayesian logistic regression used by the LR-LTM.
 
 
 \begin{table}[!ht]
@@ -338,35 +345,57 @@ The difference in classification performance is $0.894 - 0.866 = 0.028$, which f
     \end{tabular}
 \end{table}
 
-\autoref{fig:roc_curves} show the Receiver Operating Characteristic (ROC) curve for all methods except the LR-Intercept.\footnote{The ROC for the intercept only model is by definition the identity function with an area under the curve of 0.5.}
-The legend shows the area under the curve (AUC) for each method.
-For each cross-validation run, we fitted an ROC curve using the same thresholds and afterward we averaged these.
+\autoref{fig:roc_curves} show the Receiver Operating Characteristic (ROC) curve and area under the curve (AUC) averaged across cross-validation runs for all methods except the LR-Intercept.\footnote{The ROC for the intercept only model is by definition the identity function with an area under the curve of 0.5.}
+For each cross-validation run, we computed the true positive rate and false positive rate with the same set of thresholds run and afterward we averaged these.
 The AUC was obtained by averaging the AUCs of each individual cross-validation, rather than computing the AUC for the averaged ROC curve.
 In line with the previous results, the LR-LTM performs best and the LR-Violence method performs second best.
 
 \begin{figure}[!ht]
     \centering
-    \includesvg[width=\textwidth]{roc_curve_cv}
-    % \missingfigure{}
-    \caption{ROC curves for the considered methods. The area under the curve is shown in the legend.}
+    \includesvg[width=.8\textwidth]{roc_curve_cv}
+    \caption{ROC curves for the considered methods. The legend shows the area under the curve in parentheses.}
     \label{fig:roc_curves}
 \end{figure}
 
+To summarize, it is evident that all models, except for logistic regression, outperform the intercept-only baseline model.
+Furthermore, the results show that the LTM augmented logistic regression model performs best, albeit by a small margin.
+The logistic regression model with only violence (LR-Violence) outperformed the two machine learning alternatives that naively averaged the scores from the IFTE (GBM and Random forest).
+This indicates that the IFTE has added value for prediction, but only if it is analyzed properly.
 
 \section{Interpretation of the LTM}
 
 
 
 \section{Discussion}
-Summary
+Here we applied a Cultural Consensus Theory model to scores of patients in a Forensic Psychiatric Center.
+We used this CCT model to augment the predictive performance of a logistic regression model and showed that our CCT-infused logistic regression model outpredicted all other candidate models.
 
+An alternative approach to 
 Hybrid is probably most predictive.
 
 \subsection{Suggestions for Future Data Collection}
+A limitation of the CCT approach applied here is that the use of unconstrained thresholds makes the model parameters hard to interpret.
+However, this modeling decision was mandated by the structure in the data, which, due to the large number of response categories, showed patterns that could not be described by a simpler function for the thresholds (e.g., a preference for even scores).
 
-
+Furthermore, the frequency of measurements is key to the usefulness of the IFTE scores.
+The scores' predictive value likely decreases with time.
+Rather than scoring patients every 6 months, as in the data at hand, it would make more sense to rate them every few weeks.
+Although it may be practically difficult to score patients regularly, there are opportunities to use self-reports for this purpose \parencite{tuente2021mapping, bousardt2016predicting}.
 
 \subsection{Limitations}
+A key limitation of our approach here is that patients' violent behavior is not a discrete event as we modeled it, but rather a continuous process where the risk of violent behavior changes over time.
+This limits the direct applicability of our approach in practice.
+To accommodate time series data, the model could be be extended, for example, by adding autoregressive components.
+
+
+
+The predictive comparison is possibly incomplete as  likely overfitting
+
+\subsection{Conclusion}
+In sum, we applied the LTM introduced by \textcite{Anders2015cultural} and adapted previously by us in \textcite{vandenBergh2020cultural} to data of patients in a Forensic Psychiatric Center.
+We showed that including the IFTE items slightly improves predictive performance, but only if the scores from different raters are analyzed properly and not when the scores of different raters are averaged.
+
+
 
 \printbibliography
 \newpage
