@@ -364,13 +364,15 @@ This indicates that the IFTE has added value for prediction, but only if it is a
 
 \section{Interpretation of the LTM}
 \autoref{fig:parameters} shows the posterior means and 95\% credible intervals for the LTM fitted to the complete data.
-Prior history of violence has the largest coefficients, whereas the other coefficients 
-\begin{figure}
+Prior history of violence has the largest coefficients, whereas the other coefficients all appear close to zero.
+\begin{figure}[!ht]
     \centering
     \includesvg[width=\textwidth]{posterior_mean_95CRI2}
-    \caption{Posterior means and 95\% credible intervals for the coefficients of the logistic regression model ($\CovariateBeta_{\Icovariate}$ and $\CovariateBeta_{\Iitem}$ in \autoref{model:Logistic_LTM}). The reference category is 0-2 years treatment duration, As 1 overig diagnosis, and arson as offence.}
+    \caption{Posterior means and 95\% credible intervals for the coefficients of the logistic regression model ($\CovariateBeta_{\Icovariate}$ and $\CovariateBeta_{\Iitem}$ in \autoref{model:Logistic_LTM}). The reference categories are treatment duration 0-2 years, diagnosis As 1 overig, and offence arson. The abbreviations VPC, MPC, and AA stand for violent property crime, moderately violent property crime, and aggravated assault.}
     \label{fig:parameters}
 \end{figure}
+The influence of all items in the IFTE at both time points appears to be close to zero.
+However, unlike the other coefficients the IFTE coefficients should be interpreted as random effects as they are multiplied with the estimated latent truth $\ItemTruth_{\Ipatient\Iitem}$ which varies across patients.
 
 \section{Discussion}
 Here we applied a Cultural Consensus Theory model to scores of patients in a Forensic Psychiatric Center.
