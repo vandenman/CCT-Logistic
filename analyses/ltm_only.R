@@ -345,6 +345,7 @@ ggplot(data = log_reg_tib |> filter(fit == "free"),# |> filter(item < 18),
 idx_violence_before <- which(rep(covariate_levels  == "violent_before1", 3))
 idx_violence_between <- which(rep(covariate_levels == "violent_between1", 3))
 log_reg_tib$group
+
 log_reg_tib2 <- log_reg_tib |>
   mutate(
     group = droplevels(recode_factor(group, violent_before = "Violent", violent_between = "Violent",
@@ -417,6 +418,10 @@ gt$grobs[[22]]$children$axis$grobs$`1`$children[[1]]$vjust <- 1.0
 gt$grobs[[21]]$children$axis$grobs$`1`$children[[1]]$label[(1:23)[-c(1, 5, 10, 15, 20)]] <- ""
 gt$grobs[[22]]$children$axis$grobs$`1`$children[[1]]$label[(1:23)[-c(1, 5, 10, 15, 20)]] <- ""
 
+prefix_newline <- function(x) paste0("\n", x)
+for (i in c(21, 22))
+  gt$grobs[[i]]$children$axis$grobs$`1`$children[[1]]$label[c(1, 5, 10, 15, 20)] <- prefix_newline(gt$grobs[[i]]$children$axis$grobs$`1`$children[[1]]$label[c(1, 5, 10, 15, 20)])
+
 grid::grid.newpage()
 grid::grid.draw(gt)
 save_figure(figure = gt, file = "posterior_mean_95CRI2.svg", width = 15, height = 15)
@@ -475,3 +480,13 @@ for (p in seq_len(np)) for (i in seq_len(ni)) for (t in seq_len(nt)) {
 lt_idx <- startsWith(colnames(raw_samples), "lt[")
 lt_means <- colMeans(raw_samples[, lt_idx])
 plot(c(derived)) # plot is not compelling
+
+colnames(raw_samples)[lt_idx] # patient first, then item
+lt_means <- matrix(lt_means, np, ni)
+plot(lt_means[, 1])
+dddd <- data.frame(x = c(lt_means),
+           g = factor(rep(1:ni, each = np)))
+ggplot(data = dddd, aes(x = lt_means, y = ..density.., group = g, fill = g)) +
+  geom_histogram(position = position_dodge())
+
+

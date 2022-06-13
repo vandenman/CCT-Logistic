@@ -302,6 +302,18 @@ shared_colnames <- intersect(colnames(data_wider), colnames(data_violence))
 identical(data_wider[shared_colnames], data_violence[shared_colnames]) # data are identical except for the IFBE items in data_wider
 anyNA(data_wider[setdiff(colnames(data_wider), shared_colnames)]) # no NAs in the IFBE items
 
+# factor model doesn't fit very well
+# data_for_pca <- data_wider[, seq(9, 8+23*2, 2)]
+# ff <- psych::fa.parallel(data_for_pca)
+# data_for_cfa <- data_for_pca[, -1]
+# cfa_fit <- lavaan::cfa(model = "
+#   prot =~ IFBE_1_time_1 + IFBE_2_time_1 + IFBE_3_time_1 + IFBE_4_time_1 + IFBE_17_time_1 + IFBE_19_time_1 + IFBE_21_time_1 + IFBE_22_time_1
+#   reso =~ IFBE_5_time_1 + IFBE_6_time_1 + IFBE_7_time_1 + IFBE_8_time_1 + IFBE_9_time_1
+#   prob =~ IFBE_10_time_1 + IFBE_11_time_1 + IFBE_12_time_1 + IFBE_13_time_1 + IFBE_14_time_1 + IFBE_15_time_1 + IFBE_16_time_1 + IFBE_18_time_1 + IFBE_20_time_1
+#                        ", data = data_for_cfa)
+#
+# lavaan::fitmeasures(cfa_fit) # rmsea 0.164, cfi 0.533, tli 0.476
+
 # fit ML methods ----
 
 # meta information
