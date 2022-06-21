@@ -287,7 +287,7 @@ key_diagnosis <- setNames(
   levels(data_violence$diagnosis)
 )
 key_crime <- setNames(
-  c("Arson", "Manslaughter", "Murder", "Power with violence", "Power/medium violence", "Sex offence", "Heavy violence"),
+  c("Arson", "Manslaughter", "Murder", "Power with violence", "Power/medium violence", "Sex offense", "Heavy violence"),
   levels(data_violence$crime)
 )
 
@@ -350,7 +350,7 @@ log_reg_tib2 <- log_reg_tib |>
   mutate(
     group = droplevels(recode_factor(group, violent_before = "Violent", violent_between = "Violent",
                                      treatment_duration = "Treatment\n\nduration",
-                                     crime = "Offence", age = "Age", diagnosis = "Diagnosis",
+                                     crime = "Offense", age = "Age", diagnosis = "Diagnosis",
                                      `item T1` = "IFTE T1", `item T2` = "IFTE T2"
                                      )
                        )
@@ -371,7 +371,7 @@ log_reg_tib2$level <- recode_factor(log_reg_tib2$level,
   `Heavy violence`                              = "AA",
   `Manslaughter`                                = "manslaughter",
   `Murder`                                      = "murder",
-  `Sex offence`                                 = "sex offence"
+  `Sex offense`                                 = "sex offense"
 )
 tib_segment <- tibble(x = -Inf, xend = -Inf, y = yBreaks[1], yend = yBreaks[length(yBreaks)], group="age")
 
@@ -516,13 +516,13 @@ ggplot(data = ifte_aggregate_tib, aes(x = x, y = y, ymin = ci_lower, ymax = ci_u
 # without CRIs
 # yBreaks <- jaspGraphs::getPrettyAxisBreaks(ifte_aggregate_tib$y)
 yBreaks <- seq(-4, 4, 2) # same as other figure
-ggplot(data = ifte_aggregate_tib, aes(x = x, y = y, ymin = ci_lower, ymax = ci_upper, shape = violent, fill = violent)) +
+posterior_mean_IFTE_aggregate <- ggplot(data = ifte_aggregate_tib, aes(x = x, y = y, ymin = ci_lower, ymax = ci_upper, shape = violent, fill = violent)) +
   geom_point(size = 5) +
   scale_y_continuous("Posterior mean", breaks = yBreaks, limits = range(yBreaks)) +
   scale_shape_manual(name = NULL, values = c(21, 22)) +
   scale_fill_manual(name = NULL, values = c("grey", "white")) +
   scale_x_continuous("Patient", breaks = c(1, 25, 50, 75, 104)) +
   jaspGraphs::geom_rangeframe() +
-  jaspGraphs::themeJaspRaw(legend.position = "right")# +
-  # theme(panel.grid.major.y = element_line(colour = "grey80"))
-save_figure(figure = gt, file = "posterior_mean_IFTE_aggregate_.svg", width = 7, height = 7)
+  jaspGraphs::themeJaspRaw(legend.position = c(0.15, 0.995))
+posterior_mean_IFTE_aggregate
+save_figure(figure = posterior_mean_IFTE_aggregate, file = "posterior_mean_IFTE_aggregate.svg", width = 7, height = 7)
