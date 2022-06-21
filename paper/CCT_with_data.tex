@@ -86,7 +86,7 @@ First, we briefly introduce the LTM model used and discuss two changes made comp
 Afterward, we use the LTM to augment a logistic regression.
 We use the augmented model to predict violent outbursts in patients and compare the predictive performance to that of frequently used machine learning models.
 We find that our LTM approach outperforms all other methods, albeit by a small margin.
-Next, we interpret the fitted model, which shows that prior history of violence is most predictive.
+Next, we interpret the fitted model, which shows that the prior history of violence is most predictive.
 Finally, we discuss some practical limitations of the data set at hand and how future monitoring of patients could be adjusted to maximize the added benefit of our CCT-based approach.
 
 
@@ -97,11 +97,11 @@ The data were collected in the Dutch maximum-security Forensic Psychiatric Cente
 The individual records were retrospectively merged into a single data set. 
 In total, the data set contains information about 103 patients given by 188 raters on 23 items from 2 measurement occasions (18354 observations in total).
 In addition to the scores on the IFTE items, the data set contains several background variables about the patients.
-These are age (0-30, 31-40, 41-50, or 55+)\footnote{Ideally age is treated as a continuous variable. However, for privacy reasons, the data were made unidentifiable, for example by categorizing age.}, treatment duration (0-2 years, 2-4 years, 4-6 years, or 6+ years), diagnosis (autism spectrum disorder, personality disorder, personality disorder B, schizophrenia or other psychotic disorders, and As 1 overig), offence (manslaughter, aggravated assault, murder, arson, violent property crime, moderately violent property crime, and Sexual offence), violent behavior before measurement 1, and violent behavior in between measurements 1 and 2.
+These are age (0-30, 31-40, 41-50, or 55+)\footnote{Ideally age is treated as a continuous variable. However, for privacy reasons, the data were made unidentifiable, for example by categorizing age.}, treatment duration (0-2 years, 2-4 years, 4-6 years, or 6+ years), diagnosis (autism spectrum disorder, personality disorder, personality disorder B, schizophrenia or other psychotic disorders, and As 1 overig), offense (manslaughter, aggravated assault, murder, arson, violent property crime, moderately violent property crime, and Sexual offense), violent behavior before measurement 1, and violent behavior in-between measurements 1 and 2.
 \DB{Check de juiste engelse vertalingen.}
 
 \subsection{IFTE}
-The data were collected using a Routine Outcome Monitoring instrument called the the Instrument for Forensic Treatment Evaluation (IFTE).
+The data were collected using a Routine Outcome Monitoring instrument called the Instrument for Forensic Treatment Evaluation (IFTE).
 The IFTE consists of 22 items, of which 14 items are criminogenic need indicators of the Dutch risk assessment instrument HKT-R \parencite{spreen2013handleiding}, five items were designed in consultation with psychologists and psychiatrists, and three items are based on the Atascadero Skills Profile \parencite{vess2001development}.
 The 22 items can be grouped into three factors, Protective behaviors, Problematic behaviors, and Resocialization Skills.
 The individual items are shown in \autoref{tb:IFTE_items}.
@@ -121,7 +121,7 @@ Each patient was scored with the IFTE on two separate occasions.
 
 \subsection{Descriptives}
 Before introducing the models used and analyzing the data, we give a descriptive summary of the data.
-\autoref{tb:backgroundinfo} shows the background characteristics for non-violent and violent patients.
+\autoref{tb:backgroundinfo} shows the background characteristics of non-violent and violent patients.
 
 \begin{table}[!ht]
     \caption{Characteristics of the non-violent and violent patients.}
@@ -158,15 +158,15 @@ Before introducing the models used and analyzing the data, we give a descriptive
 \hspace{3mm} Manslaughter 	 & 16 (20\%) & 2 (8\%) \\
 \hspace{3mm} Moderately violent property crime 	 & 9 (11\%) & 3 (12\%) \\
 \hspace{3mm} Murder 	 & 10 (12\%) & 1 (4\%) \\
-\hspace{3mm} Sex offence 	 & 17 (21\%) & 1 (4\%) \\
+\hspace{3mm} Sex offense 	 & 17 (21\%) & 1 (4\%) \\
 \hspace{3mm} Violent property crime 	 & 6 (7\%) & 5 (21\%) \\
         \bottomrule
     \end{tabular}
 \end{table}
 The raw percentages suggest that patients with violent behavior after the second IFTE measurement were also more often violent before the first measurement and in between the two measurements.
-For the other variables there are no apparent differences between non-violent and violent patients.
+For the other variables, there are no apparent differences between non-violent and violent patients.
 
-Next we examine the IFTE scores. 
+Next, we examine the IFTE scores. 
 \autoref{fig:descriptives_scores_hist} shows a histogram of the raw scores across all IFTE items, raters, and patients.
 It is clear that some scores are given more often than others, such as 1, 2, 6, 10, and 14.
 Furthermore, it appears that, with the exception of 1, even scores are given more often than odd scores.
@@ -176,7 +176,7 @@ Furthermore, it appears that, with the exception of 1, even scores are given mor
 	\caption{Histogram of observed scores across all patients, items, raters, and time points.}
 	\label{fig:descriptives_scores_hist}
 \end{figure}
-Given the amount of patients and raters it it is evident that not all raters can have scored all patients.
+Given the number of patients and raters it is evident that not all raters can have scored all patients.
 \autoref{fig:descriptives_raters_by_patients} confirms this and shows that the rater by patient matrix is quite sparse.
 \begin{figure}[!ht]
 	\centering
@@ -201,13 +201,13 @@ However, as shown in \autoref{fig:misFitMean} averaging may lead to severely bia
 	\label{fig:misFitMean}
 \end{figure}
 The average score disregards all additional information that is available.
-It ignores the individual differences between raters, for example, this assumes that all psychiatrists score hostility in the same way, and it ignores group differences among raters, for example, there is no difference in scores by psychiatrists as opposed to clinicians, or other staff member.
-In addition, the average ignores any additional information about the patient at hand, such as offence and diagnosis.
+It ignores the individual differences between raters, for example, this assumes that all psychiatrists score hostility in the same way, and it ignores group differences among raters, for example, there is no difference in scores by psychiatrists as opposed to clinicians, or other staff members.
+In addition, the average ignores any additional information about the patient at hand, such as offense and diagnosis.
 
 Cultural consensus theory provides a model-based framework for pooling information from multiple raters to form a consensus \parencite{anders2014cultural}.
 There exist a variety of CCT models, each applicable to different types of data.
 For example, the General Condorcet model \parencite{Batchelder1986statistical} applies to dichotomous data, the Continuous Response model \parencite{anders2014cultural} is suited for continuous data, and the Latent Truth Rater model \parencite{Anders2015cultural} is suited for ordinal data.
-As the ratings on the are ordinal, we use the Latent Truth Rater model to analyze the Mesdag data.
+As the IFTE scores are ordinal, we use the Latent Truth Rater model to analyze the Mesdag data.
 
 \subsection{The Latent Truth Rater Model}
 The Latent Truth Rater Model (LTM) is a CCT model for ordinal data \parencite{Anders2015cultural}.
@@ -267,20 +267,20 @@ where $\cdf{}$ is the logistic cumulative distribution function.\footnote{%
 }
 
 Next, we explain how the latent appraisals and thresholds come about.
-The appraisals are draws from a logistic distribution with location $\ItemTruth_{\Ipatient\Iitem}$, the true score for patient $\Ipatient$ on item $\Iitem$. The scale of the logistic distribution is the ratio of the item difficulty $\ItemDifficulty_\Iitem$ to the rater competence $\RaterCompetence_\Irater$.
+The appraisals are drawn from a logistic distribution with location $\ItemTruth_{\Ipatient\Iitem}$, the true score for patient $\Ipatient$ on item $\Iitem$. The scale of the logistic distribution is the ratio of the item difficulty $\ItemDifficulty_\Iitem$ to the rater competence $\RaterCompetence_\Irater$.
 A higher item difficulty means that the appraisals are more noisy, which leads to a more dispersed probability distribution over possible scores.
 Conversely, a higher rater competence means that the appraisals are less noisy, which leads to a more concentrated distribution over the outcomes.
 There are $\Tncat - 1$ ordered thresholds for each rater, which are assigned a standard normal prior for identification purposes.
 
 There are two differences in the model specification above compared to our previous work \parencite{vandenBergh2020cultural}.
 %We made two changes to the model, because when simulating data with similar characteristics as the Mesdag data, as
-First, we previously modeled the thresholds using two rater specific parameters.
-However, in simulations we noticed that these two parameters provide too little flexibility when the ordinal scale consists of 18 categories and has a multimodal distribution (see \autoref{fig:descriptives_scores_hist}), as in the Mesdag data.
+First, we previously modeled the thresholds using two rater-specific parameters.
+However, in simulations, we noticed that these two parameters provide too little flexibility when the ordinal scale consists of 18 categories and has a multimodal distribution (see \autoref{fig:descriptives_scores_hist}), as in the Mesdag data.
 Therefore we decided to model the thresholds individually.
 This complicates interpreting the differences between the thresholds across raters, however, that is also not the goal of this paper.
-Second, we previously allowed the item difficulty parameter to vary across patients, which captures that some items may be more difficulty or easy to assess for some patients (e.g., some patients may cooperate more than others).
-This parameter is mainly informed by the number or raters and there needs to be a sufficient amount of raters that score each patient for a reliable estimate.
-However, when simulating data with a ratio of raters to patients similar to that in the data at hand that we noticed that there are simply too few observations to reliably estimate the deviations in item difficulty across patients.
+Second, we previously allowed the item difficulty parameter to vary across patients, which captures that some items may be more difficult or easy to assess for some patients (e.g., some patients may cooperate more than others).
+To estimate this patient-item interaction there must be a sufficient amount of raters that score each patient.
+However, when simulating data with a ratio of raters to patients similar to that in the data at hand, we noticed that there are simply too few observations to reliably estimate the deviations in item difficulty across patients.
 Therefore, we only vary item difficulty across items and not across patients.
 
 Altogether, the LTM extracts a true score ($\ItemTruth_{\Ipatient\Irater}$) for each patient on every item while accounting for the hierarchical structure among patients, raters, and items.
@@ -361,37 +361,37 @@ Although the data cannot be shared due to privacy concerns, the repository conta
 \section{Predictive Performance}
 
 Here we compare the predictive performance of the logistic regression model that is augmented with the LTM (LR-LTM) to several reasonable alternatives and three baseline models.
-The first baseline model is an intercept only logistic regression (LR-Intercept). 
+The first baseline model is an intercept-only logistic regression (LR-Intercept). 
 Comparing the predictive performance of a model with the LR-Intercept constitutes a coherence check that a model outperforms the baseline prevalence of violence.
 The second baseline model we use is a logistic regression model with all covariates but not the IFTE items (LR-No IFTE).
-As a third baseline model, we use an logistic regression model with only prior violence as predictors (LR-Violence).
+As a third baseline model, we use a logistic regression model with only prior violence as predictors (LR-Violence).
 % TODO: wat is de toegevoegde waarde van model 3 bovenop model 2?
 As more plausible competing models, we consider logistic regression (LR), random forest, and boosted regression trees (GBM) which are trained with history of violence, patient covariates, and IFTE scores.
 These three competing models have in common that they are designed for purely rectangular data.
 That is, each row of the data set contains one outcome (violent or nonviolent behavior) and a number of predictors.
 However, the raw data of the IFTE contains repeated observations, since patients were rated multiple times by different raters.
-To accommodate this we (naively) average across different raters to obtain a single scores for each item and time point.
-Altogether, by comparing these seven models we aim to answer the following three questions: (1) Can predictive models outperform the base-prevalence of violent behavior? (2) Do models with the IFTE scores perform better than the baseline models without? (3) Does the LR-LTM perform better than the models that naively average across raters?
+To accommodate this we (naively) average across different raters to obtain a single score for each item and time point.
+Altogether, by comparing these seven models we aim to answer the following three questions: (1) Can predictive models outperform the base prevalence of violent behavior? (2) Do models with the IFTE scores perform better than the baseline models without? (3) Does the LR-LTM perform better than the models that naively average across raters?
 
-To examine predictive performance we used 10-fold stratified cross validation.
+To examine predictive performance we used 10-fold stratified cross-validation.
 Each fold consisted of 8 nonviolent observations and 2 or 3 violent observations.
 % For every fold, the data were split into a training set (80\%, $N = 84$) and a test set (20\%, $N = 20$).
 % The models were fit on the training set and made predictions for the test set.
 We quantified model performance with prediction accuracy and the Brier score \parencite{brier1950verification}.
 Prediction accuracy is defined as the fraction of correct predictions.
-We converted model probabilities for violent or non-violent behavior into binary predictions by comparing with 0.5.
-In other words, if a model prediction for observation $i$, $\hat{y}_i\in [0, 1]$, is larger than 0.5 then the predicted label is violent, otherwise it is non-violent.
+We converted model probabilities for violent or non-violent behavior into binary predictions by comparing them with 0.5.
+In other words, if a model prediction for observation $i$, $\hat{y}_i\in [0, 1]$, is larger than 0.5 then the predicted label is violent, otherwise, it is non-violent.
 The Brier score is defined as $N^{-1}\sum_{i=1}^N\left(\hat{y}_i-y_{i}\right)^2$, i.e., the mean squared error between the observed labels, $y\in\{0,1\}$ and the model predictions.
 
 \autoref{tb:predictions} shows the prediction accuracy and the Brier score averaged over the 10-folds.
-The LR-LTM has the best classification of violence and the lowest Brier score, and the LR-Violence performs second-best.
+The LR-LTM has the best classification of violence and the lowest Brier score, and the LR-Violence performs second best.
 The difference in classification performance is $0.894 - 0.866 = 0.028$, which for a data set of 104 patients implies that the LR-LTM makes more accurate predictions than the LR-Violence for about 3 patients.
 Possibly striking is the poor performance of the LR.
 The standard logistic regression model clearly suffers from overfitting, as indicated by the high training performance but poor test performance. This result makes sense as the standard logistic regression model does not do anything special to combat overfitting, unlike the machine learning alternatives or Bayesian logistic regression used by the LR-LTM.
 
 
 \begin{table}[!ht]
-    \caption{Predictive performance of violent behavior. The values are the average of 10 cross validations; the standard deviation is shown in parentheses.}
+    \caption{Predictive performance of violent behavior. The values are the average of 10 cross-validations; the standard deviation is shown in parentheses.}
     \label{tb:predictions}
     \centering
     \begin{tabular}{lrrrr}
@@ -411,8 +411,8 @@ The standard logistic regression model clearly suffers from overfitting, as indi
     \end{tabular}
 \end{table}
 
-\autoref{fig:roc_curves} show the Receiver Operating Characteristic (ROC) curve and area under the curve (AUC) averaged across cross-validation runs for all methods except the LR-Intercept.\footnote{The ROC for the intercept only model is by definition the identity function with an area under the curve of 0.5.}
-For each cross-validation run, we computed the true positive rate and false positive rate with the same set of thresholds run and afterward we averaged these.
+\autoref{fig:roc_curves} show the Receiver Operating Characteristic (ROC) curve and area under the curve (AUC) averaged across cross-validation runs for all methods except the LR-Intercept.\footnote{The ROC for the intercept-only model is by definition the identity function with an area under the curve of 0.5.}
+For each cross-validation run, we computed the true positive rate and false-positive rate with the same set of thresholds run and afterward we averaged these.
 The AUC was obtained by averaging the AUCs of each individual cross-validation, rather than computing the AUC for the averaged ROC curve.
 In line with the previous results, the LR-LTM performs best and the LR-Violence method performs second best.
 
@@ -429,43 +429,44 @@ The logistic regression model with only violence (LR-Violence) outperformed the 
 This indicates that the IFTE has added value for prediction, but only if it is analyzed properly.
 
 \section{Interpretation of the LTM}
-Now that we have shown that the LTM had adequate predictive performance, a next step is interpreting the model parameters.
+Now that we have shown that the LTM had adequate predictive performance, we interpret the model parameters.
 \autoref{fig:parameters} shows the posterior means and 95\% credible intervals for the LTM fitted to the complete data.
 Prior history of violence has the largest coefficients, whereas the other coefficients all appear close to zero.
 \begin{figure}[!ht]
     \centering
     \includesvg[width=\textwidth]{posterior_mean_95CRI2}
-    \caption{Posterior means and 95\% credible intervals for the coefficients of the logistic regression model ($\CovariateBeta_{\Icovariate}$ and $\CovariateBeta_{\Iitem}$ in \autoref{model:Logistic_LTM}). The reference categories are treatment duration 0-2 years, diagnosis As 1 overig, and offence arson. The abbreviations VPC, MPC, and AA stand for violent property crime, moderately violent property crime, and aggravated assault.}
+    \caption{Posterior means and 95\% credible intervals for the coefficients of the logistic regression model ($\CovariateBeta_{\Icovariate}$ and $\CovariateBeta_{\Iitem}$ in \autoref{model:Logistic_LTM}). The reference categories are treatment duration 0-2 years, diagnosis As 1 overig, and offense arson. The abbreviations VPC, MPC, and AA stand for violent property crime, moderately violent property crime, and aggravated assault.}
     \label{fig:parameters}
 \end{figure}
 As \autoref{tb:backgroundinfo} already indicated, the history of violence has a large effect.
 In contrast, the influence of the IFTE items is less clear as all coefficients appear to be close to zero.
 However, unlike the other coefficients shown, the IFTE coefficients should be interpreted as random effects, as they are multiplied with the estimated latent truth $\ItemTruth_{\Ipatient\Iitem}$ which varies across patients.
-This complicates interpreting the added value of the individual items of the LTM. 
-However, we can visualize the impact for the IFTE as a whole. %by examining $\sum_{\Irater}\ItemTrutherefore_{\Ipatient\Irater}\CovariateBeta_{\Irater}$.
-\autoref{fig:IFTE_aggregate}, shows for each patient the posterior mean of $\sum_{t=1}^2\sum_{\Iitem=1}^{23}\ItemTruth_{\Ipatient\Iitem\Itime}\CovariateBeta_{\Iitem\Itime}$.
+This complicates interpreting the added value of the individual items of the LTM.
+However, we can visualize the impact of the IFTE as a whole. %by examining $\sum_{\Irater}\ItemTrutherefore_{\Ipatient\Irater}\CovariateBeta_{\Irater}$.
+\autoref{fig:IFTE_aggregate}, shows for each patient the posterior mean of the total impact of the IFTE for both measurements on the logit scale, which is given by $\sum_{t=1}^2\sum_{\Iitem=1}^{23}\ItemTruth_{\Ipatient\Iitem\Itime}\CovariateBeta_{\Iitem\Itime}$.
 \begin{figure}[!ht]
     \centering
-    \includesvg[width=\textwidth]{posterior_mean_IFTE_aggregate_}
+    \includesvg[width=.8\textwidth]{posterior_mean_IFTE_aggregate}
     \caption{Caption}
     \label{fig:IFTE_aggregate}
 \end{figure}
 For some patients, the posterior mean of the impact of the aggregated IFTE is as large as the effect of prior violence.
-However, by adding the values the uncertainty increases drastically, (the average credible interval ranges from -8 to 8).
+However, note that the uncertainty of these estimates is enormous, that is, the average credible interval ranges from -8 to 8.\footnote{The large uncertainty here is inevitable, as by adding the values together the variance can only ever increase.}
+Nevertheless, \autoref{fig:IFTE_aggregate} shows that the IFTE matters for prediction, but also that the added value differs across patients.
 
 \section{Discussion}
 Here we applied a Cultural Consensus Theory model to scores of patients in a Forensic Psychiatric Center.
 We used this CCT model to augment the predictive performance of a logistic regression model and showed that our CCT-infused logistic regression model outpredicted all other candidate models.
 
-An alternative approach to
-Hybrid is probably most predictive.
+% An alternative approach to
+% Hybrid is probably most predictive.
 
 \subsection{Suggestions for Future Data Collection}
 
 The interpretation of the parameters of the LTM in this application is hindered by the use of unconstrained thresholds.
-However, this modeling decision was mandated by the structure in the data, which, due to the large number of response categories, showed patterns that could not be described by a simpler function for the thresholds (e.g., a preference for even scores).
-For future data collection, it would we worthwhile to see to what extent the larger number of response options are necessary and to what extent some response categories can be collapsed.
-That would facilitate modeling of the data, but also reduce the likelihood of spurious patterns in the data.
+However, this modeling decision was mandated by the structure of the data, which, due to the large number of response categories, showed patterns that could not be described by a simpler function for the thresholds (e.g., a preference for even scores).
+For future data collection, it would be worthwhile to see to what extent the larger number of response options is necessary and to what extent some response categories can be collapsed.
+That would facilitate modeling of the data and simultaneously reduce the likelihood of spurious patterns in the data.
 
 The frequency of measurements is key to the usefulness of the IFTE scores.
 It was previously found that the most recent measurement is most predictive \parencite{schuringa2019inpatient}, which indicates that the scores' predictive value likely decreases over time.
@@ -476,10 +477,10 @@ A downside of self-reports is that they may introduce additional variance due to
 \subsection{Limitations}
 A limitation of our approach is that patients' violent behavior is not a discrete event as we modeled it, but rather a continuous process where the risk of violent behavior changes over time.
 This limits the direct applicability of our approach in practice.
-To accommodate time series data, the model could be be extended, for example, by adding autoregressive components.
+To accommodate time series data, the model could be extended, for example, by adding autoregressive components.
 
 Furthermore, we did not account for the structure of the IFTE items.
-Each item of the IFTE is deigned to load on a particular factor, see \autoref{tb:IFTE_items}.
+Each item of the IFTE is designed to load on a particular factor, see \autoref{tb:IFTE_items}.
 This structure could be added to the model introduced here as a confirmatory factor model.
 This would imply that the true scores $\ItemTruth_{\Ipatient\Iitem}$ load on their common factors, and that the factor scores are used to predict violent behavior.
 If the factor model fits well then it could make the model interpretation easier, as this can then be done on the level of the factor rather than the items.
@@ -502,7 +503,7 @@ We showed that including the IFTE items slightly improves predictive performance
 \begin{table}[!ht]
     \centering
     \caption{%
- 	Overview of the 22 IFTE Items, the factor on which they load, and origin of the question. Adapted from Table~1 of \textcite{schuringa2014inter}.
+ 	Overview of the 22 IFTE Items, the factor on which they load, and the origin of the question. Adapted from Table~1 of \textcite{schuringa2014inter}.
  	}
  	\label{tb:IFTE_items}
  	\begin{tabular}{>{\small}llH}
