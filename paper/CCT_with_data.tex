@@ -443,10 +443,15 @@ In contrast, the influence of the IFTE items is less clear as all coefficients a
 However, unlike the other coefficients shown, the IFTE coefficients should be interpreted as random effects, as they are multiplied with the estimated latent truth $\ItemTruth_{\Ipatient\Iitem}$ which varies across patients.
 This complicates interpreting the added value of the individual items of the LTM. 
 However, we can visualize the impact for the IFTE as a whole. %by examining $\sum_{\Irater}\ItemTrutherefore_{\Ipatient\Irater}\CovariateBeta_{\Irater}$.
-Figure, shows for each patient the posterior mean of $\sum_{\Irater}\ItemTrutherefore_{\Ipatient\Irater}\CovariateBeta_{\Irater}$.
-For some patients, the posterior mean of the impact of the aggregated IFTE is as large as the re is little predictive value
-At the same time, by adding the values the uncertainty increases drastically, (the credible intervals range on average from -8 to 8).
-
+\autoref{fig:IFTE_aggregate}, shows for each patient the posterior mean of $\sum_{t=1}^2\sum_{\Iitem=1}^{23}\ItemTruth_{\Ipatient\Iitem\Itime}\CovariateBeta_{\Iitem\Itime}$.
+\begin{figure}[!ht]
+    \centering
+    \includesvg[width=\textwidth]{posterior_mean_IFTE_aggregate_}
+    \caption{Caption}
+    \label{fig:IFTE_aggregate}
+\end{figure}
+For some patients, the posterior mean of the impact of the aggregated IFTE is as large as the effect of prior violence.
+However, by adding the values the uncertainty increases drastically, (the average credible interval ranges from -8 to 8).
 
 \section{Discussion}
 Here we applied a Cultural Consensus Theory model to scores of patients in a Forensic Psychiatric Center.
