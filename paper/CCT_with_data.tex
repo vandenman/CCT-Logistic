@@ -305,15 +305,16 @@ We consider these true values to be the basis on which all follow-up analyses sh
 In a next step, we use logistic regression for to predict violent behavior, where we use the estimated true scores ($\ItemTruth_{\Ipatient\Irater}$) from the LTM as additional predictors.
 We do so in a fully Bayesian approach, that is, we constructed a joint model for the violent behavior and the patient ratings.%
 \footnote{%
-An alternative is to fit the LTM separately and then use e.g., the posterior means in a second step in a logistic regression.
-While this would be more computationally efficient, it would also ignore the uncertainty in the analysis of the patient ratings.
+An alternative is a two-step approach where in the first step the LTM is fit to the patient ratings.
+In the second step, the estimates of the LTM (e.g., the posterior means) are used as predictors in a logistic regression model.
+While this is computationally faster, it also ignores the uncertainty in the analysis of the patient ratings.
 }
 \autoref{model:Logistic_LTM} shows a graphical model of the logistic regression combined with the LTM.
 The latent truth for each patient on each item is seen as a covariate in the logistic regression model.
 \begin{figure}[!ht]
 %	\begin{minipage}{0.5\textwidth}
 		\centering
-		\includegraphics[width=\textwidth, page=8]{graphicalmodels.pdf}
+		\includegraphics[width=\textwidth, page=9]{graphicalmodels.pdf}
 %	\end{minipage}\hfill
 %	\begin{minipage}{0.5\textwidth}
 %		{\normalsize
@@ -332,15 +333,20 @@ The latent truth for each patient on each item is seen as a covariate in the log
 	\caption{Graphical model of Logistic Regression Augmented with the Latent Truth Rater Model. The true scores }
 	\label{model:Logistic_LTM}
 \end{figure}
-In addition, we use the background variables $$ as predictors. 
+Here, $v_{\Ipatient}$ denotes the violent behavior of patient $\Ipatient$.
+The regression coefficients of the true scores are denoted $\CovariateBeta_{\Iitem}$.
+In addition to the true scores, we regress the background variables $\Covariate_{\Ipatient\Icovariate}$ with associates coefficients $\CovariateBeta_{\Icovariate}$ onto violent behavior.
+
+The index $\Itime$ indicates the measurement occasion (1 or 2).
+Rather than fitting the LTM completely anew for each time point, we assume that all rater parameters ($\ItemDifficulty_\Irater$ and $\bm{\Threshold}_{\Irater}$) and item parameters ($\ItemDifficulty_\Iitem$) constant but allowed the patient parameters to differ.
 
 \subsection{Implementation}
-We estimated the parameters of the LTM and the combined LTM -- Logistic regression using a Bayesian approach.
+We estimated the parameters of the LTM and the combined LTM-Logistic regression model using a Bayesian approach.
 To explore the posterior distributions of the model parameters we used Stan \parencite{CarpenterEtAl2017Stan}.
-Rather than Markov chain Monte Carlo (MCMC) we used variational inference, as variational inference was computationally fast while providing similar results in terms of parameter retrieval and model predictions \parencite{kucukelbir2017automatic}.
+Rather than Markov chain Monte Carlo (MCMC) we used variational inference, which was computationally faster while providing similar results in terms of parameter retrieval and model predictions \parencite{kucukelbir2017automatic}.
 All analyses were done using R \parencite{R} and Stan models were run using the R package \code{cmdstanr} \parencite{cmdstanr}.
-Code for the analyses is available in the online appendix at \githuburl{}.
-
+The code for the analyses is available in the online appendix at \githuburl{}.
+Although the data cannot be shared due to privacy concerns, the repository contains a simulated data set that can be used to run the code.
 
 % \iffalse
 % \subsection{Simulation Study}
@@ -354,25 +360,27 @@ Code for the analyses is available in the online appendix at \githuburl{}.
 
 \section{Predictive Performance}
 
-Here we compare the predictive performance of the Logistic regression augmented with the LTM (LR-LTM) to several reasonable alternatives and three baseline models.
-As a first baseline model we use an intercept only logistic regression (LR-Intercept), which quantifies if we can outperform the base-prevalence of violence.
+Here we compare the predictive performance of the logistic regression model that is augmented with the LTM (LR-LTM) to several reasonable alternatives and three baseline models.
+The first baseline model is an intercept only logistic regression (LR-Intercept). 
+Comparing the predictive performance of a model with the LR-Intercept constitutes a coherence check that a model outperforms the baseline prevalence of violence.
 The second baseline model we use is a logistic regression model with all covariates but not the IFTE items (LR-No IFTE).
-% TODO: wat is de toegevoegde waarde van model 3 bovenop model 2?
 As a third baseline model, we use an logistic regression model with only prior violence as predictors (LR-Violence).
-As more reasonable alternatives, we consider logistic regression (LR), random forest, and boosted regression trees (GBM) which have access to all history of violence, patient covariates, and IFTE scores.
-These four alternative have in common that they are designed for purely rectangular data.
-That is, each row of the data set contains one outcome (aggressive behavior or not) and a number of predictors.
+% TODO: wat is de toegevoegde waarde van model 3 bovenop model 2?
+As more plausible competing models, we consider logistic regression (LR), random forest, and boosted regression trees (GBM) which are trained with history of violence, patient covariates, and IFTE scores.
+These three competing models have in common that they are designed for purely rectangular data.
+That is, each row of the data set contains one outcome (violent or nonviolent behavior) and a number of predictors.
 However, the raw data of the IFTE contains repeated observations, since patients were rated multiple times by different raters.
-To accommodate this we average across different raters to obtain a single scores for each item and time point.
-By comparing these models we aim to answer the following three questions: (1) Can predictive models outperform the base-prevalence of violent behavior? (2) Do models with the IFTE scores perform better than the baseline models without? (3) Does the LR-LTM perform better than the models that naively average across raters?
+To accommodate this we (naively) average across different raters to obtain a single scores for each item and time point.
+Altogether, by comparing these seven models we aim to answer the following three questions: (1) Can predictive models outperform the base-prevalence of violent behavior? (2) Do models with the IFTE scores perform better than the baseline models without? (3) Does the LR-LTM perform better than the models that naively average across raters?
 
 To examine predictive performance we used 10-fold stratified cross validation.
 Each fold consisted of 8 nonviolent observations and 2 or 3 violent observations.
 % For every fold, the data were split into a training set (80\%, $N = 84$) and a test set (20\%, $N = 20$).
 % The models were fit on the training set and made predictions for the test set.
-To quantify model performance, we used two metrics, prediction accuracy and the Brier score.
+We quantified model performance with prediction accuracy and the Brier score \parencite{brier1950verification}.
 Prediction accuracy is defined as the fraction of correct predictions.
-We converted model probabilities for violent or non-violent behavior into binary predictions by comparing with 0.5. In other words, if a model prediction for observation $i$, $\hat{y}_i\in [0, 1]$, is larger than 0.5 then the predicted label is violent, otherwise it is non-violent.
+We converted model probabilities for violent or non-violent behavior into binary predictions by comparing with 0.5.
+In other words, if a model prediction for observation $i$, $\hat{y}_i\in [0, 1]$, is larger than 0.5 then the predicted label is violent, otherwise it is non-violent.
 The Brier score is defined as $N^{-1}\sum_{i=1}^N\left(\hat{y}_i-y_{i}\right)^2$, i.e., the mean squared error between the observed labels, $y\in\{0,1\}$ and the model predictions.
 
 \autoref{tb:predictions} shows the prediction accuracy and the Brier score averaged over the 10-folds.
@@ -430,8 +438,15 @@ Prior history of violence has the largest coefficients, whereas the other coeffi
     \caption{Posterior means and 95\% credible intervals for the coefficients of the logistic regression model ($\CovariateBeta_{\Icovariate}$ and $\CovariateBeta_{\Iitem}$ in \autoref{model:Logistic_LTM}). The reference categories are treatment duration 0-2 years, diagnosis As 1 overig, and offence arson. The abbreviations VPC, MPC, and AA stand for violent property crime, moderately violent property crime, and aggravated assault.}
     \label{fig:parameters}
 \end{figure}
-The influence of all items in the IFTE at both time points appears to be close to zero.
-However, unlike the other coefficients the IFTE coefficients should be interpreted as random effects as they are multiplied with the estimated latent truth $\ItemTruth_{\Ipatient\Iitem}$ which varies across patients.
+As \autoref{tb:backgroundinfo} already indicated, the history of violence has a large effect.
+In contrast, the influence of the IFTE items is less clear as all coefficients appear to be close to zero.
+However, unlike the other coefficients shown, the IFTE coefficients should be interpreted as random effects, as they are multiplied with the estimated latent truth $\ItemTruth_{\Ipatient\Iitem}$ which varies across patients.
+This complicates interpreting the added value of the individual items of the LTM. 
+However, we can visualize the impact for the IFTE as a whole. %by examining $\sum_{\Irater}\ItemTrutherefore_{\Ipatient\Irater}\CovariateBeta_{\Irater}$.
+Figure, shows for each patient the posterior mean of $\sum_{\Irater}\ItemTrutherefore_{\Ipatient\Irater}\CovariateBeta_{\Irater}$.
+For some patients, the posterior mean of the impact of the aggregated IFTE is as large as the re is little predictive value
+At the same time, by adding the values the uncertainty increases drastically, (the credible intervals range on average from -8 to 8).
+
 
 \section{Discussion}
 Here we applied a Cultural Consensus Theory model to scores of patients in a Forensic Psychiatric Center.
