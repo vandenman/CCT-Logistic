@@ -470,23 +470,59 @@ raw_samples <- fits_with_lr$fit$free$draws(format = "draws_matrix")
 no_covariates <- fits_with_lr$stan_data$free$no_covariates
 colnames(raw_samples)
 derived <- array(NA, c(np, ni, nt))
+derived2 <- matrix(0.0, nrow(raw_samples), np)
 for (p in seq_len(np)) for (i in seq_len(ni)) for (t in seq_len(nt)) {
   lt        <- raw_samples[, sprintf("lt[%d,%d]", p, i)]
   offset_lt <- raw_samples[, sprintf("offset_lt[%d,%d]", p, t)]
   slope     <- raw_samples[, sprintf("log_reg_slopes[%d]", no_covariates + i)]
   tt <- 2*t - 1
-  derived[p, i, t] <- mean(lt + tt*offset_lt * slope)
+  derived[p, i, t] <- mean((lt + tt*offset_lt) * slope)
+  derived2[, p] <- derived2[, p] + (lt + tt*offset_lt) * slope
 }
+
 lt_idx <- startsWith(colnames(raw_samples), "lt[")
 lt_means <- colMeans(raw_samples[, lt_idx])
 plot(c(derived)) # plot is not compelling
 
-colnames(raw_samples)[lt_idx] # patient first, then item
-lt_means <- matrix(lt_means, np, ni)
-plot(lt_means[, 1])
-dddd <- data.frame(x = c(lt_means),
-           g = factor(rep(1:ni, each = np)))
-ggplot(data = dddd, aes(x = lt_means, y = ..density.., group = g, fill = g)) +
-  geom_histogram(position = position_dodge())
+all.equal(rowSums(derived), colMeans(derived2)) # consistency check
+plot(rowSums(derived))
+plot(colMeans(derived2))
 
+derived2_cris <- apply(derived2, 2L, quantile, probs = c(0.025, 0.975))
+ifte_aggregate_tib <- tibble(
+  x        = seq_len(nrow(data_violence)),
+  y        = colMeans(derived2),
+  ci_lower = derived2_cris["2.5%", ],
+  ci_upper = derived2_cris["97.5%", ],
+  violent  = ifelse(as.integer(data_violence$violent_after) == 2L, "Violent", "Nonviolent")
+)
+range(derived2_cris)
+rowMeans(apply(derived2_cris, 2L, range))
 
+# with CRIs
+yBreaks <- jaspGraphs::getPrettyAxisBreaks(c(ifte_aggregate_tib$y, ifte_aggregate_tib$ci_lower, ifte_aggregate_tib$ci_upper))
+ggplot(data = ifte_aggregate_tib, aes(x = x, y = y, ymin = ci_lower, ymax = ci_upper, shape = violent, fill = violent)) +
+  geom_errorbar() +
+  geom_point(size = 5) +
+  scale_y_continuous("Posterior mean", breaks = yBreaks, limits = range(yBreaks)) +
+  scale_shape_manual(values = c(21, 22)) +
+  scale_fill_manual(values = c("grey", "white")) +
+  xlab("Patient") +
+  jaspGraphs::geom_rangeframe() +
+  jaspGraphs::themeJaspRaw(legend.position = "right") +
+  scale_y_continuous("Posterior mean", breaks = seq(-4, 4, 2)) +
+  ggplot2::coord_cartesian(ylim = c(-4, 4))
+
+# without CRIs
+# yBreaks <- jaspGraphs::getPrettyAxisBreaks(ifte_aggregate_tib$y)
+yBreaks <- seq(-4, 4, 2) # same as other figure
+ggplot(data = ifte_aggregate_tib, aes(x = x, y = y, ymin = ci_lower, ymax = ci_upper, shape = violent, fill = violent)) +
+  geom_point(size = 5) +
+  scale_y_continuous("Posterior mean", breaks = yBreaks, limits = range(yBreaks)) +
+  scale_shape_manual(name = NULL, values = c(21, 22)) +
+  scale_fill_manual(name = NULL, values = c("grey", "white")) +
+  scale_x_continuous("Patient", breaks = c(1, 25, 50, 75, 104)) +
+  jaspGraphs::geom_rangeframe() +
+  jaspGraphs::themeJaspRaw(legend.position = "right")# +
+  # theme(panel.grid.major.y = element_line(colour = "grey80"))
+save_figure(figure = gt, file = "posterior_mean_IFTE_aggregate_.svg", width = 7, height = 7)
