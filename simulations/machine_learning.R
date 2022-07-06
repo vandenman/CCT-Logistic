@@ -8,6 +8,7 @@ library(brms)
 library(tidyr)
 library(pROC)
 library(ggplot2)
+library(mice)
 
 # functions ----
 get_prediction_accuracy <- function(table) sum(diag(table)) / sum(table)
@@ -270,12 +271,16 @@ fitBoosting <- function(datTrain, datTest, n.trees = 500, cv.folds = 5, shrinkag
 # load data ----
 all_data <- read_long_data()
 data_2_analyze <- all_data |>
-  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
+  filter(
+    # !is.na(score) &
+    !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
   select(-c(age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
   arrange(rater_group, patient, item, rater, time)
 
 data_violence <- all_data |>
-  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
+  filter(
+    # !is.na(score) &
+    !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
   select(c(patient, age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
   filter(!duplicated(patient))
 
@@ -295,12 +300,28 @@ data_wider <- data_wide |>
   distinct(patient, .keep_all = TRUE) |>
   select(-c(rater, rater_group))
 
+set.seed(31415)
+mice_results <- mice::mice(data_wider, m = 1, blocks = colnames(data_wider)[-1])
+data_wider_imputed <- complete(mice_results) |> as_tibble()
+anyNA(complete(data_wider_imputed)) # FALSE
+
+# usedToBeNa <- which(is.na(data_wider), arr.ind = TRUE)
+# data_wider[usedToBeNa[1, 1], usedToBeNa[1, 2]]
+# data_wider_imputed[usedToBeNa[1, 1], usedToBeNa[1, 2]]
+# data_wider_imputed[usedToBeNa[2, 1], usedToBeNa[2, 2]]
+
+
 # assert that data_wider and data_violence are identical, except that data_wider contains the IFBE items in wide format
-nrow(data_wider) == nrow(data_violence)
-ncol(data_wider) == ncol(data_violence) + 2 * length(measure_vars)
-shared_colnames <- intersect(colnames(data_wider), colnames(data_violence))
-identical(data_wider[shared_colnames], data_violence[shared_colnames]) # data are identical except for the IFBE items in data_wider
-anyNA(data_wider[setdiff(colnames(data_wider), shared_colnames)]) # no NAs in the IFBE items
+validate_datasets <- function(data_wider_imputed, data_violence, measure_vars) {
+  shared_colnames <- intersect(colnames(data_wider_imputed), colnames(data_violence))
+  assertthat::assert_that(
+    nrow(data_wider_imputed) == nrow(data_violence),
+    ncol(data_wider_imputed) == ncol(data_violence) + 2 * length(measure_vars),
+    identical(data_wider_imputed[shared_colnames], data_violence[shared_colnames]), # data are identical except for the IFBE items in data_wider
+    !anyNA(data_wider_imputed[setdiff(colnames(data_wider_imputed), shared_colnames)]) # no NAs in the IFBE items
+  )
+}
+validate_datasets(data_wider_imputed, data_violence, measure_vars)
 
 # factor model doesn't fit very well
 # data_for_pca <- data_wider[, seq(9, 8+23*2, 2)]
@@ -317,7 +338,7 @@ anyNA(data_wider[setdiff(colnames(data_wider), shared_colnames)]) # no NAs in th
 # fit ML methods ----
 
 # meta information
-n_obs      <- nrow(data_wider)
+n_obs      <- nrow(data_wider_imputed)
 all_obs    <- seq_len(n_obs)
 unique_obs <- n_obs
 n_holdout  <- floor(0.2 * unique_obs)
@@ -328,16 +349,16 @@ cols <- c("time", "patient", "rater", "item", "score", "age",
           "violent_after",
           "diagnosis", "crime", "rater_group"
 )
-cols <- setdiff(colnames(data_wider), c("time", "Aantal_Patienten", "patient"))
+cols <- setdiff(colnames(data_wider_imputed), c("time", "Aantal_Patienten", "patient"))
 
-mod_ltm <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time.stan", pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels", cpp_options = list(stan_threads=TRUE))
+mod_ltm <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time_and_missing.stan", pedantic = TRUE, quiet = FALSE, cpp_options = list(stan_threads=TRUE))
 
 # set.seed(123)
 set.seed(42)
 no_cross_validations <- 10
 
-idx_violent    <- which(data_wider$violent_after == 1)
-idx_nonviolent <- which(data_wider$violent_after == 0)
+idx_violent    <- which(data_wider_imputed$violent_after == 1)
+idx_nonviolent <- which(data_wider_imputed$violent_after == 0)
 idx_violent_split    <- split(idx_violent,    cut(seq_along(idx_violent),    no_cross_validations, labels = FALSE))
 idx_nonviolent_split <- split(idx_nonviolent, cut(seq_along(idx_nonviolent), no_cross_validations, labels = FALSE))
 cv_indices <- unname(Map(\(x, y) sort(c(x, y)), idx_violent_split, idx_nonviolent_split))
@@ -354,8 +375,8 @@ for (i in seq_len(no_cross_validations)) {
 
   idx_holdout <- cv_indices[[i]]
 
-  data_train <- data_wider[-idx_holdout, cols]
-  data_test  <- data_wider[ idx_holdout, cols]
+  data_train <- data_wider_imputed[-idx_holdout, cols]
+  data_test  <- data_wider_imputed[ idx_holdout, cols]
   data_test_objs[[i]] <- data_test
   cat(sprintf("nrow(data_train) = %d\nnrow(data_test)  = %d\nfold = %s", nrow(data_train), nrow(data_test), i), sep = "\n")
 

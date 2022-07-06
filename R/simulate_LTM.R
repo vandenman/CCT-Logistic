@@ -247,6 +247,7 @@ data_2_stan <- function(dat, ...) {
 #' @export
 data_2_stan.ltm_data <- function(dat, nc = NULL, prior_only = FALSE, debug = TRUE, vary_lambda_across_patients = FALSE,
                            use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE,
+                           predict_missings = TRUE,
                            mu_log_lambda = 0, mu_log_a = 0, mu_b = 0,
                            a_sd_lt         = 1,   b_sd_lt         = 1,
                            a_sd_log_lambda = 1.1, b_sd_log_lambda = 1.1,
@@ -274,10 +275,23 @@ data_2_stan.ltm_data <- function(dat, nc = NULL, prior_only = FALSE, debug = TRU
     rater_group_assignment, x_df, no_time_points, idx_time_point, debug
   )
 
+  if (!is.null(dat$missing_data)) {
+
+    data$n_missing <- nrow(dat$missing_data)
+    data$idx_patient_missing <- dat$missing_data[["patient"]]
+    data$idx_item_missing    <- dat$missing_data[["item"]]
+    data$idx_rater_missing   <- dat$missing_data[["rater"]]
+    data$predict_missings    <- as.integer(predict_missings)
+
+  }
+
   return(data)
 }
 
-stan_data_ltm_inner <- function(np, ni, nr, no_rater_groups, nc, a_sd_lt, b_sd_lt, a_sd_log_lambda, b_sd_log_lambda, a_sd_log_E, b_sd_log_E, a_sd_log_a, b_sd_log_a, a_sd_b, b_sd_b, mu_log_lambda, mu_log_a, mu_b, prior_only, vary_lambda_across_patients, use_skew_logistic_thresholds, use_free_logistic_thresholds, rater_group_assignment, x_df, no_time_points, idx_time_point, debug) {
+stan_data_ltm_inner <- function(np, ni, nr, no_rater_groups,
+
+
+                                nc, a_sd_lt, b_sd_lt, a_sd_log_lambda, b_sd_log_lambda, a_sd_log_E, b_sd_log_E, a_sd_log_a, b_sd_log_a, a_sd_b, b_sd_b, mu_log_lambda, mu_log_a, mu_b, prior_only, vary_lambda_across_patients, use_skew_logistic_thresholds, use_free_logistic_thresholds, rater_group_assignment, x_df, no_time_points, idx_time_point, debug) {
   assert_counts(np, ni, nr, no_rater_groups)
   assert_that(is.positive_int(nc, larger_than = 2L))
 
