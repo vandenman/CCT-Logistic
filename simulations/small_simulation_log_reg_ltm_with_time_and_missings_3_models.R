@@ -9,7 +9,7 @@ library(purrr)
 
 # functions ----
 fit_all_three_models <- function(data, model, iter = 3e4, adapt_iter = 500, output_samples = 2e3, grad_samples = 5, elbo_samples = 5, debug = TRUE, force = FALSE,
-                                 path_prefix = "", store_predictions = TRUE) {
+                                 path_prefix = "", store_predictions = TRUE, threads = 8L) {
 
   if (path_prefix != "" && !endsWith(path_prefix, "_"))
     path_prefix <- paste0(path_prefix, "_")
@@ -24,17 +24,17 @@ fit_all_three_models <- function(data, model, iter = 3e4, adapt_iter = 500, outp
 
   cat("Fitting original threshold model\n")
   fit_orig <- save_or_run_model(
-    model$variational(data = stan_data_orig, iter = iter, adapt_iter = adapt_iter, output_samples = output_samples, grad_samples = grad_samples, elbo_samples = elbo_samples),
+    model$variational(data = stan_data_orig, iter = iter, adapt_iter = adapt_iter, output_samples = output_samples, grad_samples = grad_samples, elbo_samples = elbo_samples, threads = threads),
     path_orig, force
   )
   cat("Fitting skew threshold model\n")
   fit_skew <- save_or_run_model(
-    model$variational(data = stan_data_skew, iter = iter, adapt_iter = adapt_iter, output_samples = output_samples, grad_samples = grad_samples, elbo_samples = elbo_samples),
+    model$variational(data = stan_data_skew, iter = iter, adapt_iter = adapt_iter, output_samples = output_samples, grad_samples = grad_samples, elbo_samples = elbo_samples, threads = threads),
     path_skew, force
   )
   cat("Fitting free threshold model\n")
   fit_free <- save_or_run_model(
-    model$variational(data = stan_data_free, iter = iter, adapt_iter = adapt_iter, output_samples = output_samples, grad_samples = grad_samples, elbo_samples = elbo_samples),
+    model$variational(data = stan_data_free, iter = iter, adapt_iter = adapt_iter, output_samples = output_samples, grad_samples = grad_samples, elbo_samples = elbo_samples, threads = threads),
     path_free, force
   )
 
@@ -216,7 +216,7 @@ no_covariates <- 5   # no additional covariates
 no_time_points <- 2
 
 # compile the stan model
-mod_log_reg_ltm <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time_and_missing.stan", pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels")
+mod_log_reg_ltm <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time_and_missing.stan", pedantic = TRUE, quiet = FALSE, cpp_options = list(stan_threads=TRUE))
 
 set.seed(1234)
 threshold_types <- c("logistic", "skew_logistic", "free")
