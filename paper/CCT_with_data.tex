@@ -386,6 +386,7 @@ These three competing models have in common that they are designed for purely re
 That is, each row of the data set contains one outcome (violent or nonviolent behavior) and a number of predictors.
 However, the raw data of the IFTE contains repeated observations, since patients were rated multiple times by different raters.
 To accommodate this we (naively) average across different raters to obtain a single score for each item and time point.
+Furthermore, the machine learning methods cannot handle 
 Altogether, by comparing these seven models we aim to answer the following three questions: (1) Can predictive models outperform the base prevalence of violent behavior? (2) Do models with the IFTE scores perform better than the baseline models without? (3) Does the LR-LTM perform better than the models that naively average across raters?
 
 To examine predictive performance we used 10-fold stratified cross-validation.
