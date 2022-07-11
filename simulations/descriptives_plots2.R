@@ -2,16 +2,16 @@ rm(list = ls())
 library(CCTLogistic)
 library(dplyr)
 library(ggplot2)
-
+library(patchwork)
 
 all_data <- read_long_data()
 data_2_analyze <- all_data |>
-  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
+  filter(!is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
   select(-c(age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
   arrange(rater_group, patient, item, rater, time)
 
 data_violence <- all_data |>
-  filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
+  filter(!is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
   select(c(patient, age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
   filter(!duplicated(patient))
 
@@ -38,15 +38,15 @@ length(unique(data_2_analyze$score))
   # ) |>
   # filter(!duplicated(patient))
 
-h <- hist(data_2_analyze$score, breaks = 0:18, plot = FALSE)
-all(h$counts == table(data_2_analyze$score))
+h <- hist(data_2_analyze$score, breaks = 0:17, plot = FALSE)
+all(h$counts == table(data_2_analyze$score))#, useNA = "ifany"))
 
 tib_scores <- data_2_analyze |>
   summarise(
-    counts        = hist(x = score, plot = FALSE, breaks = 0:18)$counts,
-    unique_scores = factor(1:18),
+    # counts        = hist(x = score, plot = FALSE, breaks = 0:17, useNA = "ifany")$counts,
+    counts        = unclass(table(x = score, useNA = "ifany")),
+    unique_scores = factor(c(1:17, "NA"), levels = c("NA", 1:17))
   )
-
 
 yBreaks <- jaspGraphs::getPrettyAxisBreaks(tib_scores$counts)
 plot_scores <-
@@ -103,12 +103,7 @@ tib_raters_by_patients <- data_2_analyze |>
   summarise(
     count = factor(table(item)[1]),
     .groups = "keep"
-  )# |>
-  # ungroup() |>
-  # mutate(
-  #   patient = factor(patient),
-  #   rater   = factor(rater)
-  # )
+  )
 
 range_fact <- function(x) range(as.numeric(x))
 colors <- c("0" = "#FFFFFF", setNames(jaspGraphs::JASPcolors(palette = "colorblind", asFunction = TRUE)(2), 1:2))
@@ -145,115 +140,12 @@ colSums(temp)
 rowSums(temp)
 
 
-combined_plt <- patchwork::wrap_plots(
+combined_plt <- wrap_plots(
   plot_scores             + ggtitle("A") + theme(plot.title = element_text(hjust = 0)),
   plot_raters_by_patients + ggtitle("B") + theme(plot.title = element_text(hjust = 0))
 )
 combined_plt
-save_figure_obj(combined_plt, file = "descriptives_combined_plt.rds")
-save_figure(figure = combined_plt, file = "descriptives_combined_plt.svg", width = 15, height = 12)
+save_figure_obj(combined_plt,                 file = "descriptives_combined_plt.rds")
+save_figure(figure = combined_plt,            file = "descriptives_combined_plt.svg", width = 15, height = 12)
 save_figure(figure = plot_scores,             file = "descriptives_scores.svg",             width = 12, height = 7)
 save_figure(figure = plot_raters_by_patients, file = "descriptives_raters_by_patients.svg", width = 900 / 96, height = 494 / 96)
-
-set.seed(42)
-patient_idx <- sample(data_2_analyze$patient, 3)
-tibbie <- data_2_analyze |> filter(patient %in% patient_idx) |> #, item %in% 1:23) |>
-  group_by(patient, item, time) |>
-  summarise(
-    mean_score = mean(score),
-    .groups = "keep"
-  )# |>
-  #mutate(sides = if_else(patient == 1, "bl", "l"))
-
-ggplot(tibbie, aes(x = time, y = mean_score, group = item, color = factor(item), shape = factor(item))) +
-  jaspGraphs::scale_JASPcolor_discrete(name = "Item") +
-  # scale_color_manual(name = "Item", values = jaspGraphs::JASPcolors(palette = "colorblind", asFunction = TRUE)(23)) +
-  scale_shape_manual(name = "Item", values = rep(c(0, 1, 2, 4, 5), length.out = 23)) +
-  geom_line() +
-  geom_point(size = 3) +
-  scale_y_continuous(name = "Mean score", breaks = c(1, 5, 10, 15, 18), limits = c(0.8, 18.2), expand = expansion()) +
-  xlab("Time") +
-  jaspGraphs::geom_rangeframe() +
-  facet_grid(cols = vars(patient)) +
-  jaspGraphs::themeJaspRaw() +
-  theme(
-    legend.position = "right",
-    strip.text.x = element_blank()
-  )
-# TODO: in the figure, the y-axis line should not repeat!
-
-
-table(data_violence$violent_after, data_violence$patient_age_group)
-table(data_violence$violent_after, data_violence$diagnosis_group)
-table(data_violence$violent_after, data_violence$crime_group)
-table(data_violence$violent_after, data_violence$violent_between)
-table(data_violence$violent_after, data_violence$violent_before)
-
-vars <- c("patient_age_group", "diagnosis_group", "crime_group", "violent_between", "violent_before", "violent_after")
-ddd <- data_violence[
-  complete.cases(data_violence[, vars]), vars
-]
-anyNA(ddd)
-
-table(ddd$violent_after)
-ggg <- glm(violent_after ~ 1 + patient_age_group + diagnosis_group + crime_group + violent_between + violent_before, data = ddd, family = binomial())
-summary(ggg)
-
-
-?write.csv(ddd, file = "data/violence_data_test.csv")
-
-trainingFit <- rpart::rpart(
-  violent_after ~ 1 + patient_age_group + diagnosis_group + crime_group + violent_between + violent_before, data = ddd,
-  method = "class", x = TRUE, y = TRUE
-)
-plot(trainingFit)
-
-cat(c("\U262E", "\U1F92C"))
-ttb <- table(data_violence$violent_after, data_violence$patient_age_group)
-rownames(ttb) <- c("\U262E", "\U1F92C")
-
-
-renv::install("partykit")
-renv::install("ggparty")
-
-plotData <- partykit::as.party(trainingFit)
-p <- ggparty::ggparty(plotData)
-x <- trainingFit
-frame <- x$frame
-ylevel <- attr(x, "ylevels")
-digits <- 3
-tfun <- (x$functions)$print
-if (!is.null(tfun)) {
-  if (is.null(frame$yval2)) {
-    yval <- tfun(frame$yval, ylevel, digits, nsmall = 20)
-  } else {
-    yval <- tfun(frame$yval2, ylevel, digits, nsmall = 20)
-  }
-} else {
-  yval <- format(signif(frame$yval, digits))
-}
-leafs <- which(x$frame$var == "<leaf>")
-labels <- yval[leafs]
-# if (purpose == "classification") {
-  labels <- strsplit(labels, split = " ")
-  labels <- unlist(lapply(labels, `[[`, 1))
-# }
-nodeNames <- p$data$splitvar
-nodeNames[is.na(nodeNames)] <- labels
-p$data$info <- paste0(nodeNames, "\nn = ", p$data$nodesize)
-# p <-
-  p + ggparty::geom_edge() +
-  ggparty::geom_edge_label(mapping = ggplot2::aes(label = paste(substr(breaks_label, start = 1, stop = 15))), fill = NA, parse = FALSE,
-                           nudge_y = 0.02) +
-  ggparty::geom_node_splitvar(mapping = ggplot2::aes(size = max(3, nodesize) / 2, label = info), fill = "white", col = "black") +
-  ggparty::geom_node_label(mapping = ggplot2::aes(label = info, size = max(3, nodesize) / 2), ids = "terminal", fill = "white", col = "black") +
-  ggplot2::scale_x_continuous(name = NULL, limits = c(min(p$data$x) - abs(0.1 * min(p$data$x)), max(p$data$x) * 1.1)) +
-  ggplot2::scale_y_continuous(name = NULL, limits = c(min(p$data$y) - abs(0.1 * min(p$data$y)), max(p$data$y) * 1.1)) +
-  jaspGraphs::geom_rangeframe(sides = "") +
-  jaspGraphs::themeJaspRaw() +
-  ggplot2::theme(
-    axis.ticks = ggplot2::element_blank(),
-    axis.text.x = ggplot2::element_blank(),
-    axis.text.y = ggplot2::element_blank()
-  )
-p
