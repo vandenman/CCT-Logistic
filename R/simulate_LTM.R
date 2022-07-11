@@ -367,6 +367,7 @@ stan_data_ltm_inner <- function(np, ni, nr, no_rater_groups,
     # vectorized                   = as.integer(vectorized),
     use_skew_logistic_thresholds = as.integer(use_skew_logistic_thresholds),
     use_free_logistic_thresholds = as.integer(use_free_logistic_thresholds),
+    predict_missings             = FALSE,
 
     # these may be overwritten by data_2_stan.logistic_regression_ltm_data
     fit_logistic             = 0L,
@@ -388,6 +389,8 @@ data_2_stan.data.frame <- function(dat, score = "score", patient = "patient", it
                                nc = NULL,
                                logistic_dat = NULL, logistic_target = NULL, logistic_patient = "patient",
                                missing_idx = integer(),
+                               missing_data = NULL,
+                               predict_missings = !is.null(missing_data),
                                store_predictions = FALSE,
                                prior_only = FALSE, debug = TRUE, vary_lambda_across_patients = FALSE,
                                use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE,
@@ -402,12 +405,22 @@ data_2_stan.data.frame <- function(dat, score = "score", patient = "patient", it
   # TODO: add safety checks!
 
   # this is not very clean but it gets the job done
-  dat <- dat |>
-    mutate(
-      across(all_of(c(patient, item, rater, rater_group, time)),
-             normalize_factor
-      ),
-    )
+  if (is.null(missing_data)) {
+    dat <- dat |>
+      mutate(
+        across(all_of(c(patient, item, rater, rater_group, time)),
+               normalize_factor
+        ),
+      )
+  } else {
+    idx_nonmissing <- seq_len(nrow(dat))
+
+    for (v in c(patient, item, rater, rater_group, time)) {
+      temp <- normalize_factor(c(dat[[v]], missing_data[[v]]))
+      dat[[v]]          <- temp[ idx_nonmissing]
+      missing_data[[v]] <- temp[-idx_nonmissing]
+    }
+  }
 
   nc <- nc %||% guess_nc(dat)
 
@@ -447,6 +460,16 @@ data_2_stan.data.frame <- function(dat, score = "score", patient = "patient", it
     data$fit_logistic             <- 1L
 
     data <- data_2_stan_incorporate_missing_log_reg(data, missing_idx)
+
+  }
+
+    if (!is.null(missing_data)) {
+
+    data$n_missing <- nrow(missing_data)
+    data$idx_patient_missing <- as.integer(missing_data[[patient]])
+    data$idx_item_missing    <- as.integer(missing_data[[item]])
+    data$idx_rater_missing   <- as.integer(missing_data[[rater]])
+    data$predict_missings    <- as.integer(predict_missings)
 
   }
 

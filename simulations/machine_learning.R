@@ -323,6 +323,9 @@ validate_datasets <- function(data_wider_imputed, data_violence, measure_vars) {
 }
 validate_datasets(data_wider_imputed, data_violence, measure_vars)
 
+data_nonmissing <- data_2_analyze[!is.na(data_2_analyze$score), ]
+data_missing    <- data_2_analyze[ is.na(data_2_analyze$score), ]
+data_missing$score <- NULL
 # factor model doesn't fit very well
 # data_for_pca <- data_wider[, seq(9, 8+23*2, 2)]
 # ff <- psych::fa.parallel(data_for_pca)
@@ -371,6 +374,10 @@ data_test_objs <- vector("list", length = no_cross_validations)
 seeds <- matrix(sample(100000, no_cross_validations * nrow(objs)), nrow(objs), no_cross_validations, dimnames = dimnames(objs))
 force <- FALSE
 
+# prediction_fitting_imputed fits all methods to the imputed data
+fitted_objects_dir <- file.path("fitted_objects", "prediction_fitting_imputed")
+if (!dir.exists(fitted_objects_dir)) dir.create(fitted_objects_dir)
+
 for (i in seq_len(no_cross_validations)) {
 
   idx_holdout <- cv_indices[[i]]
@@ -385,15 +392,16 @@ for (i in seq_len(no_cross_validations)) {
     set.seed(seeds[method, i])
     objs[[method, i]] <- CCTLogistic::save_or_run_model(
       do_ml(data_train, data_test, method),
-      path = sprintf("fitted_objects/prediction_fitting/%s-%d.rds", method, i),
+      path = file.path(fitted_objects_dir, sprintf("%s-%d.rds", method, i)),
       force = force
     )
   }
   cat("method: ltm\n")
 
   ltm_data <- data_2_stan(
-    data_2_analyze,
+    data_nonmissing,
     logistic_dat = data_violence, logistic_target = "violent_after",
+    missing_data = data_missing,
     store_predictions = TRUE, debug = FALSE, nc = 18,
     use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE,
     missing_idx = sort(idx_holdout)
@@ -404,12 +412,20 @@ for (i in seq_len(no_cross_validations)) {
     set.seed(seeds["CCT", i] + r)
     ltm_fit <- try(CCTLogistic::save_or_run_model(
       mod_ltm$variational(data = ltm_data, iter = 3e4, adapt_iter = 500, output_samples = 2e3, grad_samples = 5, elbo_samples = 5, threads = 8),
-      path = sprintf("fitted_objects/prediction_fitting/cct-%d.rds", i), force = force
+      path = file.path(fitted_objects_dir, sprintf("cct-%d.rds", i)), force = force
     ))
-    if (!inherits(ltm_fit, "try-error") && (identical(ltm_fit$return_codes(), 0) || identical(ltm_fit$return_codes(), NA_integer_)))
+
+    # browser()
+    # TODO: this check doesn't work!
+    if (!inherits(ltm_fit, "try-error") && (identical(ltm_fit$return_codes(), 0) || identical(ltm_fit$return_codes(), NA_integer_))) {
+      system("beep_finished.sh 0")
       break
-    else if (r == ltm_retries)
+    } else if (r == ltm_retries) {
+      system("beep_finished.sh 1")
       stop("maximum ltm_retries reached!")
+    } else {
+      system("beep_finished.sh 1")
+    }
   }
 
   log_reg_predictions <- ltm_fit$draws("log_reg_predictions", format = "draws_matrix")
@@ -487,7 +503,6 @@ roc_obj_rf1$sensitivities - roc_obj_rf1_remade$tpr
 roc_obj_rf1$specificities - (1 - roc_obj_rf1_remade$tfr)
 plot(roc_obj_rf1)
 auc(roc_obj_rf1)
-str(roc_obj_rf1)
 
 plot_roc <- function(objs, data_test_objs, method, cv_fold) {
   probs <- objs[[method, cv_fold]]$perf$test$predicted_probs
@@ -599,7 +614,7 @@ roc_plot <- ggplot(
   jaspGraphs::themeJaspRaw(legend.position = c(0.9, 0.50))
 roc_plot
 
-# a rough double check for the AUC
+# a rough double check for the AUC (values do not exactly match roc_auc_method, nor do they need to)
 # roc_mean_tib |>
 #   group_by(method) |>
 #   summarise(
@@ -614,7 +629,7 @@ roc_plot
 #     af  = list(approxfun(temp[[1]]$xx, temp[[1]]$yy, yleft = 0, yright = 1)),
 #     auc = integrate(af[[1]], 0, 1)$value
 #   )
-# roc_auc_method
+roc_auc_method
 
 save_figure(roc_plot, "roc_curve_cv.svg")
 
