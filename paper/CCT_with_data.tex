@@ -19,7 +19,10 @@
 
 %opening
 \title{Augmenting Predictive Models in Forensic Psychiatry with Cultural Consensus Theory}
-\author[1]{Don van den Bergh}
+\author[1]{Don van den Bergh\thanks{%
+Correspondence concerning this article should be addressed to Don van den Bergh, University of Amsterdam, Department of Psychological Methods, Postbus 15906, 1001 NK Amsterdam, The Netherlands. 
+E-Mail should be sent to: donvdbergh@hotmail.com.
+Don van den Bergh was supported by a Research Talent grant from the Netherlands Organization of Scientific Research (406-14-089 NWO).}}
 \author[2]{Erwin Schuringa}
 \author[1]{Eric-Jan Wagenmakers}
 \affil[1]{Department of Psychological Methods, University of Amsterdam}
@@ -29,11 +32,12 @@
 %\usepackage[dvipsnames]{xcolor}
 \usepackage{xcolor}
 \usepackage{todonotes}
+\usepackage{float}
 
 \definecolor{colorDon}{RGB}{205,250,255}
 \definecolor{colorEJ} {RGB}{205,255,205}
 
-\newcommand{\DB}[1]{\todo[inline, color=colorDon]{DB: {#1}}}
+\newcommand{\DB}[1]{\todo[inline, color=colorDon,caption={}]{DB: {#1}}}
 \newcommand{\DBB}[1]{\todo[color=colorDon]{DB: {#1}}}
 \newcommand{\EJ}[1]{\todo[inline, color=colorEJ]{EJ: {#1}}}
 
@@ -50,11 +54,14 @@
 \begin{document}
 
 \maketitle
+% TODO: Erwin om journal advies vragen?
+% TODO: Ha Erwin, hier een ruwe draft, suggesties voor journals?
+% TODO: dubbelcheck referenties (bv IFTE en niet ifte)
 
 \tableofcontents
 
 \begin{abstract}
-
+TODO
 \end{abstract}
 
 \section{Introduction} % Yes, this will be deleted before submission
@@ -91,14 +98,22 @@ Finally, we discuss some practical limitations of the data set at hand and how f
 
 
 \section{Mesdag Data}
-\DB{Erwin, het zou fijn zijn als jij naar deze sectie kan kijken! Daarnaast had ik nog een vraag. De scores zijn op een schaal van 0-17 (met -99 als missing). Andere artikelen beschrijven echter een 17 puntsschaal. Stelt de score 0 iets speciaals voor?}
+\DB{%
+Erwin, het zou fijn zijn als jij naar deze sectie kan kijken! Daarnaast had ik nog een paar vragen.
+\begin{enumerate}
+    \item De scores zijn op een schaal van 0-17 (met -99 als missing). Andere artikelen beschrijven echter een 17 puntsschaal. Stelt de score 0 iets speciaals voor?
+    \item Is de periode waarin de data zijn gemeten van april 2010 t/m juli 2016? (Een gokje gebaseerd op Schuringa et al. 2016)
+    \item Kloppen de Engelse vertalingen van de diagnoses en delicten?
+    \item Waarvoor staat As 1 overig?
+    \item Wat is (ongeveer) de minimum leeftijd van de patienten? 0 is namelijk een beetje raar in Tabel 1.
+\end{enumerate}
+}
 % \subsection{Method of collection}
-The data were collected in the Dutch maximum-security Forensic Psychiatric Center Dr. S. van Mesdag in the period XXX to XXX.\DBB{April 2010 t/m juli 2016 gok ik gebaseerd op Schuringa et al. 2016.}
+The data were collected in the Dutch maximum-security Forensic Psychiatric Center Dr. S. van Mesdag in the period XXX to XXX.
 The individual records were retrospectively merged into a single data set. 
 In total, the data set contains information about 103 patients given by 188 raters on 23 items from 2 measurement occasions (18354 observations in total).
 In addition to the scores on the IFTE items, the data set contains several background variables about the patients.
 These are age (0-30, 31-40, 41-50, or 55+)\footnote{Ideally age is treated as a continuous variable. However, for privacy reasons, the data were made unidentifiable, for example by categorizing age.}, treatment duration (0-2 years, 2-4 years, 4-6 years, or 6+ years), diagnosis (autism spectrum disorder, personality disorder, personality disorder B, schizophrenia or other psychotic disorders, and As 1 overig), offense (manslaughter, aggravated assault, murder, arson, violent property crime, moderately violent property crime, and Sexual offense), violent behavior before measurement 1, and violent behavior in-between measurements 1 and 2.
-\DB{Check de juiste engelse vertalingen.}
 
 \subsection{IFTE}
 The data were collected using a Routine Outcome Monitoring instrument called the Instrument for Forensic Treatment Evaluation (IFTE).
@@ -123,7 +138,7 @@ Each patient was scored with the IFTE on two separate occasions.
 Before introducing the models used and analyzing the data, we give a descriptive summary of the data.
 \autoref{tb:backgroundinfo} shows the background characteristics of non-violent and violent patients.
 
-\begin{table}[!ht]
+\begin{table}[H]
     \caption{Characteristics of the non-violent and violent patients.}
     \label{tb:backgroundinfo}
     \centering
@@ -172,7 +187,7 @@ It is clear that some scores are given more often than others, such as 1, 2, 6, 
 Furthermore, it appears that, with the exception of 1, even scores are given more often than odd scores.
 \begin{figure}[!ht]
 	\centering
-	\includesvg[width=\textwidth]{descriptives_scores}
+	\includesvg[width=.8\textwidth]{descriptives_scores}
 	\caption{Histogram of observed scores across all patients, items, raters, and time points.}
 	\label{fig:descriptives_scores_hist}
 \end{figure}
@@ -180,7 +195,7 @@ Given the number of patients and raters it is evident that not all raters can ha
 \autoref{fig:descriptives_raters_by_patients} confirms this and shows that the rater by patient matrix is quite sparse.
 \begin{figure}[!ht]
 	\centering
-	\includesvg[width=\textwidth]{descriptives_raters_by_patients}
+	\includesvg[width=.8\textwidth]{descriptives_raters_by_patients}
 	\caption{Heatmap of observed scores of rater ($x$-axis) against patients ($y$-axis).}
 	\label{fig:descriptives_raters_by_patients}
 \end{figure}
@@ -196,7 +211,7 @@ The naive solution is to average these scores.
 However, as shown in \autoref{fig:misFitMean} averaging may lead to severely biased estimates.
 \begin{figure}[!ht]
 	\centering
-	\includesvg[width=\textwidth]{misfitMean}
+	\includesvg[width=.8\textwidth]{misfitMean}
 	\caption{True item scores ($x$-axis) versus the sample mean across raters ($y$-axis).}
 	\label{fig:misFitMean}
 \end{figure}
@@ -302,7 +317,7 @@ We consider these true values to be the basis on which all follow-up analyses sh
 
 
 \subsection{Augmenting Logistic Regression with the LTM}
-In a next step, we use logistic regression for to predict violent behavior, where we use the estimated true scores ($\ItemTruth_{\Ipatient\Irater}$) from the LTM as additional predictors.
+In a next step, we use logistic regression for to predict violent behavior, where we use the estimated true scores ($\ItemTruth_{\Ipatient\Iitem}$) from the LTM as additional predictors.
 We do so in a fully Bayesian approach, that is, we constructed a joint model for the violent behavior and the patient ratings.%
 \footnote{%
 An alternative is a two-step approach where in the first step the LTM is fit to the patient ratings.
@@ -398,15 +413,24 @@ The standard logistic regression model clearly suffers from overfitting, as indi
         \toprule
         & \multicolumn{2}{c}{Classification} & \multicolumn{2}{c}{Brier score}\\
         \cmidrule(lr){2-3}  \cmidrule(lr){4-5}
-        Method & Train & Test & Train & Test \\
+        Method & \multicolumn{1}{c}{Train} & \multicolumn{1}{c}{Test} & \multicolumn{1}{c}{Train} & \multicolumn{1}{c}{Test} \\
         \midrule \\
-        LR-LTM & 0.980 (0.017) & 0.894 (0.074) & 0.043 (0.005) & 0.093 (0.034) \\
-        LR-Violence & 0.865 (0.007) & 0.866 (0.063) & 0.100 (0.003) & 0.107 (0.030) \\
-        LR-No IFTE & 0.948 (0.034) & 0.837 (0.105) & 0.032 (0.020) & 0.142 (0.109) \\
-        Random forest & 1.000 (0.000) & 0.835 (0.084) & 0.032 (0.002) & 0.114 (0.033) \\
-        GBM & 0.867 (0.009) & 0.828 (0.073) & 0.095 (0.002) & 0.126 (0.020) \\
-        LR & 1.000 (0.000) & 0.735 (0.144) & 0.000 (0.000) & 0.257 (0.147) \\
-        LR-Intercept & 0.769 (0.004) & 0.771 (0.038) & 0.177 (0.002) & 0.177 (0.020) \\
+        % analyses without missings
+        % LR-LTM & 0.980 (0.017) & 0.894 (0.074) & 0.043 (0.005) & 0.093 (0.034) \\
+        % LR-Violence & 0.865 (0.007) & 0.866 (0.063) & 0.100 (0.003) & 0.107 (0.030) \\
+        % LR-No IFTE & 0.948 (0.034) & 0.837 (0.105) & 0.032 (0.020) & 0.142 (0.109) \\
+        % Random forest & 1.000 (0.000) & 0.835 (0.084) & 0.032 (0.002) & 0.114 (0.033) \\
+        % GBM & 0.867 (0.009) & 0.828 (0.073) & 0.095 (0.002) & 0.126 (0.020) \\
+        % LR & 1.000 (0.000) & 0.735 (0.144) & 0.000 (0.000) & 0.257 (0.147) \\
+        % LR-Intercept & 0.769 (0.004) & 0.771 (0.038) & 0.177 (0.002) & 0.177 (0.020) \\
+        % analyses with missings
+        LR-LTM & 0.980 (0.008) & 0.884 (0.078) & 0.047 (0.006) & 0.095 (0.028) \\ 
+        LR-Violence & 0.865 (0.007) & 0.866 (0.063) & 0.100 (0.003) & 0.107 (0.030) \\ 
+        LR-No IFTE & 0.948 (0.034) & 0.837 (0.105) & 0.032 (0.020) & 0.142 (0.109) \\ 
+        Random forest & 0.996 (0.006) & 0.835 (0.081) & 0.033 (0.002) & 0.114 (0.040) \\ 
+        GBM & 0.880 (0.011) & 0.836 (0.066) & 0.093 (0.003) & 0.125 (0.023) \\ 
+        LR & 1.000 (0.000) & 0.727 (0.182) & 0.000 (0.000) & 0.258 (0.173) \\ 
+        LR-Intercept & 0.769 (0.004) & 0.771 (0.038) & 0.177 (0.002) & 0.177 (0.020) \\ 
         \bottomrule
     \end{tabular}
 \end{table}
@@ -447,19 +471,26 @@ However, we can visualize the impact of the IFTE as a whole. %by examining $\sum
 \begin{figure}[!ht]
     \centering
     \includesvg[width=.8\textwidth]{posterior_mean_IFTE_aggregate}
-    \caption{Caption}
+    \caption{Posterior mean of the effect of the total impact of the IFTE items for each patient. Shape and color indicate whether patients showed violent behavior or not.}
     \label{fig:IFTE_aggregate}
 \end{figure}
 For some patients, the posterior mean of the impact of the aggregated IFTE is as large as the effect of prior violence.
-However, note that the uncertainty of these estimates is enormous, that is, the average credible interval ranges from -8 to 8.\footnote{The large uncertainty here is inevitable, as by adding the values together the variance can only ever increase.}
+However, note that the uncertainty of these estimates is enormous, that is, the average credible interval ranges from -8 to 8.\footnote{The large uncertainty here is inevitable, as by adding the variance of the sum is usually close to the sum of the variance of the individual parameters.}
 Nevertheless, \autoref{fig:IFTE_aggregate} shows that the IFTE matters for prediction, but also that the added value differs across patients.
 
 \section{Discussion}
 Here we applied a Cultural Consensus Theory model to scores of patients in a Forensic Psychiatric Center.
 We used this CCT model to augment the predictive performance of a logistic regression model and showed that our CCT-infused logistic regression model outpredicted all other candidate models.
+Interpreting the influence of individual items of the IFTE is not straightforward. 
+However, the aggregated effect of the IFTE appeared substantial, but also varied across patients.
+Nevertheless, the uncertainty in the parameter estimates is too large to warrant strong conclusions and interpretations, other than the logical finding that prior history of violent behavior is a strong predictor of future violence.
 
-% An alternative approach to
-% Hybrid is probably most predictive.
+Here we devised a joint model for the IFTE scores and prediction of violent behavior.
+An alternative approach is to first fit a CCT model to the IFTE scores and then in a second step use its estimates for prediction.
+A disadvantage of this is that it ignores the uncertainty in the CCT estimates.
+On the other hand, a pragmatic advantage is that it decreases the running time of the models.
+Furthermore, a two-step approach also opens up the possibility to use machine learning methods for prediction.
+While such an approach has shown merit before \parencite[see e.g.,][]{plonsky2017psychological}, it is probable that using a machine learning model would further complicate the interpretation of the model parameters and predictions which may have the unintended effect that in practice the recommendations are not adopted because the model cannot be fully understood.
 
 \subsection{Suggestions for Future Data Collection}
 
@@ -469,7 +500,8 @@ For future data collection, it would be worthwhile to see to what extent the lar
 That would facilitate modeling of the data and simultaneously reduce the likelihood of spurious patterns in the data.
 
 The frequency of measurements is key to the usefulness of the IFTE scores.
-It was previously found that the most recent measurement is most predictive \parencite{schuringa2019inpatient}, which indicates that the scores' predictive value likely decreases over time.
+\textcite{schuringa2019inpatient} previously found that the most recent measurement is most predictive, which indicates that the scores' predictive value likely decreases over time.
+% It was previously found that the most recent measurement is most predictive \parencite{schuringa2019inpatient}, which indicates that the scores' predictive value likely decreases over time.
 Rather than scoring patients every 6 months, as in the data at hand, it would make more sense to rate them every few weeks.
 Although it may be practically difficult to score patients regularly, there are opportunities to use self-reports for this purpose \parencite{tuente2021mapping, bousardt2016predicting}.
 A downside of self-reports is that they may introduce additional variance due to the lack of standardized scoring, or meaningless responses in case of non-cooperation.
@@ -490,8 +522,7 @@ On the other hand, if the factor model does not fit well then predictive perform
 \subsection{Conclusion}
 In sum, we applied the LTM introduced by \textcite{Anders2015cultural} and adapted previously by us in \textcite{vandenBergh2020cultural} to data of patients in a Forensic Psychiatric Center.
 We showed that including the IFTE items slightly improves predictive performance, but only if the scores from different raters are analyzed properly and not when the scores of different raters are averaged.
-
-
+We discussed different approaches to make the data more informative and to further extend the models.
 
 \printbibliography
 \newpage
