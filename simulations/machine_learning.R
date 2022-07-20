@@ -402,7 +402,7 @@ for (i in seq_len(no_cross_validations)) {
     data_nonmissing,
     logistic_dat = data_violence, logistic_target = "violent_after",
     missing_data = data_missing,
-    store_predictions = TRUE, debug = FALSE, nc = 18,
+    store_predictions = TRUE, debug = FALSE, nc = 17,
     use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE,
     missing_idx = sort(idx_holdout)
   )

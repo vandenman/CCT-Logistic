@@ -12,9 +12,13 @@ fit_all_three_models <- function(data, model, logistic_dat = NULL, logistic_targ
   if (path_prefix != "" && !endsWith(path_prefix, "_"))
     path_prefix <- paste0(path_prefix, "_")
 
-  stan_data_orig <- data_2_stan(data, logistic_dat = logistic_dat, logistic_target = logistic_target, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = FALSE)
-  stan_data_skew <- data_2_stan(data, logistic_dat = logistic_dat, logistic_target = logistic_target, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = TRUE,  use_free_logistic_thresholds = FALSE)
-  stan_data_free <- data_2_stan(data, logistic_dat = logistic_dat, logistic_target = logistic_target, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE)
+  data_nonmissing <- data[!is.na(data$score), ]
+  data_missing    <- data[ is.na(data$score), ]
+  data_missing$score <- NULL
+
+  stan_data_orig <- data_2_stan(data_nonmissing, missing_data = data_missing, logistic_dat = logistic_dat, logistic_target = logistic_target, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = FALSE)
+  stan_data_skew <- data_2_stan(data_nonmissing, missing_data = data_missing, logistic_dat = logistic_dat, logistic_target = logistic_target, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = TRUE,  use_free_logistic_thresholds = FALSE)
+  stan_data_free <- data_2_stan(data_nonmissing, missing_data = data_missing, logistic_dat = logistic_dat, logistic_target = logistic_target, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE)
 
   path_orig <- file.path("fitted_objects", sprintf("%stime_3_models_orig_thresholds.rds", path_prefix))
   path_skew <- file.path("fitted_objects", sprintf("%stime_3_models_skew_thresholds.rds", path_prefix))
@@ -74,41 +78,9 @@ compute_mean_probs <- function(fits, cache_filename, force = FALSE) {
 data_2_analyze <- read_ifte_data()
 data_violence <- read_violence_data()
 
-# data_2_analyze <- all_data |>
-#   as_tibble() |>
-#   filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
-#   select(-c(age, violent_before, violent_between, violent_after,
-#                  treatment_duration, diagnosis, crime)) |>
-#   mutate(
-#     patient     = normalize_factor(patient),
-#     item        = normalize_factor(item),
-#     rater       = normalize_factor(rater),
-#     time        = normalize_factor(time),
-#     rater_group = normalize_factor(rater_group),
-#     score       = score + 1 # transform score from 0 -17 to 1 - 18
-#   ) |>
-#   arrange(rater_group, patient, item, rater, time)
-
-# data_violence <- all_data |>
-#   as_tibble() |>
-#   filter(!is.na(score) & !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime)) |>
-#   select(c(patient, age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
-#   mutate(
-#     patient = normalize_factor(patient),
-#     violent_after = as.integer(violent_after) - 1L
-#   ) |>
-#   filter(!duplicated(patient))
-
-# # omit 2 patients with missing values
-# bad_patients <- unique(which(is.na(data_violence),arr.ind = TRUE)[, 1L])
-#
-# data_2_analyze <- data_2_analyze |>
-#   filter(!(patient %in% bad_patients)) |>
-#   mutate(patient = normalize_factor(patient))
-#
-# data_violence  <- data_violence |>
-#   filter(!(patient %in% bad_patients)) |>
-#   mutate(patient = normalize_factor(patient))
+data_nonmissing <- data_2_analyze[!is.na(data_2_analyze$score), ]
+data_missing    <- data_2_analyze[ is.na(data_2_analyze$score), ]
+data_missing$score <- NULL
 
 # ensure that both datasets contain the same patients
 all(unique(data_2_analyze$patient) == unique(data_violence$patient))
@@ -121,9 +93,9 @@ np <- nlevels(droplevels(data_2_analyze$patient))
 ni <- nlevels(droplevels(data_2_analyze$item))
 nr <- nlevels(droplevels(data_2_analyze$rater))
 nt <- nlevels(droplevels(data_2_analyze$time))
-nc <- 18L
+nc <- 17L
 
-mod_ltm <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time.stan", pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels",
+mod_ltm <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time_and_missing.stan", pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels",
                               cpp_options = list(stan_threads=TRUE))
 
 fits_without_lr <- fit_all_three_models(data_2_analyze, mod_ltm, NULL,          NULL,            path_prefix = file.path("ltm_only", "mesdag_ltm_without_logistic_regression"))
