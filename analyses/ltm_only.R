@@ -6,8 +6,10 @@ library(cmdstanr)
 library(dplyr)
 library(purrr)
 
-fit_all_three_models <- function(data, model, logistic_dat = NULL, logistic_target = NULL, iter = 3e4, adapt_iter = 500, output_samples = 2e3, grad_samples = 25, elbo_samples = 25, threads = 8, debug = FALSE, force = FALSE,
-                                 path_prefix = "", store_predictions = TRUE) {
+options("cores" = as.integer(parallel::detectCores() / 2))
+options("cores" = parallel::detectCores())
+fit_all_three_models <- function(data, model, logistic_dat = NULL, logistic_target = NULL, iter = 3e4, adapt_iter = 500, output_samples = 2e3, grad_samples = 25, elbo_samples = 25, threads = getOption("cores", 1L), debug = FALSE, force = FALSE,
+                                 path_prefix = "", store_predictions = TRUE, max_retries = 5L) {
 
   if (path_prefix != "" && !endsWith(path_prefix, "_"))
     path_prefix <- paste0(path_prefix, "_")
@@ -29,14 +31,15 @@ fit_all_three_models <- function(data, model, logistic_dat = NULL, logistic_targ
                       threads = threads)
   }
 
+  cat(sprintf("Using %s threads\n", threads))
   cat("Fitting original threshold model\n")
-  fit_orig <- save_or_run_model(fit_model(stan_data_orig), path_orig, force)
+  fit_orig <- save_or_run_model(fit_model(stan_data_orig), path_orig, force, max_retries = max_retries)
 
   cat("Fitting skew threshold model\n")
-  fit_skew <- save_or_run_model(fit_model(stan_data_skew), path_skew, force)
+  fit_skew <- save_or_run_model(fit_model(stan_data_skew), path_skew, force, max_retries = max_retries)
 
   cat("Fitting free threshold model\n")
-  fit_free <- save_or_run_model(fit_model(stan_data_free), path_free, force)
+  fit_free <- save_or_run_model(fit_model(stan_data_free), path_free, force, max_retries = max_retries)
 
   return(list(
     fit = list(

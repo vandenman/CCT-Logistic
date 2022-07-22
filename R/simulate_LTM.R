@@ -6,7 +6,7 @@ simulate_data_ltm <- function(np, ni, nr, nc, no_rater_groups = 4L, no_time_poin
                           threshold_type = c("logistic", "skew_logistic", "free"), thresholds = NULL) {
 
   threshold_type <- match.arg(threshold_type)
-  use_skew_thresholds <- threshold_type == "skew"
+  use_skew_thresholds <- threshold_type == "skew_logistic"
   use_free_thresholds <- threshold_type == "free"
 
   assert_counts(np, ni, nr, no_rater_groups)
@@ -198,24 +198,40 @@ add_implied_thresholds <- function(tib, nc, nr) {
 
 
 #' @export
-log_likelihood_ltm <- function(x, nc = NULL, log_a, b, log_E, lt, log_lambda,...) {
+log_likelihood_ltm <- function(x, nc = NULL, no_time_points = NULL, log_a, b, log_E, lt, log_lambda, offset_lt, threshold_shape, free_thresholds, threshold_type, ...) {
   UseMethod("log_likelihood_ltm", x)
 }
 
 #' @export
-log_likelihood_ltm.ltm_data <- function(x, nc = NULL, log_a, b, log_E, lt, log_lambda) {
+log_likelihood_ltm.ltm_data <- function(x, nc = NULL, no_time_points = NULL, log_a, b, log_E, lt, log_lambda, offset_lt, threshold_shape, free_thresholds, threshold_type) {
 
   if (!is.null(nc))
     message("nc is ignored when passing an object of class 'ltm_data'")
 
-  log_likelihood_ltm.data.frame(x$df, x$nc, log_a, b, log_E, lt, log_lambda)
+  if (!is.null(no_time_points))
+    message("no_time_points is ignored when passing an object of class 'ltm_data'")
+
+  log_likelihood_ltm.data.frame(x$df, x$nc, x$no_time_points, log_a, b, log_E, lt, log_lambda, offset_lt, threshold_shape, free_thresholds, threshold_type)
 }
 
 #' @export
-log_likelihood_ltm.data.frame <- function(x, nc = NULL, log_a, b, log_E, lt, log_lambda) {
+log_likelihood_ltm.data.frame <- function(x, nc = NULL, no_time_points = NULL, log_a, b, log_E, lt, log_lambda, offset_lt,
+                                          threshold_shape, free_thresholds,
+                                          threshold_type = c("logistic", "skew_logistic", "free")) {
+
+  threshold_type <- match.arg(threshold_type)
+
+  if (is.null(no_time_points)) {
+    no_time_points <- if ("time_point" %in% colnames(x)) {
+      vctrs::vec_unique_count(x[["time_point"]])
+    } else {
+      1L
+    }
+  }
 
   gamma <- 1:(nc - 1)
   gamma <- log(gamma / (nc - gamma))
+  threshold_probs <- seq_len(nc-1L) / nc
 
   nc <- nc %||% guess_nc(x)
 
@@ -227,12 +243,24 @@ log_likelihood_ltm.data.frame <- function(x, nc = NULL, log_a, b, log_E, lt, log
     i <- x$item[o]
     r <- x$rater[o]
 
-    delta <- exp(log_a[r]) * gamma + b[r]
+    delta <- if (threshold_type == "logistic") {
+      exp(log_a[r]) * gamma + b[r]
+    } else if (threshold_type == "skew_logistic") {
+      qELGW(threshold_probs, location = b[r], scale = exp(log_a[r]), shape = threshold_shape[r])
+    } else {
+      free_thresholds[r, ]
+    }
 
     location <- lt[p, i]
     scale    <- exp(log_lambda[i] - log_E[r])
 
-    log_prob <- get_probs_ordered(delta, location, scale)[x$score[o]]
+    if (no_time_points == 2L) {
+      t <- x$time_point[o]
+      # (2 * t - 3) maps 1:2 to c(-1, 1)
+      location <- location + (2 * t - 3) * offset_lt[p, i]
+    }
+
+    log_prob <- log(get_probs_ordered(delta, location, scale)[x$score[o]])
     log_likelihood <- log_likelihood + log_prob
 
   }
@@ -282,6 +310,9 @@ data_2_stan.ltm_data <- function(dat, nc = NULL, prior_only = FALSE, debug = TRU
     data$idx_item_missing    <- dat$missing_data[["item"]]
     data$idx_rater_missing   <- dat$missing_data[["rater"]]
     data$predict_missings    <- as.integer(predict_missings)
+    if (no_time_points > 1L) {
+      data$idx_time_point_missing <- as.integer(dat$missing_data[["time_point"]])
+    }
 
   }
 
@@ -323,42 +354,43 @@ stan_data_ltm_inner <- function(np, ni, nr, no_rater_groups,
   )
 
   return(list(
-    x                   = x_df$score,
-    np                  = np,
-    ni                  = ni,
-    nr                  = nr,
-    nc                  = nc,
-    no_time_points      = no_time_points,
-    no_rater_groups     = no_rater_groups,
+    x                      = x_df$score,
+    np                     = np,
+    ni                     = ni,
+    nr                     = nr,
+    nc                     = nc,
+    no_time_points         = no_time_points,
+    no_rater_groups        = no_rater_groups,
 
-    n_observed          = length(x_df$score),
-    idx_patient         = as.integer(x_df$patient),
-    idx_item            = as.integer(x_df$item),
-    idx_rater           = as.integer(x_df$rater),
-    idx_rater_group     = as.integer(rater_group_assignment),
-    idx_time_point      = idx_time_point,
-    rater_group_counts  = as.integer(unname(c(table(rater_group_assignment)))),
+    n_observed             = length(x_df$score),
+    idx_patient            = as.integer(x_df$patient),
+    idx_item               = as.integer(x_df$item),
+    idx_rater              = as.integer(x_df$rater),
+    idx_rater_group        = as.integer(rater_group_assignment),
+    idx_time_point         = idx_time_point,
+    rater_group_counts     = as.integer(unname(c(table(rater_group_assignment)))),
 
-    n_missing           = 0L,
-    idx_patient_missing = integer(),
-    idx_item_missing    = integer(),
-    idx_rater_missing   = integer(),
-    idx_longer_lt       = rep(1:(np * ni), nr),
+    n_missing              = 0L,
+    idx_patient_missing    = integer(),
+    idx_item_missing       = integer(),
+    idx_rater_missing      = integer(),
+    idx_time_point_missing = integer(),
+    idx_longer_lt          = rep(1:(np * ni), nr),
 
-    mu_log_lambda       = mu_log_lambda,
-    mu_log_a            = rep(0, no_rater_groups),#mu_log_a,
-    mu_b                = mu_b,
+    mu_log_lambda          = mu_log_lambda,
+    mu_log_a               = rep(0, no_rater_groups),#mu_log_a,
+    mu_b                   = mu_b,
 
-    a_sd_lt             = a_sd_lt,
-    b_sd_lt             = b_sd_lt,
-    a_sd_log_lambda     = a_sd_log_lambda,
-    b_sd_log_lambda     = b_sd_log_lambda,
-    a_sd_log_E          = a_sd_log_E,
-    b_sd_log_E          = b_sd_log_E,
-    a_sd_log_a          = a_sd_log_a,
-    b_sd_log_a          = b_sd_log_a,
-    a_sd_b              = a_sd_b,
-    b_sd_b              = b_sd_b,
+    a_sd_lt                = a_sd_lt,
+    b_sd_lt                = b_sd_lt,
+    a_sd_log_lambda        = a_sd_log_lambda,
+    b_sd_log_lambda        = b_sd_log_lambda,
+    a_sd_log_E             = a_sd_log_E,
+    b_sd_log_E             = b_sd_log_E,
+    a_sd_log_a             = a_sd_log_a,
+    b_sd_log_a             = b_sd_log_a,
+    a_sd_b                 = a_sd_b,
+    b_sd_b                 = b_sd_b,
 
 
     debug                        = as.integer(debug),
@@ -382,7 +414,7 @@ stan_data_ltm_inner <- function(np, ni, nr, no_rater_groups,
 }
 
 
-#TODO: this function need individual documentation! maybe it shouldn't even be an S3 method?
+#TODO: this function needs individual documentation! maybe it shouldn't even be an S3 method?
 #' @export
 data_2_stan.data.frame <- function(dat, score = "score", patient = "patient", item = "item",
                                rater = "rater", time = "time", rater_group = "rater_group",
@@ -470,6 +502,9 @@ data_2_stan.data.frame <- function(dat, score = "score", patient = "patient", it
     data$idx_item_missing    <- as.integer(missing_data[[item]])
     data$idx_rater_missing   <- as.integer(missing_data[[rater]])
     data$predict_missings    <- as.integer(predict_missings)
+    if (no_time_points > 1L) {
+      data$idx_time_point_missing <- as.integer(missing_data[[time]])
+    }
 
   }
 
