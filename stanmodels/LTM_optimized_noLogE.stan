@@ -1,32 +1,32 @@
 functions {
 
-// https://discourse.mc-stan.org/t/test-soft-vs-hard-sum-to-zero-constrain-choosing-the-right-prior-for-soft-constrain/3884/31
-vector Q_sum_to_zero_QR(int N) {
-  vector [2*N] Q_r;
+  // https://discourse.mc-stan.org/t/test-soft-vs-hard-sum-to-zero-constrain-choosing-the-right-prior-for-soft-constrain/3884/31
+  vector Q_sum_to_zero_QR(int N) {
+    vector [2*N] Q_r;
 
-  for(i in 1:N) {
-    Q_r[i] = -sqrt((N-i)/(N-i+1.0));
-    Q_r[i+N] = inv_sqrt((N-i) * (N-i+1));
+    for(i in 1:N) {
+      Q_r[i] = -sqrt((N-i)/(N-i+1.0));
+      Q_r[i+N] = inv_sqrt((N-i) * (N-i+1));
+    }
+    return Q_r;
   }
-  return Q_r;
-}
 
-vector sum_to_zero_QR(vector x_raw, vector Q_r, int N) {
-  vector [N] x;
-  real x_aux = 0;
+  vector sum_to_zero_QR(vector x_raw, vector Q_r, int N) {
+    vector [N] x;
+    real x_aux = 0;
 
-  for(i in 1:N-1){
-    x[i]  = x_aux + x_raw[i] * Q_r[i];
-    x_aux = x_aux + x_raw[i] * Q_r[i+N];
+    for(i in 1:N-1){
+      x[i]  = x_aux + x_raw[i] * Q_r[i];
+      x_aux = x_aux + x_raw[i] * Q_r[i+N];
+    }
+    x[N] = x_aux;
+    return x;
   }
-  x[N] = x_aux;
-  return x;
-}
 
-vector raw_to_constrained(vector raw_vec, vector mu, vector log_sd, vector qr, int len, int no_groups, array[] int group_idx, array[] int group_counts) {
+  vector raw_to_constrained(vector raw_vec, vector mu, vector log_sd, vector qr, int len, int no_groups, array[] int group_idx, array[] int group_counts) {
 
-  /*
-    NOTE: the naive solution
+    /*
+      NOTE: the naive solution
 
     constrained = mu[group_idx] + exp(log_sd)[group_idx] .* sum_to_zero_QR(raw_vec, qr, len)
 
@@ -39,7 +39,7 @@ vector raw_to_constrained(vector raw_vec, vector mu, vector log_sd, vector qr, i
 
     Assumed sizes:
 
-    vector[len - 1]   raw_vec
+      vector[len - 1]   raw_vec
     vector[no_groups] mu
     vector[no_groups] log_sd
     vector[2*len]     qr
@@ -47,27 +47,27 @@ vector raw_to_constrained(vector raw_vec, vector mu, vector log_sd, vector qr, i
     int               no_groups
     int               group_idx[no_groups]
     int               group_counts[no_groups]
-  */
+    */
 
-  vector [len] temp = exp(log_sd)[group_idx] .* sum_to_zero_QR(raw_vec, qr, len);
+      vector [len] temp = exp(log_sd)[group_idx] .* sum_to_zero_QR(raw_vec, qr, len);
 
-  // TODO: this requires that the input idx_rater_group is sorted, which is not yet guaranteed!
-  // adapted from https://mc-stan.org/docs/2_27/stan-users-guide/ragged-data-structs-section.html
-  int pos = 1;
-  vector [no_groups] temp_means;
-  for (i in 1:no_groups) {
-    temp_means[i] = mean(segment(temp, pos, group_counts[i]));
-    pos += group_counts[i];
+    // TODO: this requires that the input idx_rater_group is sorted, which is not yet guaranteed!
+      // adapted from https://mc-stan.org/docs/2_27/stan-users-guide/ragged-data-structs-section.html
+    int pos = 1;
+    vector [no_groups] temp_means;
+    for (i in 1:no_groups) {
+      temp_means[i] = mean(segment(temp, pos, group_counts[i]));
+      pos += group_counts[i];
+    }
+
+    vector [len] constrained = (mu - temp_means)[group_idx] + temp;
+
+    return constrained;
   }
 
-  vector [len] constrained = (mu - temp_means)[group_idx] + temp;
-
-  return constrained;
-}
-
-// TODO: begin of stuff to delete
-real stan_log_inv_logit_diff(real x, real y) {
-  // the manual defines log_inv_logit_diff but it's not accepted?
+  // TODO: begin of stuff to delete
+  real stan_log_inv_logit_diff(real x, real y) {
+    // the manual defines log_inv_logit_diff but it's not accepted?
   return x - log1p_exp(x) + log1m_exp(y - x) - log1p_exp(y);
 }
 real stan_ordered_logistic_pmf(int x, real location, real scale, vector delta) {
@@ -221,20 +221,20 @@ vector fast_log_lik_common(
   vector [nobs] v0 = inv_logit(d0);
   vector [nobs] v1 = inv_logit(d1);
 
-  // print("locations");
-  // print(locations);
-  // print("scales");
-  // print(scales);
-  // print("delta0");
-  // print(delta0);
-  // print("delta1");
-  // print(delta1);
-  // print("v0");
-  // print(v0);
-  // print("v1");
-  // print(v1);
-  // print("log(v0 - v1)");
-  // print(log(v0 - v1));
+  print("locations");
+  print(locations);
+  print("scales");
+  print(scales);
+  print("delta0");
+  print(delta0);
+  print("delta1");
+  print(delta1);
+  print("v0");
+  print(v0);
+  print("v1");
+  print(v1);
+  print("log(v0 - v1)");
+  print(log(v0 - v1));
 
   return log(v0 - v1);
 
@@ -242,11 +242,11 @@ vector fast_log_lik_common(
 
 vector log_inv_logit_diff_patched2(vector l, vector s, vector d0, vector d1) {
   // correctly handles Inf and -Inf values in d0 and d1, but the gradient can't handle that anyway
-  return log1m_exp((d0 - d1) ./ s) - log1p_exp((d0 - l) ./ s) - log1p_exp((l - d1) ./ s);
-}
+return log1m_exp((d0 - d1) ./ s) - log1p_exp((d0 - l) ./ s) - log1p_exp((l - d1) ./ s);
+  }
 
 vector fast_log_lik_common2(
-  matrix lt, vector log_lambda, vector log_E,
+  matrix lt, vector log_lambda, //vector log_E,
   matrix offset_lt, vector sign_offset_lt,
   int nobs, int no_time_points,
   array[] int idx_item_patient_vectorized,
@@ -256,7 +256,7 @@ vector fast_log_lik_common2(
   array[] int idx_is_one, array[] int idx_is_nc, array[] int idx_other) {
 
   vector[nobs] locations = to_vector(lt)[idx_item_patient_vectorized];
-  vector[nobs] scales    = exp(log_lambda[idx_item] - log_E[idx_rater]);
+  vector[nobs] scales    = exp(log_lambda[idx_item]);// - log_E[idx_rater]);
 
   if (no_time_points == 2) {
     locations += sign_offset_lt .* to_vector(offset_lt)[idx_item_patient_vectorized];
@@ -271,62 +271,62 @@ vector fast_log_lik_common2(
 
   // return
   //   sum(log1m_inv_logit(           (locations[idx_is_one] - delta_1) ./ scales[idx_is_one])) +
-  //   sum(log_inv_logit_diff_patched2(locations[idx_other], scales[idx_other], delta_r1, delta_r2)) +
-  //   sum(log_inv_logit(             (locations[idx_is_nc] - delta_nc) ./ scales[idx_is_nc]));
+    //   sum(log_inv_logit_diff_patched2(locations[idx_other], scales[idx_other], delta_r1, delta_r2)) +
+    //   sum(log_inv_logit(             (locations[idx_is_nc] - delta_nc) ./ scales[idx_is_nc]));
 
 }
 
 vector fast_loglik_logistic(
-    vector log_a, vector b, matrix lt, vector log_E, vector log_lambda, matrix offset_lt, vector sign_offset_lt,
-    int nobs, int nc, int no_time_points,
-    array[] int scores0, array[] int scores1,
-    array[] int idx_item_patient_vectorized,
-    array[] int idx_item, array[] int idx_rater,
-    array[] int idx_is_one, array[] int idx_is_nc, array[] int idx_other,
-    vector gammas
+  vector log_a, vector b, matrix lt, /*vector log_E,*/ vector log_lambda, matrix offset_lt, vector sign_offset_lt,
+  int nobs, int nc, int no_time_points,
+  array[] int scores0, array[] int scores1,
+  array[] int idx_item_patient_vectorized,
+  array[] int idx_item, array[] int idx_rater,
+  array[] int idx_is_one, array[] int idx_is_nc, array[] int idx_other,
+  vector gammas
 ) {
 
-    // vector [nc - 1] gammas;
-    // for (t in 1:(nc - 1)) {
+  // vector [nc - 1] gammas;
+  // for (t in 1:(nc - 1)) {
     //   real tt = t; // Stan can only cast in this way and we need to cast to real to avoid integer division
     //   gammas[t] = log(tt / (nc - tt));
     // }
 
-    vector[num_elements(idx_is_one)] delta_1  = exp(log_a[idx_rater[idx_is_one]]) * gammas[1]      + b[idx_rater[idx_is_one]];
-    vector[num_elements(idx_is_nc )] delta_nc = exp(log_a[idx_rater[idx_is_nc ]]) * gammas[nc - 1] + b[idx_rater[idx_is_nc ]];
+  vector[num_elements(idx_is_one)] delta_1  = exp(log_a[idx_rater[idx_is_one]]) * gammas[1]      + b[idx_rater[idx_is_one]];
+  vector[num_elements(idx_is_nc )] delta_nc = exp(log_a[idx_rater[idx_is_nc ]]) * gammas[nc - 1] + b[idx_rater[idx_is_nc ]];
 
-    vector[num_elements(idx_other)]  delta_r1 = exp(log_a[idx_rater[idx_other]]) .* gammas[scores0] + b[idx_rater[idx_other]];
-    vector[num_elements(idx_other)]  delta_r2 = exp(log_a[idx_rater[idx_other]]) .* gammas[scores1] + b[idx_rater[idx_other]];
+  vector[num_elements(idx_other)]  delta_r1 = exp(log_a[idx_rater[idx_other]]) .* gammas[scores0] + b[idx_rater[idx_other]];
+  vector[num_elements(idx_other)]  delta_r2 = exp(log_a[idx_rater[idx_other]]) .* gammas[scores1] + b[idx_rater[idx_other]];
 
-    return fast_log_lik_common2(
-      lt, log_lambda, log_E, offset_lt, sign_offset_lt, nobs, no_time_points, idx_item_patient_vectorized, idx_item, idx_rater,
-      delta_1, delta_r1, delta_r2, delta_nc,
-      idx_is_one, idx_is_nc, idx_other
-    );
+  return fast_log_lik_common2(
+    lt, log_lambda, /*log_E,*/ offset_lt, sign_offset_lt, nobs, no_time_points, idx_item_patient_vectorized, idx_item, idx_rater,
+    delta_1, delta_r1, delta_r2, delta_nc,
+    idx_is_one, idx_is_nc, idx_other
+  );
 
 }
 
 vector fast_loglik_free(
-    matrix lt, vector log_E, vector log_lambda, matrix free_thresholds, matrix offset_lt, vector sign_offset_lt,
-    int nobs, int nc, int no_time_points,
-    array[] int scores_by_rater_r1, array[] int scores_by_rater_r2,
-    array[] int scores_by_rater_1, array[] int scores_by_rater_nc,
-    array[] int idx_item_patient_vectorized,
-    array[] int idx_item, array[] int idx_rater,
-    array[] int idx_is_one, array[] int idx_is_nc, array[] int idx_other
+  matrix lt, /*/*vector log_E,*/ vector log_lambda, matrix free_thresholds, matrix offset_lt, vector sign_offset_lt,
+  int nobs, int nc, int no_time_points,
+  array[] int scores_by_rater_r1, array[] int scores_by_rater_r2,
+  array[] int scores_by_rater_1, array[] int scores_by_rater_nc,
+  array[] int idx_item_patient_vectorized,
+  array[] int idx_item, array[] int idx_rater,
+  array[] int idx_is_one, array[] int idx_is_nc, array[] int idx_other
 ) {
 
-    vector[num_elements(idx_is_one)] delta_1  = to_vector(free_thresholds)[scores_by_rater_1];
-    vector[num_elements(idx_is_nc )] delta_nc = to_vector(free_thresholds)[scores_by_rater_nc];
+  vector[num_elements(idx_is_one)] delta_1  = to_vector(free_thresholds)[scores_by_rater_1];
+  vector[num_elements(idx_is_nc )] delta_nc = to_vector(free_thresholds)[scores_by_rater_nc];
 
-    vector[num_elements(idx_other)]  delta_r1 = to_vector(free_thresholds)[scores_by_rater_r1];
-    vector[num_elements(idx_other)]  delta_r2 = to_vector(free_thresholds)[scores_by_rater_r2];
+  vector[num_elements(idx_other)]  delta_r1 = to_vector(free_thresholds)[scores_by_rater_r1];
+  vector[num_elements(idx_other)]  delta_r2 = to_vector(free_thresholds)[scores_by_rater_r2];
 
-    return fast_log_lik_common2(
-      lt, log_lambda, log_E, offset_lt, sign_offset_lt, nobs, no_time_points, idx_item_patient_vectorized, idx_item, idx_rater,
-      delta_1, delta_r1, delta_r2, delta_nc,
-      idx_is_one, idx_is_nc, idx_other
-    );
+  return fast_log_lik_common2(
+    lt, log_lambda, /*log_E,*/ offset_lt, sign_offset_lt, nobs, no_time_points, idx_item_patient_vectorized, idx_item, idx_rater,
+    delta_1, delta_r1, delta_r2, delta_nc,
+    idx_is_one, idx_is_nc, idx_other
+  );
 
 }
 
@@ -335,36 +335,36 @@ vector sta_qELGW_vec(vector p, vector shifts, vector directions, vector scales, 
 }
 
 vector fast_loglik_skew(
-    vector log_a, vector b, vector shape, matrix lt, vector log_E, vector log_lambda, matrix offset_lt, vector sign_offset_lt,
-    int nobs, int nc, int no_time_points,
-    array[] int scores0, array[] int scores1,
-    array[] int idx_item_patient_vectorized,
-    array[] int idx_item, array[] int idx_rater,
-    array[] int idx_is_one, array[] int idx_is_nc, array[] int idx_other,
-    vector threshold_probs
+  vector log_a, vector b, vector shape, matrix lt, /*vector log_E,*/ vector log_lambda, matrix offset_lt, vector sign_offset_lt,
+  int nobs, int nc, int no_time_points,
+  array[] int scores0, array[] int scores1,
+  array[] int idx_item_patient_vectorized,
+  array[] int idx_item, array[] int idx_rater,
+  array[] int idx_is_one, array[] int idx_is_nc, array[] int idx_other,
+  vector threshold_probs
 ) {
 
-    // vector [nc - 1] threshold_probs;
-    // for (i in 1:(nc-1)) {
+  // vector [nc - 1] threshold_probs;
+  // for (i in 1:(nc-1)) {
     //   real j = i; // cast to real to avoid integer division
     //   threshold_probs[i] = j / nc;
     // }
 
-    vector [nobs] directions = sign_vec(shape)[idx_rater];
-    vector [nobs] shapes     =      abs(shape)[idx_rater];
+  vector [nobs] directions = sign_vec(shape)[idx_rater];
+  vector [nobs] shapes     =      abs(shape)[idx_rater];
 
-    // vector sta_qELGW_vec(vector p, vector shifts, vector directions, vector scales, vector shapes)
-    vector[num_elements(idx_is_one)] delta_1  = sta_qELGW_vec(rep_vector(threshold_probs[1],      num_elements(idx_is_one)), b[idx_rater[idx_is_one]], directions[idx_is_one], exp(log_a[idx_rater[idx_is_one]]), shapes[idx_is_one]);
-    vector[num_elements(idx_is_nc )] delta_nc = sta_qELGW_vec(rep_vector(threshold_probs[nc - 1], num_elements(idx_is_nc)),  b[idx_rater[idx_is_nc ]], directions[idx_is_nc ], exp(log_a[idx_rater[idx_is_nc ]]), shapes[idx_is_nc ]);
+  // vector sta_qELGW_vec(vector p, vector shifts, vector directions, vector scales, vector shapes)
+  vector[num_elements(idx_is_one)] delta_1  = sta_qELGW_vec(rep_vector(threshold_probs[1],      num_elements(idx_is_one)), b[idx_rater[idx_is_one]], directions[idx_is_one], exp(log_a[idx_rater[idx_is_one]]), shapes[idx_is_one]);
+  vector[num_elements(idx_is_nc )] delta_nc = sta_qELGW_vec(rep_vector(threshold_probs[nc - 1], num_elements(idx_is_nc)),  b[idx_rater[idx_is_nc ]], directions[idx_is_nc ], exp(log_a[idx_rater[idx_is_nc ]]), shapes[idx_is_nc ]);
 
-    vector[num_elements(idx_other)]  delta_r1 = sta_qELGW_vec(threshold_probs[scores0],                                      b[idx_rater[idx_other]],  directions[idx_other],  exp(log_a[idx_rater[idx_other]]),  shapes[idx_other]);
-    vector[num_elements(idx_other)]  delta_r2 = sta_qELGW_vec(threshold_probs[scores1],                                      b[idx_rater[idx_other]],  directions[idx_other],  exp(log_a[idx_rater[idx_other]]),  shapes[idx_other]);
+  vector[num_elements(idx_other)]  delta_r1 = sta_qELGW_vec(threshold_probs[scores0],                                      b[idx_rater[idx_other]],  directions[idx_other],  exp(log_a[idx_rater[idx_other]]),  shapes[idx_other]);
+  vector[num_elements(idx_other)]  delta_r2 = sta_qELGW_vec(threshold_probs[scores1],                                      b[idx_rater[idx_other]],  directions[idx_other],  exp(log_a[idx_rater[idx_other]]),  shapes[idx_other]);
 
-    return fast_log_lik_common2(
-      lt, log_lambda, log_E, offset_lt, sign_offset_lt, nobs, no_time_points, idx_item_patient_vectorized, idx_item, idx_rater,
-      delta_1, delta_r1, delta_r2, delta_nc,
-      idx_is_one, idx_is_nc, idx_other
-    );
+  return fast_log_lik_common2(
+    lt, log_lambda, /*log_E,*/ offset_lt, sign_offset_lt, nobs, no_time_points, idx_item_patient_vectorized, idx_item, idx_rater,
+    delta_1, delta_r1, delta_r2, delta_nc,
+    idx_is_one, idx_is_nc, idx_other
+  );
 
 }
 
@@ -381,7 +381,7 @@ data{
   int<lower = 0, upper = 1> predict_missings;
 
   // fit logistic regression or not?
-  int<lower = 0, upper = 1> fit_logistic;
+    int<lower = 0, upper = 1> fit_logistic;
 
   // logistic regression
   int<lower = 0, upper = fit_logistic> store_predictions;
@@ -430,7 +430,7 @@ data{
   matrix[fit_logistic ? np : 0, fit_logistic ? no_covariates : 0] design_matrix_covariates;
 
   // which observation in log_reg_outcomes corresponds to which patient?
-  // basically lt[log_reg_np_idx, ] yields the lt that correspond to log_reg_outcomes
+    // basically lt[log_reg_np_idx, ] yields the lt that correspond to log_reg_outcomes
   array [np_log_reg] int<lower=1, upper=np> log_reg_np_idx;
 
   array[n_missing] int<lower = 1, upper = nr>             idx_rater_missing;
@@ -467,7 +467,7 @@ transformed data{
   real sd_lt_raw = inv_sqrt(1 - inv(np));
 
   vector[2*no_rater_groups] Q_no_rater_groups = Q_sum_to_zero_QR(no_rater_groups);
-  real sd_mu_log_E_raw = no_rater_groups > 1 ? 1.0 : inv_sqrt(1 - inv(no_rater_groups));
+  // real sd_mu_log_E_raw = no_rater_groups > 1 ? 1.0 : inv_sqrt(1 - inv(no_rater_groups));
 
   vector[nc-1] default_threshold_probs;
   vector[nc-1] default_thresholds; // <- 1:nc;
@@ -511,20 +511,20 @@ transformed data{
   // array[use_free_logistic_thresholds ? 0 : n_observed] int scores0;
   // array[use_free_logistic_thresholds ? 0 : n_observed] int scores1;
   // if (!use_free_logistic_thresholds) {
-  //   for (o in 1:n_observed) {
-  //     scores0[o] = x[o] - 1;
-  //     scores1[o] = x[o];
-  //   }
-  // }
+    //   for (o in 1:n_observed) {
+      //     scores0[o] = x[o] - 1;
+      //     scores1[o] = x[o];
+      //   }
+    // }
   //
-  // array [use_free_logistic_thresholds ? n_observed : 0] int scores0_by_rater;
+    // array [use_free_logistic_thresholds ? n_observed : 0] int scores0_by_rater;
   // array [use_free_logistic_thresholds ? n_observed : 0] int scores1_by_rater;
   // if (use_free_logistic_thresholds) {
-  //   for (o in 1:n_observed) {
-  //     scores0_by_rater[o] = (x[o] - 1) * nr + idx_rater[o];
-  //     scores1_by_rater[o] =  x[o]      * nr + idx_rater[o];
-  //   }
-  // }
+    //   for (o in 1:n_observed) {
+      //     scores0_by_rater[o] = (x[o] - 1) * nr + idx_rater[o];
+      //     scores1_by_rater[o] =  x[o]      * nr + idx_rater[o];
+      //   }
+    // }
 
   // only do this once.
   matrix[fit_logistic ? np_log_reg : 0, fit_logistic ? no_covariates : 0] design_matrix_covariates_observed = design_matrix_covariates[log_reg_np_idx, ];
@@ -535,15 +535,15 @@ parameters{
   // parameters
   matrix [np - 1, ni] lt_raw;         // item location values
   vector [ni - 1] log_lambda_raw; // item difficulty
-  vector [nr - 1] log_E_raw;          // rater competency
+  // vector [nr - 1] log_E_raw;          // rater competency
 
   // hyperparameters
   real mu_lt;
   real<lower = 0> sd_lt;
   real<lower = 0> sd_log_lambda;
 
-  vector           [no_rater_groups - 1] mu_log_E_raw;
-  vector           [no_rater_groups - 1] log_sd_log_E_raw;
+  // vector           [no_rater_groups - 1] mu_log_E_raw;
+  // vector           [no_rater_groups - 1] log_sd_log_E_raw;
 
   // conditional parameters
   vector [use_free_logistic_thresholds ? 0 : nr - 1] log_a_raw;      // rater scaling
@@ -574,22 +574,22 @@ transformed parameters {
   }
   log_lambda = mu_log_lambda + sd_log_lambda * sum_to_zero_QR(log_lambda_raw, Q_ni, ni);
 
-  vector [no_rater_groups] mu_log_E;
-  vector [no_rater_groups] log_sd_log_E;
-  vector [nr] log_E;
-  if (no_rater_groups > 1) {
-
-    mu_log_E     = sum_to_zero_QR(mu_log_E_raw,     Q_no_rater_groups, no_rater_groups);
-    log_sd_log_E = sum_to_zero_QR(log_sd_log_E_raw, Q_no_rater_groups, no_rater_groups);
-    log_E = raw_to_constrained(log_E_raw, mu_log_E, log_sd_log_E, Q_nr, nr, no_rater_groups, idx_rater_group, rater_group_counts);
-
-  } else {
-
-    mu_log_E[1]     = 0.0;
-    log_sd_log_E[1] = 0.0;
-    log_E = sum_to_zero_QR(log_E_raw, Q_nr, nr);
-
-  }
+  // vector [no_rater_groups] mu_log_E;
+  // vector [no_rater_groups] log_sd_log_E;
+  // vector [nr] log_E;
+  // if (no_rater_groups > 1) {
+  //
+  //   mu_log_E     = sum_to_zero_QR(mu_log_E_raw,     Q_no_rater_groups, no_rater_groups);
+  //   log_sd_log_E = sum_to_zero_QR(log_sd_log_E_raw, Q_no_rater_groups, no_rater_groups);
+  //   log_E = raw_to_constrained(log_E_raw, mu_log_E, log_sd_log_E, Q_nr, nr, no_rater_groups, idx_rater_group, rater_group_counts);
+  //
+  // } else {
+  //
+  //   mu_log_E[1]     = 0.0;
+  //   log_sd_log_E[1] = 0.0;
+  //   log_E = sum_to_zero_QR(log_E_raw, Q_nr, nr);
+  //
+  // }
 
   vector [use_free_logistic_thresholds ? 0 : no_rater_groups] log_sd_log_a;
   vector [use_free_logistic_thresholds ? 0 : nr             ] log_a;
@@ -624,18 +624,18 @@ model{
   sd_log_lambda ~ gamma(a_sd_log_lambda, b_sd_log_lambda); // standard deviation of item difficulty
 
   if (no_rater_groups > 1) {
-    mu_log_E_raw     ~ normal(0, sd_mu_log_E_raw);
-    log_sd_log_E_raw ~ normal(0, sd_mu_log_E_raw);
+    // mu_log_E_raw     ~ normal(0, sd_mu_log_E_raw);
+    // log_sd_log_E_raw ~ normal(0, sd_mu_log_E_raw);
 
     if (!use_free_logistic_thresholds)
-      log_sd_log_a_raw ~ normal(0, sd_mu_log_E_raw);
+      log_sd_log_a_raw ~ normal(0, sd_log_a_raw);//sd_mu_log_E_raw);
 
   }
 
   // priors
   to_vector(log_lambda_raw) ~ normal(0, sd_log_lambda_raw);
   to_vector(lt_raw)         ~ normal(0, sd_lt_raw);
-  log_E_raw ~ normal(0, sd_log_a_raw); // not a typo
+  // log_E_raw ~ normal(0, sd_log_a_raw); // not a typo
 
   if (use_free_logistic_thresholds) {
 
@@ -658,7 +658,7 @@ model{
   // CCT
   if (use_free_logistic_thresholds) {
     target += sum(fast_loglik_free(
-      lt, log_E, log_lambda, free_thresholds_mat, offset_lt, sign_offset_lt,
+      lt, /*log_E,*/ log_lambda, free_thresholds_mat, offset_lt, sign_offset_lt,
       n_observed, nc, no_time_points,
       scores_by_rater_r1, scores_by_rater_r2, scores_by_rater_1, scores_by_rater_nc,
       idx_item_patient_vectorized,
@@ -667,7 +667,7 @@ model{
     ));
   } else if (use_skew_logistic_thresholds) {
     target += sum(fast_loglik_skew(
-      log_a, b, threshold_shape, lt, log_E, log_lambda, offset_lt, sign_offset_lt,
+      log_a, b, threshold_shape, lt, /*log_E,*/ log_lambda, offset_lt, sign_offset_lt,
       n_observed, nc, no_time_points,
       scores0, scores1,
       idx_item_patient_vectorized,
@@ -677,7 +677,7 @@ model{
     ));
   } else {
     target += sum(fast_loglik_logistic(
-      log_a, b, lt, log_E, log_lambda, offset_lt, sign_offset_lt,
+      log_a, b, lt, /*log_E,*/ log_lambda, offset_lt, sign_offset_lt,
       n_observed, nc, no_time_points,
       scores0, scores1,
       idx_item_patient_vectorized,
@@ -721,17 +721,14 @@ model{
           }
         }
 
-        real v = sum(fast_loglik_free(
-          lt, log_E, log_lambda, free_thresholds_mat, offset_lt, sign_offset_lt_missing,
+        target += sum(fast_loglik_free(
+          lt, /*log_E,*/ log_lambda, free_thresholds_mat, offset_lt, sign_offset_lt_missing,
           n_missing, nc, no_time_points,
           scores_by_rater_r1_missing, scores_by_rater_r2_missing, scores_by_rater_1_missing, scores_by_rater_nc_missing,
           idx_item_patient_vectorized_missing,
           idx_item_missing, idx_rater_missing,
           idx_is_one_missing, idx_is_nc_missing, idx_other_missing
         ));
-        // print("v");
-        // print(v);
-        target += v;
       } else {
 
         if (c != 1 && c != nc) {
@@ -743,7 +740,7 @@ model{
 
         if (use_skew_logistic_thresholds) {
           target += sum(fast_loglik_skew(
-            log_a, b, threshold_shape, lt, log_E, log_lambda, offset_lt, sign_offset_lt_missing,
+            log_a, b, threshold_shape, lt, /*log_E,*/ log_lambda, offset_lt, sign_offset_lt_missing,
             n_missing, nc, no_time_points,
             scores0_missing, scores1_missing,
             idx_item_patient_vectorized_missing,
@@ -752,9 +749,8 @@ model{
             default_threshold_probs
           ));
         } else {
-
-          real v = sum(fast_loglik_logistic(
-            log_a, b, lt, log_E, log_lambda, offset_lt, sign_offset_lt_missing,
+          target += sum(fast_loglik_logistic(
+            log_a, b, lt, /*log_E,*/ log_lambda, offset_lt, sign_offset_lt_missing,
             n_missing, nc, no_time_points,
             scores0_missing, scores1_missing,
             idx_item_patient_vectorized_missing,
@@ -762,11 +758,6 @@ model{
             idx_is_one_missing, idx_is_nc_missing, idx_other_missing,
             default_thresholds
           ));
-          // if (!is_inf(v) && !is_nan(v)) {
-          //   print("v");
-          //   print(v);
-          // }
-          target += v;
         }
       }
     }
@@ -832,7 +823,7 @@ generated quantities {
         }
 
         log_probs[c, ] = fast_loglik_free(
-          lt, log_E, log_lambda, free_thresholds_mat, offset_lt, sign_offset_lt,
+          lt, /*log_E,*/ log_lambda, free_thresholds_mat, offset_lt, sign_offset_lt,
           n_observed, nc, no_time_points,
           scores_by_rater_r1_debug, scores_by_rater_r2_debug, scores_by_rater_1_debug, scores_by_rater_nc_debug,
           idx_item_patient_vectorized,
@@ -840,28 +831,28 @@ generated quantities {
           idx_is_one_debug, idx_is_nc_debug, idx_other_debug
         )';
 
-      } else {
+  } else {
 
-        if (c != 1 && c != nc) {
-          for (o in 1:n_observed) {
-            scores0_debug[o] = c - 1;
-            scores1_debug[o] = c;
-          }
-        }
+    if (c != 1 && c != nc) {
+      for (o in 1:n_observed) {
+        scores0_debug[o] = c - 1;
+        scores1_debug[o] = c;
+      }
+    }
 
-        if (use_skew_logistic_thresholds) {
-          log_probs[c, ] = fast_loglik_skew(
-            log_a, b, threshold_shape, lt, log_E, log_lambda, offset_lt, sign_offset_lt,
-            n_observed, nc, no_time_points,
-            scores0_debug, scores1_debug,
-            idx_item_patient_vectorized,
-            idx_item, idx_rater,
-            idx_is_one_debug, idx_is_nc_debug, idx_other_debug,
-            default_threshold_probs
-          )';
+    if (use_skew_logistic_thresholds) {
+      log_probs[c, ] = fast_loglik_skew(
+        log_a, b, threshold_shape, lt, /*log_E,*/ log_lambda, offset_lt, sign_offset_lt,
+        n_observed, nc, no_time_points,
+        scores0_debug, scores1_debug,
+        idx_item_patient_vectorized,
+        idx_item, idx_rater,
+        idx_is_one_debug, idx_is_nc_debug, idx_other_debug,
+        default_threshold_probs
+      )';
         } else {
           log_probs[c, ] = fast_loglik_logistic(
-            log_a, b, lt, log_E, log_lambda, offset_lt, sign_offset_lt,
+            log_a, b, lt, /*log_E,*/ log_lambda, offset_lt, sign_offset_lt,
             n_observed, nc, no_time_points,
             scores0_debug, scores1_debug,
             idx_item_patient_vectorized,
@@ -869,104 +860,104 @@ generated quantities {
             idx_is_one_debug, idx_is_nc_debug, idx_other_debug,
             default_thresholds
           )';
-        }
-      }
-    }
-
-  }
-
-  vector<lower = 0, upper = 1>[fit_logistic * store_predictions ? np : 0] log_reg_predictions;
-  if (fit_logistic * store_predictions) {
-
-    // NOTE: the code below makes predictions for both the observed log_reg_outcomes and the unobserved log_reg_outcomes.
-    for (p in 1:np) {
-      vector[1] alpha;
-      if (no_time_points == 1) {
-        alpha = log_reg_intercept +
-          dot_product(design_matrix_covariates[p, ], log_reg_slopes[1:no_covariates]) +
-          dot_product(lt[p, ], log_reg_slopes[(no_covariates + 1):(no_covariates + ni)]);
-      } else {
-        alpha = log_reg_intercept +
-          dot_product(design_matrix_covariates[p, ], log_reg_slopes[1:no_covariates]) +
-          dot_product(lt[p, ] - offset_lt[p, ], log_reg_slopes[(no_covariates      + 1):(no_covariates +   ni)]) +
-          dot_product(lt[p, ] + offset_lt[p, ], log_reg_slopes[(no_covariates + ni + 1):(no_covariates + 2*ni)]);
-      }
-      log_reg_predictions[p] = exp(bernoulli_logit_lpmf(1 | alpha));
-      // bernoulli_logit_glm_lpmf(ones_np | append_col(design_matrix_covariates, lt), log_reg_intercept, log_reg_slopes);
     }
   }
+}
 
-  // array[fit_logistic * store_slopes ? np : 0, fit_logistic * store_slopes ? ni : 0, fit_logistic * store_slopes ? no_time_points : 0] real log_reg_derived_slopes;
-  // if (fit_logistic * store_slopes) {
+}
+
+vector<lower = 0, upper = 1>[fit_logistic * store_predictions ? np : 0] log_reg_predictions;
+if (fit_logistic * store_predictions) {
+
+  // NOTE: the code below makes predictions for both the observed log_reg_outcomes and the unobserved log_reg_outcomes.
+  for (p in 1:np) {
+    vector[1] alpha;
+    if (no_time_points == 1) {
+      alpha = log_reg_intercept +
+        dot_product(design_matrix_covariates[p, ], log_reg_slopes[1:no_covariates]) +
+        dot_product(lt[p, ], log_reg_slopes[(no_covariates + 1):(no_covariates + ni)]);
+    } else {
+      alpha = log_reg_intercept +
+        dot_product(design_matrix_covariates[p, ], log_reg_slopes[1:no_covariates]) +
+        dot_product(lt[p, ] - offset_lt[p, ], log_reg_slopes[(no_covariates      + 1):(no_covariates +   ni)]) +
+        dot_product(lt[p, ] + offset_lt[p, ], log_reg_slopes[(no_covariates + ni + 1):(no_covariates + 2*ni)]);
+    }
+    log_reg_predictions[p] = exp(bernoulli_logit_lpmf(1 | alpha));
+    // bernoulli_logit_glm_lpmf(ones_np | append_col(design_matrix_covariates, lt), log_reg_intercept, log_reg_slopes);
+  }
+}
+
+// array[fit_logistic * store_slopes ? np : 0, fit_logistic * store_slopes ? ni : 0, fit_logistic * store_slopes ? no_time_points : 0] real log_reg_derived_slopes;
+// if (fit_logistic * store_slopes) {
   //   for (p in 1:np) {
-  //     if (no_time_points == 1) {
-  //       log_reg_derived_slopes[p, , 1] = lt[p, ] .* log_reg_slopes[(no_covariates + 1):(no_covariates + ni)]
-  //     } else {
-  //       log_reg_derived_slopes[p, , 1] = (lt[p, ] - offset_lt[p, ]) .* log_reg_slopes[(no_covariates      + 1):(no_covariates +   ni)]
-  //       log_reg_derived_slopes[p, , 2] = (lt[p, ] - offset_lt[p, ]) .* log_reg_slopes[(no_covariates + ni + 1):(no_covariates + 2*ni)]
-  //     }
-  //   }
+    //     if (no_time_points == 1) {
+      //       log_reg_derived_slopes[p, , 1] = lt[p, ] .* log_reg_slopes[(no_covariates + 1):(no_covariates + ni)]
+      //     } else {
+        //       log_reg_derived_slopes[p, , 1] = (lt[p, ] - offset_lt[p, ]) .* log_reg_slopes[(no_covariates      + 1):(no_covariates +   ni)]
+        //       log_reg_derived_slopes[p, , 2] = (lt[p, ] - offset_lt[p, ]) .* log_reg_slopes[(no_covariates + ni + 1):(no_covariates + 2*ni)]
+        //     }
+    //   }
   // }
 
-  vector<lower = 0, upper = nc>[predict_missings && n_missing > 0 ? n_missing : 0] predicted_missings;
-  if (predict_missings && n_missing > 0) {
-    // This is not efficient, but probably also not what drives the total runtime
-    for (o in 1:n_missing) {
+vector<lower = 0, upper = nc>[predict_missings && n_missing > 0 ? n_missing : 0] predicted_missings;
+if (predict_missings && n_missing > 0) {
+  // This is not efficient, but probably also not what drives the total runtime
+  for (o in 1:n_missing) {
 
-      int p = idx_patient_missing[o];
-      int i = idx_item_missing[o];
-      int r = idx_rater_missing[o];
+    int p = idx_patient_missing[o];
+    int i = idx_item_missing[o];
+    int r = idx_rater_missing[o];
 
-      real location = lt[p, i];
-      real scale = exp(log_lambda[i] - log_E[r]);
+    real location = lt[p, i];
+    real scale = exp(log_lambda[i]);// - log_E[r]);
 
-      if (no_time_points == 2) {
+    if (no_time_points == 2) {
 
-        int t = idx_time_point_missing[o];
-        // (2 * t - 3) maps {1, 2} to {-1, 1}
-        location += (2 * t - 3) * offset_lt[p, i];
+      int t = idx_time_point_missing[o];
+      // (2 * t - 3) maps {1, 2} to {-1, 1}
+      location += (2 * t - 3) * offset_lt[p, i];
 
+    }
+
+    int loop_limit = nc;//i == 1 ? 13 : nc;
+    vector[loop_limit] missing_log_probs;
+    if (use_free_logistic_thresholds) {
+
+      for (c in 1:loop_limit) {
+        missing_log_probs[c] = ordered_logistic_lpmf(c | location / scale, free_thresholds[r] ./ scale);
       }
 
-      int loop_limit = nc;//i == 1 ? 13 : nc;
-      vector[loop_limit] missing_log_probs;
-      if (use_free_logistic_thresholds) {
+    } else {
+
+      real threshold_scale = exp(log_a[r]);
+      real threshold_shift = b[r];
+
+      if (use_skew_logistic_thresholds) {
 
         for (c in 1:loop_limit) {
-          missing_log_probs[c] = ordered_logistic_lpmf(c | location / scale, free_thresholds[r] ./ scale);
+          missing_log_probs[c] = ordered_logistic_pmf_skew_simplified(
+            c,
+            location, scale, threshold_scale, threshold_shift,
+            threshold_shape[r],
+            default_threshold_probs,
+            nc
+          );
         }
 
       } else {
 
-        real threshold_scale = exp(log_a[r]);
-        real threshold_shift = b[r];
-
-        if (use_skew_logistic_thresholds) {
-
-          for (c in 1:loop_limit) {
-            missing_log_probs[c] = ordered_logistic_pmf_skew_simplified(
-              c,
-              location, scale, threshold_scale, threshold_shift,
-              threshold_shape[r],
-              default_threshold_probs,
-              nc
-            );
-          }
-
-        } else {
-
-          for (c in 1:loop_limit) {
-            missing_log_probs[c] = ordered_logistic_pmf_simplified(
-              c,
-              location, scale, threshold_scale, threshold_shift,
-              default_thresholds,
-              nc
-            );
-          }
+        for (c in 1:loop_limit) {
+          missing_log_probs[c] = ordered_logistic_pmf_simplified(
+            c,
+            location, scale, threshold_scale, threshold_shift,
+            default_thresholds,
+            nc
+          );
         }
       }
-      predicted_missings[o] = categorical_logit_rng(missing_log_probs);
     }
+    predicted_missings[o] = categorical_logit_rng(missing_log_probs);
   }
+}
 
 }

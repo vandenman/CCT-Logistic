@@ -216,7 +216,7 @@ no_covariates <- 5   # no additional covariates
 no_time_points <- 2
 
 # compile the stan model
-mod_log_reg_ltm <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time_and_missing.stan", pedantic = TRUE, quiet = FALSE, cpp_options = list(stan_threads=TRUE))
+mod_log_reg_ltm0 <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time_and_missing.stan", pedantic = TRUE, quiet = FALSE, cpp_options = list(stan_threads=TRUE))
 
 set.seed(1234)
 threshold_types <- c("logistic", "skew_logistic", "free")
@@ -235,7 +235,7 @@ dataset_list <- map(dataset_list, \(x) {
   x
 })
 
-fit_test <- fit_all_three_models(dataset_list$logistic, mod_log_reg_ltm, path_prefix = "test", force = TRUE)
+fit_test <- fit_all_three_models(dataset_list$logistic, mod_log_reg_ltm0, path_prefix = "test0", force = TRUE)
 
 compute_imputation_performance <- function(fit, data) {
   draws_orig <- fit$draws()

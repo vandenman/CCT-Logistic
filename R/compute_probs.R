@@ -1,7 +1,8 @@
 #' @export
-compute_probs <- function(draws, stan_data, stan_variable_sizes, return_mean = TRUE) {
+compute_probs <- function(draws, stan_data, stan_variable_sizes, return_mean = TRUE, verbose = TRUE) {
 
   # this is slower than having stan do the work, but it's MUCH less memory intense to do it this way
+  # TODO: this can benefit enormously from the new vectorized loglikelihood implementations
 
   nc             <- stan_data$nc
   n_observed     <- stan_data$n_observed
@@ -39,6 +40,7 @@ compute_probs <- function(draws, stan_data, stan_variable_sizes, return_mean = T
                                    dimnames = list(NULL, paste0("log_probs[", rep(1:nc, n_observed), ", ", rep(1:n_observed, each = nc), "]")))
   }
 
+  pb <- progress::progress_bar$new(total = no_draws, format = "[:bar] :percent eta: :eta")
   for (d in seq_len(no_draws)) {
 
     lt              <- array(draws[d, idx_lt             ], stan_variable_sizes[["lt"]]              %||% 1)
@@ -59,7 +61,11 @@ compute_probs <- function(draws, stan_data, stan_variable_sizes, return_mean = T
       r <- idx_rater[o]
 
       location <- lt[p, i]
-      scale <- exp(log_lambda[i, if(vary_lambda_across_patients) p else 1] - log_E[r])
+      scale <- if (is.matrix(log_lambda)) {
+        exp(log_lambda[i, if (vary_lambda_across_patients) p else 1] - log_E[r])
+      } else {
+        exp(log_lambda[i] - log_E[r])
+      }
 
       if (no_time_points == 2) {
 
@@ -112,6 +118,8 @@ compute_probs <- function(draws, stan_data, stan_variable_sizes, return_mean = T
     } else {
       individual_log_probs[d, ] <- c(log_probs)
     }
+
+    pb$tick()
 
   }
 

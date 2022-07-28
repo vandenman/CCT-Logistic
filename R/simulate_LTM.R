@@ -353,7 +353,11 @@ stan_data_ltm_inner <- function(np, ni, nr, no_rater_groups,
     !(use_skew_logistic_thresholds && use_free_logistic_thresholds)
   )
 
-  return(list(
+  idx_is_one <- which(x_df$score == 1L)
+  idx_is_nc  <- which(x_df$score == nc)
+  idx_other  <- which(!x_df$score %in% c(1L, nc))
+
+  return(tibble::lst(#list(
     x                      = x_df$score,
     np                     = np,
     ni                     = ni,
@@ -362,7 +366,7 @@ stan_data_ltm_inner <- function(np, ni, nr, no_rater_groups,
     no_time_points         = no_time_points,
     no_rater_groups        = no_rater_groups,
 
-    n_observed             = length(x_df$score),
+    n_observed             = length(x),
     idx_patient            = as.integer(x_df$patient),
     idx_item               = as.integer(x_df$item),
     idx_rater              = as.integer(x_df$rater),
@@ -376,6 +380,20 @@ stan_data_ltm_inner <- function(np, ni, nr, no_rater_groups,
     idx_rater_missing      = integer(),
     idx_time_point_missing = integer(),
     idx_longer_lt          = rep(1:(np * ni), nr),
+
+    # new stuff
+    idx_other              = which(!x %in% c(1L, nc)),
+    idx_is_one             = which(x == 1L),
+    idx_is_nc              = which(x == nc),
+    n_is_one               = length(idx_is_one),
+    n_is_nc                = length(idx_is_nc),
+    n_is_other             = length(idx_other),
+    scores0                = if (!use_free_logistic_thresholds) x[idx_other] - 1L else integer(),
+    scores1                = if (!use_free_logistic_thresholds) x[idx_other]      else integer(),
+    scores_by_rater_r1     = if ( use_free_logistic_thresholds) (x[idx_other]  - 2) * nr + idx_rater[idx_other]  else integer(),
+    scores_by_rater_r2     = if ( use_free_logistic_thresholds) (x[idx_other]  - 1) * nr + idx_rater[idx_other]  else integer(),
+    scores_by_rater_1      = if ( use_free_logistic_thresholds) (x[idx_is_one] - 1) * nr + idx_rater[idx_is_one] else integer(),
+    scores_by_rater_nc     = if ( use_free_logistic_thresholds) (x[idx_is_nc]  - 2) * nr + idx_rater[idx_is_nc]  else integer(),
 
     mu_log_lambda          = mu_log_lambda,
     mu_log_a               = rep(0, no_rater_groups),#mu_log_a,

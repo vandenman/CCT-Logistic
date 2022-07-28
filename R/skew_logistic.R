@@ -44,6 +44,7 @@ log1pexp <- function(x) {
 
 #' @title The exponential logistic generalized Weibull distribution
 #' @rdname exponential-logistic-generalized-Weibull
+#' @details see Aljarrah, M.A., Famoye, F. & Lee, C. Generalized logistic distribution and its regression model. J Stat Distrib App 7, 7 (2020). https://doi.org/10.1186/s40488-020-00107-8
 #' @export
 dELGW <- function(x, location, scale, shape, log = FALSE) {
 

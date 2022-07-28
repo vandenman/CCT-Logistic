@@ -7,6 +7,32 @@ library(cmdstanr)
 library(dplyr)
 library(purrr)
 
+# TODO:
+
+# - [ ] try vectorizing over raters and do
+#  target += ordered_logistic_lpdf(scores | locations[idx_rater[r]] / scales[idx_rater[r]], thresholds[r])
+#
+# the above does not work because it's thresholds[r] / scales and there is no vectorized cutpoints implementation
+# target += ordered_logistic_lpdf(scores | locations[idx_rater[r]] / scales[idx_rater[r]], thresholds[r])
+#
+# - [ ] try to reorder and avoid the if-else branches in ordered_logistic_lpdf?
+# perhaps precompute three vectors, isOne, isNc, and isOther
+# then loop over isOne with log1m_inv_logit, isNc with log_inv_logit, and the rest with log_inv_logit_diff.
+
+# - [ ] try to rewrite this to decorrelate log_E and log_a
+# log_inv_logit((location - threshold_shift - threshold_scale * default_thresholds[x - 1]) / scale)
+# where scale = exp(log_lambda[i] - log_E[r]),
+#       threshold_scale = exp(log_a[r]),
+#       threshold_shift = b[r]
+#       location = lt[p, i] +/- lt_offset[p, i]
+#
+# perhaps
+# (lt[p, i] +/- lt_offset[p, i] - b[r] - a[r] * default_thresholds[x - 1]) / (lambda[i] / E[r])
+# ((lt[p, i] +/- lt_offset[p, i]) / E[r] - b[r] - a[r] * default_thresholds[x - 1]) / lambda[i]
+# ?
+
+
+
 # functions ----
 fit_all_three_models <- function(data, model, iter = 3e4, adapt_iter = 500, output_samples = 2e3, grad_samples = 5, elbo_samples = 5, debug = TRUE, force = FALSE,
                                  path_prefix = "", store_predictions = TRUE, threads = 8L) {
@@ -18,9 +44,9 @@ fit_all_three_models <- function(data, model, iter = 3e4, adapt_iter = 500, outp
   stan_data_skew <- data_2_stan(data, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = TRUE,  use_free_logistic_thresholds = FALSE)
   stan_data_free <- data_2_stan(data, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE)
 
-  path_orig <- file.path("fitted_objects", sprintf("%stime_and_missing_3_models_orig_thresholds.rds", path_prefix))
-  path_skew <- file.path("fitted_objects", sprintf("%stime_and_missing_3_models_skew_thresholds.rds", path_prefix))
-  path_free <- file.path("fitted_objects", sprintf("%stime_and_missing_3_models_free_thresholds.rds", path_prefix))
+  path_orig <- file.path("fitted_objects", sprintf("%soptimized_orig_thresholds.rds", path_prefix))
+  path_skew <- file.path("fitted_objects", sprintf("%soptimized_skew_thresholds.rds", path_prefix))
+  path_free <- file.path("fitted_objects", sprintf("%soptimized_free_thresholds.rds", path_prefix))
 
   cat("Fitting original threshold model\n")
   fit_orig <- save_or_run_model(
@@ -206,13 +232,14 @@ fit_single_dataset <- function(dataset, model, data_name, debug = TRUE, store_pr
 }
 
 # simulate all data sets ----
-np <- 50             # no patients
-ni <- 5              # no items
-nr <- 10             # no raters
-nc <- 5              # no response categories
+np <- 70             # no patients
+ni <- 8              # no items
+nr <- 20             # no raters
+nc <- 10              # no response categories
 no_rater_groups <- 1 # no groups of rater
 no_covariates   <- 5   # no additional covariates
 no_time_points  <- 2
+# for debugging
 # np <- 3              # no patients
 # ni <- 4              # no items
 # nr <- 3              # no raters
@@ -221,12 +248,17 @@ no_time_points  <- 2
 # no_covariates   <- 5   # no additional covariates
 # no_time_points  <- 2
 # compile the stan model
-mod_log_reg_ltm <- compile_stan_model("stanmodels/LTM_optimized.stan", pedantic = TRUE, quiet = FALSE, cpp_options = list(stan_threads=TRUE),
+mod_log_reg_ltm1 <- compile_stan_model("stanmodels/LTM_optimized.stan", pedantic = TRUE, quiet = FALSE, cpp_options = list(stan_threads=TRUE),
                                       compile = TRUE)
-# debugonce(mod_log_reg_ltm$compile)
-# mod_log_reg_ltm$compile(quiet = FALSE, pedantic = TRUE,
-#                         stanc_options = list("allow-undefined"),
-#                         cpp_options = list(USER_HEADER = normalizePath("stanmodels/custom_cpp/log_inv_logit_diff_patched.hpp")))
+
+mod_log_reg_ltm2 <- compile_stan_model("stanmodels/LTM_optimized_noLogE.stan", pedantic = TRUE, quiet = FALSE, cpp_options = list(stan_threads=TRUE),
+                                      compile = TRUE)
+
+mod_log_reg_ltm3 <- compile_stan_model("stanmodels/LTM_loop.stan", pedantic = TRUE, quiet = FALSE, cpp_options = list(stan_threads=TRUE),
+                                       compile = TRUE)
+mod_log_reg_ltm4 <- compile_stan_model("stanmodels/LTM_loop_testfile.stan", pedantic = TRUE, quiet = FALSE, cpp_options = list(stan_threads=TRUE),
+                                       compile = TRUE)
+
 
 set.seed(1234)
 threshold_types <- c("logistic", "skew_logistic", "free")
@@ -239,14 +271,322 @@ n_total <- np * ni * nr * no_time_points
 n_missing <- round(0.170753 * n_total) # same percentage of missing as in the actual dataset
 idx_missing <- sample(n_total, n_missing)
 dataset_list <- dataset_list0
-# dataset_list <- map(dataset_list, \(x) {
-#   x$missing_data <- x$df[idx_missing, ]
-#   x$df <- x$df[-idx_missing, ]
-#   x
-# })
+dataset_list <- map(dataset_list, \(x) {
+  x$missing_data <- x$df[idx_missing, ]
+  x$df <- x$df[-idx_missing, ]
+  x
+})
 
+iter = 3e4; adapt_iter = 500; output_samples = 2e3; grad_samples = 5; elbo_samples = 5; debug = TRUE; force = FALSE;
+path_prefix = ""; store_predictions = TRUE; threads = 8L
+
+stan_data_orig <- data_2_stan(dataset_list$logistic, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = FALSE)
+
+stan_data_orig2 <- stan_data_orig
+
+idx_1     <- which( stan_data_orig2$x == 1L)
+idx_nc    <- which( stan_data_orig2$x == nc)
+idx_other <- which(!stan_data_orig2$x %in% c(1L, nc))
+
+stan_data_orig2$n_observed_1     <- length(idx_1)
+stan_data_orig2$idx_rater_1      <- stan_data_orig2$idx_rater[idx_1]
+stan_data_orig2$idx_item_1       <- stan_data_orig2$idx_item[idx_1]
+stan_data_orig2$idx_patient_1    <- stan_data_orig2$idx_patient[idx_1]
+stan_data_orig2$idx_time_point_1 <- stan_data_orig2$idx_time_point[idx_1]
+
+stan_data_orig2$n_observed_nc     <- length(idx_nc)
+stan_data_orig2$idx_rater_nc      <- stan_data_orig2$idx_rater[idx_nc]
+stan_data_orig2$idx_item_nc       <- stan_data_orig2$idx_item[idx_nc]
+stan_data_orig2$idx_patient_nc    <- stan_data_orig2$idx_patient[idx_nc]
+stan_data_orig2$idx_time_point_nc <- stan_data_orig2$idx_time_point[idx_nc]
+
+stan_data_orig2$n_observed     <- length(idx_other)
+stan_data_orig2$x              <- stan_data_orig2$x[idx_other]
+stan_data_orig2$idx_rater      <- stan_data_orig2$idx_rater[idx_other]
+stan_data_orig2$idx_item       <- stan_data_orig2$idx_item[idx_other]
+stan_data_orig2$idx_patient    <- stan_data_orig2$idx_patient[idx_other]
+stan_data_orig2$idx_time_point <- stan_data_orig2$idx_time_point[idx_other]
+
+
+
+# fit1 <- mod_log_reg_ltm1$variational(data = stan_data_orig,  iter = iter, adapt_iter = adapt_iter, output_samples = output_samples, grad_samples = grad_samples, elbo_samples = elbo_samples, threads = threads)
+fit3 <- mod_log_reg_ltm3$variational(data = stan_data_orig,  iter = iter, adapt_iter = adapt_iter, output_samples = output_samples, grad_samples = grad_samples, elbo_samples = elbo_samples, threads = threads)
+fit4 <- mod_log_reg_ltm4$variational(data = stan_data_orig2,  iter = iter, adapt_iter = adapt_iter, output_samples = output_samples, grad_samples = grad_samples, elbo_samples = elbo_samples, threads = threads)
+# fit1$time()
+fit3$time()
+fit4$time()
+system("sound.sh 0")
+
+samps3 <- fit3$draws(format = "draws_matrix")
+samps4 <- fit4$draws(format = "draws_matrix")
+
+layout(1)
+plot(colMeans(samps3[, -1]), colMeans(samps4[, -1]))
+
+h <- .1
+probs <- seq(h, 1 - h, h)
+nn <- 6
+start <- 2
+idx <- start:(start+nn-1)
+layout(matrix(1:(nn*nn), nn, nn))
+for (i in seq(2, by = 1, length.out = nn*nn)) {
+  plot(quantile(samps3[, i], probs = probs), quantile(samps4[, i], probs = probs))
+  abline(0, 1)
+}
+
+plot_cor_log_E_log_a <- function(fit) {
+  samps <- exp(fit$draws(variables = c("log_E[1]", "log_a[1]"), format = "draws_matrix"))
+  plot(samps[, 1], samps[, 2], main = sprintf("cor(log_E[1], log_a[1]) = %.3f", cor(samps[, 1], samps[, 2])))
+}
+plot_cor_log_E_log_a(fit3)
+plot_cor_log_E_log_a(fit4)
+colnames(sss)
+plot(sss[, "log_E[1]"], sss[, "log_a[1]"])
+cor(sss[, "log_E[1]"], sss[, "log_a[1]"])
+
+
+
+starting_values_logistic <- function(data, threshold_type = c("logistic", "free")) {
+
+  sscale <- function(x) {
+    scale(x)
+    attr(x, "scaled:center") <- attr(x, "scaled:scale") <- NULL
+    if (NCOL(x) == 1L || NROW(x) == 1L)
+      x <- c(x)
+    x
+  }
+
+  nc <- vctrs::vec_unique_count(data$score)
+  nr <- vctrs::vec_unique_count(data$rater)
+  if (!is.factor(data$score))
+    data$score <- factor(data$score, levels = seq_len(nc))
+
+  start_lt <- tapply(as.integer(data$score), list(data$patient, data$item), mean)
+  start_mu_lt <- mean(start_lt)
+  start_sd_lt <- sd(start_lt)
+  start_lt <- sscale(start_lt)
+
+  if ("time_point" %in% colnames(data) && vctrs::vec_unique_count(data$time_point) == 2L) {
+    temp0 <- tapply(as.integer(data$score), list(data$patient, data$item, data$time_point), mean)
+    start_offset_lt <- temp0[, , 2] - start_lt
+    # start_lt + start_offset_lt == temp0[, , 2]
+
+  } else {
+    start_offset_lt <- NULL
+  }
+  start_log_lambda <- sscale(log(tapply(as.integer(data$score), list(data$item),  sd)))
+
+  probs_obs <- do.call(cbind, tapply(data$score, data$rater, \(x) { tb <- table(x); tb / sum(tb) }))
+
+  gamma <- 1:(nc - 1)
+  gamma <- log(gamma / (nc - gamma))
+
+
+  start_log_E <- numeric(nr)
+  start_log_a <- numeric(nr)
+  start_b     <- numeric(nr)
+
+  data_split <- split(data, data$rater)
+  mean_location <- sapply(data_split, \(x) mean(start_lt[cbind(x$patient, x$item)]))
+  mean_scale    <- exp(sapply(data_split, \(x) mean(start_log_lambda[x$item])))
+  # r <- 1
+  # x <- c(starting_values$log_E[r], starting_values$log_a[r], starting_values$b[r])
+  # mean_location_r <- mean_location[r]
+  # mean_scale_r <- mean_scale[r]
+  for (r in seq_len(nr)) {
+    opt <- optim(c(0, 0, 1), \(x, probs_obs, mean_location_r, mean_scale_r, gamma) {
+      E_r <- exp(x[1])
+      a_r <- exp(x[2])
+      b_r <- x[3]
+
+      delta <- a_r * gamma + b_r
+
+      probs_est <- CCTLogistic:::get_probs_ordered(delta, mean_location_r, mean_scale_r / E_r)
+
+      sum((probs_obs - probs_est)^2)
+    }, probs_obs = probs_obs[, r], mean_location = mean_location[r], mean_scale = mean_scale[r], gamma = gamma)
+
+    start_log_E[r] <- opt$par[1L]
+    start_log_a[r] <- opt$par[2L]
+    start_b[r]     <- opt$par[3L]
+
+  }
+
+  start_sd_log_lambda <- sd(start_log_lambda)
+
+  data_rater_group   <- split(data, data$rater_group)
+  start_mu_b         <- sapply(data_rater_group, \(d) mean(start_b[unique(d$rater)]))
+  start_sd_b         <- sapply(data_rater_group, \(d) sd(start_b[unique(d$rater)]))
+  start_mu_log_E     <- sapply(data_rater_group, \(d) mean(start_log_E[unique(d$rater)]))
+  start_log_sd_log_E <- sapply(data_rater_group, \(d) sd(start_log_E[unique(d$rater)]))
+  start_log_sd_log_a <- sapply(data_rater_group, \(d) mean(start_log_a[unique(d$rater)]))
+
+  return(list(
+    lt             = start_lt,
+    log_lambda     = start_log_lambda,
+    offset_lt      = start_offset_lt,
+    log_E          = start_log_E,
+    log_a          = start_log_a,
+    b              = start_b,
+    # hyperparameters
+    mu_lt          = start_mu_lt,
+    sd_lt          = start_sd_lt,
+    sd_log_lambda  = start_sd_log_lambda,
+    mu_b           = start_mu_b,
+    sd_b           = start_sd_b,
+    mu_log_E       = start_mu_log_E,
+    log_sd_log_E   = start_log_sd_log_E,
+    log_sd_log_a   = start_log_sd_log_a,
+    free_thresholds = numeric(),
+    threshold_shape = numeric(),
+
+    log_reg_intercept = numeric(),
+    log_reg_slopes    = numeric()
+  ))
+}
+
+starting_values_2_raw <- function(starting_values) {
+
+  np <- nrow(starting_values$lt)
+  ni <- ncol(starting_values$lt)
+  nr <- length(starting_values$log_E)
+
+  QR_np <- CCTLogistic:::Q_sum_to_zero_QR_R(np)
+  QR_ni <- CCTLogistic:::Q_sum_to_zero_QR_R(ni)
+  QR_nr <- CCTLogistic:::Q_sum_to_zero_QR_R(nr)
+
+  starting_values$lt_raw <- matrix(NA, np - 1, ni)
+  for (i in seq_len(ni))
+    starting_values$lt_raw[, i]  <- CCTLogistic:::sum_to_zero_QR_inv_R(starting_values$lt[, i],    QR_np)
+  starting_values$log_lambda_raw <- CCTLogistic:::sum_to_zero_QR_inv_R(starting_values$log_lambda, QR_ni)
+  starting_values$log_E_raw      <- CCTLogistic:::sum_to_zero_QR_inv_R(starting_values$log_E,      QR_nr)
+  starting_values$log_a_raw      <- CCTLogistic:::sum_to_zero_QR_inv_R(starting_values$log_a,      QR_nr)
+
+  if (length(starting_values$mu_log_E) > 1L) {
+    starting_values$mu_log_E_raw     <- CCTLogistic:::sum_to_zero_QR_inv_R(starting_values$mu_log_E)
+    starting_values$log_sd_log_E_raw <- CCTLogistic:::sum_to_zero_QR_inv_R(starting_values$log_sd_log_E)
+    starting_values$log_sd_log_a_raw <- CCTLogistic:::sum_to_zero_QR_inv_R(starting_values$log_sd_log_a)
+  } else {
+    starting_values$mu_log_E_raw     <- numeric()
+    starting_values$log_sd_log_E_raw <- numeric()
+    starting_values$log_sd_log_a_raw <- numeric()
+  }
+
+  starting_values
+
+}
+
+
+
+debugonce(starting_values_logistic)
+
+starting_values <- starting_values_logistic(dataset_list$logistic$df)
+diag(cor(starting_values$lt, dataset_list$logistic$parameters$lt))
+diag(cor(starting_values$offset_lt, dataset_list$logistic$parameters$offset_lt))
+cor(starting_values$log_lambda, dataset_list$logistic$parameters$log_lambda)
+cor(starting_values$log_E, dataset_list$logistic$parameters$log_E)
+cor(starting_values$log_a, dataset_list$logistic$parameters$log_a)
+cor(starting_values$b, dataset_list$logistic$parameters$b)
+
+
+ddd <- dataset_list$logistic
+CCTLogistic::log_likelihood_ltm(
+  ddd,
+  log_a           = ddd$parameters$log_a,
+  b               = ddd$parameters$b,
+  lt              = ddd$parameters$lt,
+  log_E           = ddd$parameters$log_E,
+  log_lambda      = ddd$parameters$log_lambda,
+  offset_lt       = ddd$parameters$offset_lt,
+  threshold_shape = ddd$parameters$threshold_shape,
+  free_thresholds = ddd$parameters$free_thresholds,
+  threshold_type  = ddd$threshold_type
+)
+CCTLogistic::log_likelihood_ltm(
+  ddd,
+  log_a           = starting_values$log_a,
+  b               = starting_values$b,
+  lt              = starting_values$lt,
+  log_E           = starting_values$log_E,
+  log_lambda      = starting_values$log_lambda,
+  offset_lt       = starting_values$offset_lt,
+  threshold_shape = NULL,
+  free_thresholds = NULL,
+  threshold_type  = ddd$threshold_type
+)
+
+#
+# ddd <- dataset_list$logistic
+# CCTLogistic::log_likelihood_ltm(
+#   ddd,
+#   log_a           = ddd$parameters$log_a,
+#   b               = ddd$parameters$b,
+#   lt              = ddd$parameters$lt,
+#   log_E           = ddd$parameters$log_E,
+#   log_lambda      = ddd$parameters$log_lambda,
+#   offset_lt       = ddd$parameters$offset_lt,
+#   threshold_shape = ddd$parameters$threshold_shape,
+#   free_thresholds = ddd$parameters$free_thresholds,
+#   threshold_type  = ddd$threshold_type
+# )
+# ddd2 <- ddd
+# a_r
+# CCTLogistic::log_likelihood_ltm(
+#   ddd2,
+#   log_a           = log(exp(2 * ddd2$parameters$log_a)),
+#   b               = ddd2$parameters$b,
+#   lt              = ddd2$parameters$lt,
+#   log_E           = ddd2$parameters$log_E,
+#   log_lambda      = ddd2$parameters$log_lambda,
+#   offset_lt       = ddd2$parameters$offset_lt,
+#   threshold_shape = ddd2$parameters$threshold_shape,
+#   free_thresholds = ddd2$parameters$free_thresholds,
+#   threshold_type  = ddd2$threshold_type
+# )
+
+
+starting_values_raw <- starting_values_2_raw(starting_values)
+
+fit0 <- mod_log_reg_ltm$variational(data = stan_data_orig, iter = iter, adapt_iter = adapt_iter, output_samples = output_samples, grad_samples = grad_samples, elbo_samples = elbo_samples, threads = threads)
+fit1 <- mod_log_reg_ltm$variational(data = stan_data_orig, iter = iter, adapt_iter = adapt_iter, output_samples = output_samples, grad_samples = grad_samples, elbo_samples = elbo_samples, threads = threads,
+                            init = list(starting_values_raw))
+fit0$time()
+fit1$time()
+
+fit00 <- mod_log_reg_ltm$sample(data = stan_data_orig, iter_sampling = output_samples, chains = 1, threads_per_chain = 16)
+fit00$time()
+
+sss <- fit00$draws(format = "draws_matrix")
+colnames(sss)
+plot(sss[, "log_E[1]"], sss[, "log_a[1]"])
+cor(sss[, "log_E[1]"], sss[, "log_a[1]"])
+
+fit2 <- mod_log_reg_ltm2$variational(data = stan_data_orig, iter = iter, adapt_iter = adapt_iter, output_samples = output_samples, grad_samples = grad_samples, elbo_samples = elbo_samples, threads = threads)
+fit2$time()
+
+fit3 <- mod_log_reg_ltm3$variational(data = stan_data_orig, iter = iter, adapt_iter = adapt_iter, output_samples = output_samples, grad_samples = grad_samples, elbo_samples = elbo_samples, threads = threads)
+fit4 <- mod_log_reg_ltm3$variational(data = stan_data_orig, iter = iter, adapt_iter = adapt_iter, output_samples = output_samples, grad_samples = grad_samples, elbo_samples = elbo_samples, threads = threads,
+                                     init = list(starting_values_raw[lengths(starting_values_raw) > 0]))
+fit3$time()
+fit4$time()
+fit4$output()
 # debugonce(fit_all_three_models)
 fit_test <- fit_all_three_models(dataset_list$logistic, mod_log_reg_ltm, path_prefix = "test", force = TRUE)
+# new (does not use threads)
+# 47.3, 98.4, 36.5
+# old (with threads)
+# 72.9, 78.5, 36.7
+
+mod_log_reg_ltm_profile <- compile_stan_model("stanmodels/LTM_optimized_with_profile.stan", pedantic = TRUE, quiet = FALSE, cpp_options = list(stan_threads=TRUE),
+                                      compile = TRUE)
+fit_test <- fit_all_three_models(dataset_list$logistic, mod_log_reg_ltm_profile, path_prefix = "test_profile", force = TRUE)
+
+profile_tib <- rbind(
+  fit_test$fit_orig$profiles()[[1]] |> as_tibble() |> mutate(fit = "fit_orig") |> relocate(fit) |> select(-thread_id),
+  fit_test$fit_skew$profiles()[[1]] |> as_tibble() |> mutate(fit = "fit_skew") |> relocate(fit) |> select(-thread_id),
+  fit_test$fit_free$profiles()[[1]] |> as_tibble() |> mutate(fit = "fit_free") |> relocate(fit) |> select(-thread_id)
+)
+print(profile_tib, n = 30)
 
 compute_imputation_performance <- function(fit, data) {
   draws_orig <- fit$draws()
@@ -278,9 +618,7 @@ map2(fit_test, rep(dataset_list["logistic"], 3), compute_imputation_performance)
 # classification    Brier score
 #      0.5035129      0.0838363
 
-# TODO:
 # classification of ~0.5 is good (a lot better than  guessing, 0.2)
-# brier score does not make sense.
 
 # fit all 9 models
 results <- pmap(list(dataset = dataset_list, data_name = names(dataset_list)), fit_single_dataset, model = mod_log_reg_ltm)

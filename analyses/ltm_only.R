@@ -7,7 +7,7 @@ library(dplyr)
 library(purrr)
 
 options("cores" = as.integer(parallel::detectCores() / 2))
-options("cores" = parallel::detectCores())
+# options("cores" = parallel::detectCores())
 fit_all_three_models <- function(data, model, logistic_dat = NULL, logistic_target = NULL, iter = 3e4, adapt_iter = 500, output_samples = 2e3, grad_samples = 25, elbo_samples = 25, threads = getOption("cores", 1L), debug = FALSE, force = FALSE,
                                  path_prefix = "", store_predictions = TRUE, max_retries = 5L) {
 
@@ -19,11 +19,11 @@ fit_all_three_models <- function(data, model, logistic_dat = NULL, logistic_targ
   data_missing$score <- NULL
 
   stan_data_orig <- data_2_stan(data_nonmissing, missing_data = data_missing, logistic_dat = logistic_dat, logistic_target = logistic_target, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = FALSE)
-  stan_data_skew <- data_2_stan(data_nonmissing, missing_data = data_missing, logistic_dat = logistic_dat, logistic_target = logistic_target, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = TRUE,  use_free_logistic_thresholds = FALSE)
+  # stan_data_skew <- data_2_stan(data_nonmissing, missing_data = data_missing, logistic_dat = logistic_dat, logistic_target = logistic_target, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = TRUE,  use_free_logistic_thresholds = FALSE)
   stan_data_free <- data_2_stan(data_nonmissing, missing_data = data_missing, logistic_dat = logistic_dat, logistic_target = logistic_target, store_predictions = store_predictions, debug = debug, use_skew_logistic_thresholds = FALSE, use_free_logistic_thresholds = TRUE)
 
   path_orig <- file.path("fitted_objects", sprintf("%stime_3_models_orig_thresholds.rds", path_prefix))
-  path_skew <- file.path("fitted_objects", sprintf("%stime_3_models_skew_thresholds.rds", path_prefix))
+  # path_skew <- file.path("fitted_objects", sprintf("%stime_3_models_skew_thresholds.rds", path_prefix))
   path_free <- file.path("fitted_objects", sprintf("%stime_3_models_free_thresholds.rds", path_prefix))
 
   fit_model <- function(data) {
@@ -35,8 +35,8 @@ fit_all_three_models <- function(data, model, logistic_dat = NULL, logistic_targ
   cat("Fitting original threshold model\n")
   fit_orig <- save_or_run_model(fit_model(stan_data_orig), path_orig, force, max_retries = max_retries)
 
-  cat("Fitting skew threshold model\n")
-  fit_skew <- save_or_run_model(fit_model(stan_data_skew), path_skew, force, max_retries = max_retries)
+  # cat("Fitting skew threshold model\n")
+  # fit_skew <- save_or_run_model(fit_model(stan_data_skew), path_skew, force, max_retries = max_retries)
 
   cat("Fitting free threshold model\n")
   fit_free <- save_or_run_model(fit_model(stan_data_free), path_free, force, max_retries = max_retries)
@@ -44,12 +44,12 @@ fit_all_three_models <- function(data, model, logistic_dat = NULL, logistic_targ
   return(list(
     fit = list(
       orig = fit_orig,
-      skew = fit_skew,
+      # skew = fit_skew,
       free = fit_free
     ),
     stan_data = list(
       orig = stan_data_orig,
-      skew = stan_data_skew,
+      # skew = stan_data_skew,
       free = stan_data_free
     )
   ))
@@ -98,8 +98,10 @@ nr <- nlevels(droplevels(data_2_analyze$rater))
 nt <- nlevels(droplevels(data_2_analyze$time))
 nc <- 17L
 
-mod_ltm <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time_and_missing.stan", pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels",
+mod_ltm <- compile_stan_model("stanmodels/LTM_loop.stan", pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels",
                               cpp_options = list(stan_threads=TRUE))
+# mod_ltm <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time_and_missing.stan", pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels",
+#                               cpp_options = list(stan_threads=TRUE))
 
 fits_without_lr <- fit_all_three_models(data_2_analyze, mod_ltm, NULL,          NULL,            path_prefix = file.path("ltm_only", "mesdag_ltm_without_logistic_regression"))
 # debugonce(fit_all_three_models)
@@ -107,7 +109,7 @@ fits_with_lr    <- fit_all_three_models(data_2_analyze, mod_ltm, data_violence, 
 
 mean_probs_without_lr <- compute_mean_probs(fits_without_lr, file.path("fitted_objects", "ltm_only", "mesdag_ltm_probs_without_logistic_regression.rds"))
 mean_probs_with_lr    <- compute_mean_probs(fits_with_lr,    file.path("fitted_objects", "ltm_only", "mesdag_ltm_probs_with_logistic_regression.rds"))
-# system("beep_finished.sh 0")
+# system("sound.sh 0")
 
 # TODO: the code below should be done for both sets of fits!!
 # inspect LTM fit ----
@@ -119,14 +121,16 @@ raw_probabilities_with_lr    <- unlist(map(mean_probs_with_lr,    rowMeans), use
 
 plot_ltm_fit <- function(raw_probabilities, observed_proportions, ylim = NULL) {
   nc <- length(observed_proportions)
-  betterNames <- c("Original", "Skew", "Free")
+  fitIndex <- which(c("orig", "skew", "free") %in% names(mean_probs_without_lr))
+  nFits <- length(fitIndex)
+  betterNames <- c("Original", "Skew", "Free")[fitIndex]
   tib <- tibble(
-    panel = rep(c("Raw", "Diff"), c(4L * nc, 3L * nc)),
+    panel = rep(c("Raw", "Diff"), c((nFits + 1L) * nc, nFits * nc)),
     fill  = c(rep(c(betterNames, "Observed"), each = nc), rep(betterNames, each = nc)),
-    y     = c(raw_probabilities, observed_proportions, raw_probabilities - rep(observed_proportions, 3L)),
-    x     = rep(1:nc, 7L)
+    y     = c(raw_probabilities, observed_proportions, raw_probabilities - rep(observed_proportions, nFits)),
+    x     = rep(1:nc, 2L * nFits + 1L)
   )
-  cols <- hcl.colors(3L, "Set 2")
+  cols <- hcl.colors(3L, "Set 2")[fitIndex] # keeps the same colors even if we drop one fit
   colors <- c("Observed" = "black", setNames(cols, betterNames))
 
   if (is.null(ylim)) {
@@ -136,14 +140,14 @@ plot_ltm_fit <- function(raw_probabilities, observed_proportions, ylim = NULL) {
     stopifnot(is.list(ylim) && length(ylim) == 2L)
     counter_breaks <<- 0L
     counter_limits <<- 0L
-    limits_fun <- \(x) {res <- ylim[[counter_limits+1]]; counter_limits <<- (counter_limits+1L) %% 2; res}
+    limits_fun <- \(x) {res <- ylim[[counter_limits + 1]]; counter_limits <<- (counter_limits + 1L) %% 2; res}
     breaks_fun <- \(x) {res <- jaspGraphs::getPrettyAxisBreaks(ylim[[counter_breaks+1L]]); counter_breaks <<- (counter_breaks + 1L) %% 2; res}
   }
 
   fit_plot <- ggplot(data = tib, mapping = aes(x = x, y = y, group = fill, fill = fill)) +
-    geom_bar(position="dodge", stat="identity", width = .5) +
+    geom_bar(position="dodge", stat = "identity", width = .5) +
     facet_wrap(~panel, scales = "free_y") +
-    scale_x_continuous(name = "Score", breaks = 1:18, limits = c(0, 19)) +
+    scale_x_continuous(name = "Score", breaks = 1:nc, limits = c(0, 19)) +
     scale_y_continuous(name = "Diff (1) / Probability (2)", breaks = breaks_fun, limits = limits_fun) +
     scale_fill_manual(name = NULL, values = colors) +
     jaspGraphs::geom_rangeframe() +
@@ -152,75 +156,12 @@ plot_ltm_fit <- function(raw_probabilities, observed_proportions, ylim = NULL) {
   return(fit_plot)
 }
 
+# NOTE: the fit to the IFTE items is approximately identical for the models with and without logistic regression
 pdf("simulation_figures/ltm_only_joined_ggplot22.pdf", width = 16, height = 8)
 ylim <- list(c(-.2, .4), c(0, .4))
 plot_ltm_fit(raw_probabilities_without_lr, observed_proportions, ylim = ylim) + labs(title = "Without logistic regression")
 plot_ltm_fit(raw_probabilities_with_lr, observed_proportions,    ylim = ylim) + labs(title = "With logistic regression")
 dev.off()
-
-# one 4 panel plot
-betterNames <- c("Original", "Skew", "Free")
-tib <- tibble(
-  cols  = rep(rep(c("Raw", "Diff"),     c(4L * nc, 3L * nc)), 2),
-  rows  = rep(c("without", "with"), each = 4L * nc + 3L * nc),
-  fill  = rep(c(rep(c(betterNames, "Observed"), each = nc), rep(betterNames, each = nc)), 2),
-  y     = c(c(raw_probabilities_without_lr, observed_proportions, raw_probabilities_without_lr - rep(observed_proportions, 3L)),
-            c(raw_probabilities_with_lr, observed_proportions, raw_probabilities_with_lr - rep(observed_proportions, 3L))),
-  x     = rep(1:nc, 14L)
-)
-cols <- hcl.colors(3L, "Set 2")
-colors <- c("Observed" = "black", setNames(cols, betterNames))
-
-ylim <- list(c(-.2, .4), c(0, .4))
-counter_breaks <<- 0L
-counter_limits <<- 0L
-limits_fun <- \(x) {res <- ylim[[counter_limits+1]]; counter_limits <<- (counter_limits+1L) %% 2; res}
-breaks_fun <- \(x) {res <- jaspGraphs::getPrettyAxisBreaks(ylim[[counter_breaks+1L]]); counter_breaks <<- (counter_breaks + 1L) %% 2; res}
-
-fit_plot <- ggplot(data = tib, mapping = aes(x = x, y = y, group = fill, fill = fill)) +
-    geom_bar(position="dodge", stat="identity", width = .5) +
-    facet_wrap(rows~cols, scales = "free_y") +
-    # facet_grid(rows = vars(rows), cols = vars(cols), scales = "free") +
-    scale_x_continuous(name = "Score", breaks = 1:18, limits = c(0, 19)) +
-    scale_y_continuous(name = "Diff (1) / Probability (2)", breaks = breaks_fun, limits = limits_fun) +
-    scale_fill_manual(name = NULL, values = colors) +
-    jaspGraphs::geom_rangeframe() +
-    jaspGraphs::themeJaspRaw(legend.position = "right") +
-    theme(strip.text = element_text(size = 28))
-
-pdf("simulation_figures/ltm_only_joined_ggplot2_4plts.pdf", width = 16, height = 8)
-fit_plot
-dev.off()
-
-plotly::ggplotly(fit_plot)
-
-pp <- plotly::ggplotly(plot_ltm_fit(raw_probabilities_without_lr, observed_proportions, ylim = ylim) + labs(title = "Without logistic regression"))
-pp
-
-plot_for_presentation <- tib |>
-  filter(cols == "Raw" & rows == "with") |>
-  ggplot(mapping = aes(x = x, y = y, group = fill, fill = fill)) +
-    geom_bar(position="dodge", stat="identity", width = .5) +
-    scale_x_continuous(name = "Score", breaks = 1:18, limits = c(0, 19)) +
-    scale_y_continuous(name = "Probability", breaks = seq(0, .4, .1), limits = c(0, .4)) +
-    scale_fill_manual(name = NULL, values = colors) +
-    # jaspGraphs::geom_rangeframe() +
-    jaspGraphs::themeJaspRaw(legend.position = "right") +
-    theme(strip.text = element_text(size = 28)) +
-    geom_segment(x = 1, xend = 18, y = -Inf, yend = -Inf) +
-    geom_segment(x = -Inf, xend = -Inf, y = 0.0, yend = 0.4)
-saveRDS(plot_for_presentation, file = file.path("figure_r_objs", "ltm_fit.rds"))
-
-data_for_plot_presentation <- tib |>
-  filter(cols == "Raw" & rows == "with") |>
-  select(-cols, -rows)
-saveRDS(data_for_plot_presentation, file.path("figure_r_objs", "ltm_fit_rawdata.rds"))
-
-pdf("simulation_figures/ltm_only_joined_ggplot2_4plts.pdf", width = 8, height = 8)
-fit_plot
-dev.off()
-
-plotly::ggplotly(plot_for_presentation)
 
 # inspect fit logisitc regression ----
 observed_violence <- fits_with_lr$stan_data$orig$log_reg_outcomes
@@ -292,23 +233,22 @@ covariate_levels_stripped <- covariate_levels_stripped |>
 
 log_reg_tib <- tibble(
   fit    = rep(names(modelNames), each = no_slopes),
-  item   = rep(seq_len(no_slopes), 3),
-  group  = rep(covariate_groups_with_repeats, 3),
-  level  = rep(covariate_levels_stripped, 3),
-  type   = rep(ifelse(seq_len(no_slopes) <= 18, "covariate", "item"), 3),
+  item   = rep(seq_len(no_slopes), nFits),
+  group  = factor(rep(covariate_groups_with_repeats, nFits), levels = covariate_groups),
+  level  = rep(covariate_levels_stripped, nFits),
+  type   = rep(ifelse(seq_len(no_slopes) <= nc, "covariate", "item"), nFits),
   mean   = unlist(map(log_reg_results, `[[`, "log_reg_slopes_means"), use.names = FALSE),
   lower  = unlist(map(log_reg_results, \(x) x[["log_reg_slopes_cris"]][, "lower"]), use.names = FALSE),
   upper  = unlist(map(log_reg_results, \(x) x[["log_reg_slopes_cris"]][, "upper"]), use.names = FALSE),
   median = unlist(map(log_reg_results, \(x) x[["log_reg_slopes_cris"]][, "median"]), use.names = FALSE)
 )
-log_reg_tib$group <- factor(log_reg_tib$group, levels = covariate_groups)
-# all(as.character(log_reg_tib$group) == rep(covariate_groups_with_repeats, 3))
+# all(as.character(log_reg_tib$group) == rep(covariate_groups_with_repeats, nFits))
 
 # This figure can become A LOT more informative by labelling the covariates more properly!
 # for the covariates, group by categorical level (e.g., crime).
 # for the items, group by (1) the questionnaire they come from, (2) time point.
 yBreaks <- jaspGraphs::getPrettyAxisBreaks(c(log_reg_tib$lower, log_reg_tib$upper))
-ggplot(data = log_reg_tib |> filter(fit == "free"),# |> filter(item < 18),
+ggplot(data = log_reg_tib |> filter(fit == "free"),# |> filter(item < nc),
        aes(y = mean, group = interaction(fit, item, group), x = group)) +
   geom_errorbar(aes(ymin = lower, ymax = upper), position=position_dodge(.5), width = .1) +
   geom_point(position=position_dodge(.5)) +
@@ -317,8 +257,8 @@ ggplot(data = log_reg_tib |> filter(fit == "free"),# |> filter(item < 18),
   jaspGraphs::themeJaspRaw() +
   theme(axis.text.x = element_text(angle = 90))
 
-idx_violence_before <- which(rep(covariate_levels  == "violent_before1", 3))
-idx_violence_between <- which(rep(covariate_levels == "violent_between1", 3))
+idx_violence_before <- which(rep(covariate_levels  == "violent_before1", nFits))
+idx_violence_between <- which(rep(covariate_levels == "violent_between1", nFits))
 log_reg_tib$group
 
 log_reg_tib2 <- log_reg_tib |>
@@ -351,7 +291,7 @@ log_reg_tib2$level <- recode_factor(log_reg_tib2$level,
 tib_segment <- tibble(x = -Inf, xend = -Inf, y = yBreaks[1], yend = yBreaks[length(yBreaks)], group="age")
 
 
-posterior_mean_95CRI <- ggplot(data = log_reg_tib2 |> filter(fit == "free"),# |> mutate(level = abbreviate(level, minlength = 14)),# |> filter(item < 18),
+posterior_mean_95CRI <- ggplot(data = log_reg_tib2 |> filter(fit == "free"),# |> mutate(level = abbreviate(level, minlength = 14)),# |> filter(item < nc),
        aes(y = mean, group = interaction(fit, item, group), x = level)) +
   geom_errorbar(aes(ymin = lower, ymax = upper), position=position_dodge(.5), width = .3) +
   geom_point(position=position_dodge(.5), size = 3) +
@@ -403,7 +343,7 @@ save_figure(figure = gt, file = "posterior_mean_95CRI2.svg", width = 15, height 
 
 gtable::gtable_show_layout(gt)
 
-ggplot(data = log_reg_tib2 |> filter(fit == "free"),# |> filter(item < 18),
+ggplot(data = log_reg_tib2 |> filter(fit == "free"),# |> filter(item < nc),
        aes(y = mean, group = interaction(fit, item, group), x = group)) +
   geom_errorbar(aes(ymin = lower, ymax = upper), position=position_dodge(.5), width = .1) +
   geom_point(position=position_dodge(.5)) +
@@ -428,7 +368,7 @@ largest_betas_inds <- do.call(rbind, map(log_reg_results, \(x) {
   as.numeric(extract_numeric(names(x$log_reg_slopes_means[o])))
 }))
 
-item_index <- ifelse(largest_betas_inds > 18, largest_betas_inds - 18L, NA_integer_)
+item_index <- ifelse(largest_betas_inds > nc, largest_betas_inds - nc, NA_integer_)
 
 tib <- tibble(
   value  = c(largest_betas),
@@ -455,13 +395,7 @@ for (p in seq_len(np)) for (i in seq_len(ni)) for (t in seq_len(nt)) {
   derived2[, p] <- derived2[, p] + (lt + tt*offset_lt) * slope
 }
 
-lt_idx <- startsWith(colnames(raw_samples), "lt[")
-lt_means <- colMeans(raw_samples[, lt_idx])
-plot(c(derived)) # plot is not compelling
-
 all.equal(rowSums(derived), colMeans(derived2)) # consistency check
-plot(rowSums(derived))
-plot(colMeans(derived2))
 
 derived2_cris <- apply(derived2, 2L, quantile, probs = c(0.025, 0.975))
 ifte_aggregate_tib <- tibble(
@@ -474,7 +408,7 @@ ifte_aggregate_tib <- tibble(
 range(derived2_cris)
 rowMeans(apply(derived2_cris, 2L, range))
 
-# with CRIs
+# with CRIs -- unreadable
 yBreaks <- jaspGraphs::getPrettyAxisBreaks(c(ifte_aggregate_tib$y, ifte_aggregate_tib$ci_lower, ifte_aggregate_tib$ci_upper))
 ggplot(data = ifte_aggregate_tib, aes(x = x, y = y, ymin = ci_lower, ymax = ci_upper, shape = violent, fill = violent)) +
   geom_errorbar() +
@@ -488,7 +422,7 @@ ggplot(data = ifte_aggregate_tib, aes(x = x, y = y, ymin = ci_lower, ymax = ci_u
   scale_y_continuous("Posterior mean", breaks = seq(-4, 4, 2)) +
   ggplot2::coord_cartesian(ylim = c(-4, 4))
 
-# without CRIs
+# without CRIs (as in manuscript) --
 # yBreaks <- jaspGraphs::getPrettyAxisBreaks(ifte_aggregate_tib$y)
 yBreaks <- seq(-4, 4, 2) # same as other figure
 posterior_mean_IFTE_aggregate <- ggplot(data = ifte_aggregate_tib, aes(x = x, y = y, ymin = ci_lower, ymax = ci_upper, shape = violent, fill = violent)) +
