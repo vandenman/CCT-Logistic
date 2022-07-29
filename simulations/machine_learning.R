@@ -10,6 +10,7 @@ library(pROC)
 library(ggplot2)
 library(mice)
 
+options("cores" = as.integer(parallel::detectCores() / 2))
 # functions ----
 get_prediction_accuracy <- function(table) sum(diag(table)) / sum(table)
 
@@ -51,7 +52,7 @@ fit_logistic_regression_bay <- function(data, target = "violent_after", i, ...) 
                    iter       = 5000,
                    warmup     = 2000,
                    chains     = 6,
-                   cores      = 8,
+                   cores      = min(6, getOption("cores", 1L)),
                    silent     = 2,
                    refresh    = 1000,
                    save_model = "saved_stan_models/logistic_fit.stan",
@@ -354,9 +355,8 @@ cols <- c("time", "patient", "rater", "item", "score", "age",
 )
 cols <- setdiff(colnames(data_wider_imputed), c("time", "Aantal_Patienten", "patient"))
 
-mod_ltm <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time_and_missing.stan", pedantic = TRUE, quiet = FALSE, cpp_options = list(stan_threads=TRUE))
+mod_ltm <- compile_stan_model("stanmodels/LTM_loop.stan", pedantic = TRUE, quiet = FALSE, cpp_options = list(stan_threads=TRUE))
 
-# set.seed(123)
 set.seed(42)
 no_cross_validations <- 10
 
@@ -411,7 +411,7 @@ for (i in seq_len(no_cross_validations)) {
   for (r in 0:ltm_retries) {
     set.seed(seeds["CCT", i] + r)
     ltm_fit <- try(CCTLogistic::save_or_run_model(
-      mod_ltm$variational(data = ltm_data, iter = 3e4, adapt_iter = 500, output_samples = 2e3, grad_samples = 5, elbo_samples = 5, threads = 8),
+      mod_ltm$variational(data = ltm_data, iter = 3e4, adapt_iter = 500, output_samples = 2e3, grad_samples = 5, elbo_samples = 5, threads = getOption("cores", 1L)),
       path = file.path(fitted_objects_dir, sprintf("cct-%d.rds", i)), force = force
     ))
 
