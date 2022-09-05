@@ -3,6 +3,7 @@ library(CCTLogistic)
 library(dplyr)
 library(ggplot2)
 library(patchwork)
+library(xtable)
 
 all_data <- read_long_data()
 data_2_analyze <- all_data |>
@@ -145,7 +146,51 @@ combined_plt <- wrap_plots(
   plot_raters_by_patients + ggtitle("B") + theme(plot.title = element_text(hjust = 0))
 )
 combined_plt
-save_figure_obj(combined_plt,                 file = "descriptives_combined_plt.rds")
-save_figure(figure = combined_plt,            file = "descriptives_combined_plt.svg", width = 15, height = 12)
-save_figure(figure = plot_scores,             file = "descriptives_scores.svg",             width = 12, height = 7)
-save_figure(figure = plot_raters_by_patients, file = "descriptives_raters_by_patients.svg", width = 900 / 96, height = 494 / 96)
+# save_figure_obj(combined_plt,                 file = "descriptives_combined_plt.rds")
+# save_figure(figure = combined_plt,            file = "descriptives_combined_plt.svg", width = 15, height = 12)
+# save_figure(figure = plot_scores,             file = "descriptives_scores.svg",             width = 12, height = 7)
+# save_figure(figure = plot_raters_by_patients, file = "descriptives_raters_by_patients.svg", width = 900 / 96, height = 494 / 96)
+
+# tables
+key_diagnosis <- setNames(
+  c("Axis 1", "Autism spectrum disorder", "Personality disorder cluster B", "Other personality disorders", "Schizophrenia and other psychotic disorders"),
+  levels(data_violence$diagnosis)
+)
+key_crime <- setNames(
+  c("Arson", "Manslaughter", "Murder", "Violent property crime", "Moderate violence / property crime", "Sex offense", "Aggravated assault"),
+  levels(data_violence$crime)
+)
+key_treatment_duration <- setNames(
+  c("0-2 years", "2-4 years", "4-6 years", "6+ years"),
+  levels(data_violence$treatment_duration)
+)
+
+data_violence2 <- data_violence |>
+  mutate(
+    diagnosis          = recode(diagnosis,          !!!key_diagnosis),
+    crime              = recode(crime,              !!!key_crime),
+    treatment_duration = recode(treatment_duration, !!!key_treatment_duration)
+  )
+
+data_violence2$diagnosis <- factor(data_violence2$diagnosis, levels(data_violence2$diagnosis)[c(5, 2, 1, 3, 4)])
+data_violence2$crime     <- factor(data_violence2$crime,     levels(data_violence2$crime)[c(3, 1, 2, 6, 7, 4, 5)])
+
+vars <- c("violent_before", "violent_between", "age", "treatment_duration", "diagnosis", "crime")
+for (v in vars) {
+  tb  <- table(data_violence2[[v]], data_violence2[["violent_after"]])
+  ptb <- proportions(tb, margin = 2) * 100
+  rnms <- rownames(tb)
+  cat("\\textbf{", v, "} &&\\\\ \n", sep = "")
+  for (i in seq_len(nrow(tb))) {
+    cat(
+      "\\hspace{3mm}  ",
+      rnms[i], "  &  ", strrep(" ", 4),
+      sprintf("%d (%.0f\\%%)", tb[i, 1], ptb[i, 1]), "  &  ",
+      sprintf("%d (%.0f\\%%)", tb[i, 2], ptb[i, 2]), "\\\\\n"
+    )
+  }
+}
+
+tb_scores <- table(data_2_analyze$score)
+prop_scores <- proportions(tb_scores)
+sum(prop_scores[c(1, 5, 9, 13, 17)])

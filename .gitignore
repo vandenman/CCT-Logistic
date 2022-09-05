@@ -30,3 +30,4 @@ presentations/*.pdf
 graphicalmodels/split
 
 stanmodels/compiled_stan_models/*
+submission/*

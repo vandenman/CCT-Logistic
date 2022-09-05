@@ -111,7 +111,6 @@ mean_probs_without_lr <- compute_mean_probs(fits_without_lr, file.path("fitted_o
 mean_probs_with_lr    <- compute_mean_probs(fits_with_lr,    file.path("fitted_objects", "ltm_only", "mesdag_ltm_probs_with_logistic_regression.rds"))
 # system("sound.sh 0")
 
-# TODO: the code below should be done for both sets of fits!!
 # inspect LTM fit ----
 observed_proportions <- get_obs_proportions(data_2_analyze$score)
 rmse <- function(x, y) sqrt(mean((x - y)^2))
@@ -163,7 +162,7 @@ plot_ltm_fit(raw_probabilities_without_lr, observed_proportions, ylim = ylim) + 
 plot_ltm_fit(raw_probabilities_with_lr, observed_proportions,    ylim = ylim) + labs(title = "With logistic regression")
 dev.off()
 
-# inspect fit logisitc regression ----
+# inspect fit logistic regression ----
 observed_violence <- fits_with_lr$stan_data$orig$log_reg_outcomes
 prediction_results <- map(fits_with_lr$fit, \(fit) {
   log_reg_predictions <- unname(colMeans(fit$draws("log_reg_predictions", format = "draws_matrix")))
@@ -198,19 +197,32 @@ log_reg_results <- map(modelNames, \(nm) {
 
 no_slopes <- length(log_reg_results$orig$log_reg_slopes_means)
 
+# key_diagnosis <- setNames(
+#   c("As_1_Other", "Autism spectrum disorder", "Personality disorder cluster B", "Personality disorder other", "Schizophrenia and other psychotic disorders"),
+#   levels(data_violence$diagnosis)
+# )
+# key_crime <- setNames(
+#   c("Arson", "Manslaughter", "Murder", "Power with violence", "Power/medium violence", "Sex offense", "Heavy violence"),
+#   levels(data_violence$crime)
+# )
+#
+# key_treatment_duration <- setNames(
+#   c("0-2 years", "2-4 years", "4-6 years", "6+ years"),
+#   levels(data_violence$treatment_duration)
+# )
 key_diagnosis <- setNames(
-  c("As_1_Other", "Autism spectrum disorder", "Personality disorder cluster B", "Personality disorder other", "Schizophrenia and other psychotic disorders"),
+  c("Axis 1", "Autism spectrum disorder", "Personality disorder cluster B", "Other personality disorders", "Schizophrenia and other psychotic disorders"),
   levels(data_violence$diagnosis)
 )
 key_crime <- setNames(
-  c("Arson", "Manslaughter", "Murder", "Power with violence", "Power/medium violence", "Sex offense", "Heavy violence"),
+  c("Arson", "Manslaughter", "Murder", "Violent property crime", "Moderate violence / property crime", "Sex offense", "Aggrevated assault"),
   levels(data_violence$crime)
 )
-
 key_treatment_duration <- setNames(
   c("0-2 years", "2-4 years", "4-6 years", "6+ years"),
   levels(data_violence$treatment_duration)
 )
+
 
 covariate_groups <-  c("age", "violent_before", "violent_between", "treatment_duration",  "diagnosis", "crime")
 # covariate_groups <- gsub("[[:digit:]]+", "", colnames(log_reg_results$orig$design_mat))
@@ -230,7 +242,7 @@ covariate_levels_stripped <- covariate_levels_stripped |>
   recode(!!!key_crime) |>
   recode(!!!key_treatment_duration)
 
-
+nFits <- length(fits_with_lr)
 log_reg_tib <- tibble(
   fit    = rep(names(modelNames), each = no_slopes),
   item   = rep(seq_len(no_slopes), nFits),
