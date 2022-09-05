@@ -98,33 +98,34 @@ Finally, we discuss some practical limitations of the data set at hand and how f
 
 
 \section{Mesdag Data}
-\DB{%
-Erwin, het zou fijn zijn als jij naar deze sectie kan kijken! Daarnaast had ik nog een paar vragen.
-\begin{enumerate}
-    \item De scores zijn op een schaal van 0-17 (met -99 als missing). Andere artikelen beschrijven echter een 17 puntsschaal. Stelt de score 0 iets speciaals voor?
-    \item Is de periode waarin de data zijn gemeten van april 2010 t/m juli 2016? (Een gokje gebaseerd op Schuringa et al. 2016)
-    \item Kloppen de Engelse vertalingen van de diagnoses en delicten?
-    \item Waarvoor staat As 1 overig?
-    \item Wat is (ongeveer) de minimum leeftijd van de patienten? 0 is namelijk een beetje raar in Tabel 1.
-\end{enumerate}
-}
+% \DB{%
+% Erwin, het zou fijn zijn als jij naar deze sectie kan kijken! Daarnaast had ik nog een paar vragen.
+% \begin{enumerate}
+%     \item De scores zijn op een schaal van 0-17 (met -99 als missing). Andere artikelen beschrijven echter een 17 puntsschaal. Stelt de score 0 iets speciaals voor?
+%     \item Is de periode waarin de data zijn gemeten van april 2010 t/m juli 2016? (Een gokje gebaseerd op Schuringa et al. 2016)
+%     \item Kloppen de Engelse vertalingen van de diagnoses en delicten?
+%     \item Waarvoor staat As 1 overig?
+%     \item Wat is (ongeveer) de minimum leeftijd van de patienten? 0 is namelijk een beetje raar in Tabel 1.
+% \end{enumerate}
+% }
 % \subsection{Method of collection}
-The data were collected in the Dutch maximum-security Forensic Psychiatric Center Dr. S. van Mesdag in the period XXX to XXX.
+The data were collected in the Dutch maximum-security Forensic Psychiatric Center Dr. S. van Mesdag in the period October 2016 to February 2019.
 The individual records were retrospectively merged into a single data set. 
 In total, the data set contains information about 103 patients given by 188 raters on 23 items from 2 measurement occasions (18354 observations in total).
 In addition to the scores on the IFTE items, the data set contains several background variables about the patients.
-These are age (0-30, 31-40, 41-50, or 55+)\footnote{Ideally age is treated as a continuous variable. However, for privacy reasons, the data were made unidentifiable, for example by categorizing age.}, treatment duration (0-2 years, 2-4 years, 4-6 years, or 6+ years), diagnosis (autism spectrum disorder, personality disorder, personality disorder B, schizophrenia or other psychotic disorders, and As 1 overig), offense (manslaughter, aggravated assault, murder, arson, violent property crime, moderately violent property crime, and Sexual offense), violent behavior before measurement 1, and violent behavior in-between measurements 1 and 2.
+These are age (21-30, 31-40, 41-50, or 55+)\footnote{Ideally age is treated as a continuous variable. However, for privacy reasons, the data were made unidentifiable, for example by categorizing age.}, treatment duration (0-2 years, 2-4 years, 4-6 years, or 6+ years), diagnosis (schizophrenia and other psychotic disorders, autism spectrum disorder, Axis 1\footnote{Axis 1 is a combination of multiple disorders, such as substance related disorders (addiction, dependence, abuse), developmental disorders (ADHD, ADD),  mood disorders (depression, bipolar mood disorder), cognitive disorders (delirium, dementia, amnesia) Sexual disorders (paraphilia, pedophilia) \parencite{segal2010diagnostic}. Note that DSM 4 categories are used as at the time of measurement not all DSM 4 diagnoses had been converted to DSM 5 diagnoses.}, personality disorder B, personality disorder other), offense (manslaughter, aggravated assault, murder, arson, violent property crime, moderately violent crime or a property crime, and sexual offense), and history of violence (violent behavior 6 months before measurement 1, violent behavior 6 months before measurement 2, and violent behavior 6 months after measurement 2). When patients have multiple convictions, offense indicates the most serious conviction. A distinction between personality disorder B (composed of borderline, antisocial, and narcissistic personality disorder) and other personality disorders is made because patients with personality disorder B exhibited more violent behavior.
 
 \subsection{IFTE}
 The data were collected using a Routine Outcome Monitoring instrument called the Instrument for Forensic Treatment Evaluation (IFTE).
 The IFTE consists of 22 items, of which 14 items are criminogenic need indicators of the Dutch risk assessment instrument HKT-R \parencite{spreen2013handleiding}, five items were designed in consultation with psychologists and psychiatrists, and three items are based on the Atascadero Skills Profile \parencite{vess2001development}.
 The 22 items can be grouped into three factors, Protective behaviors, Problematic behaviors, and Resocialization Skills.
 The individual items are shown in \autoref{tb:IFTE_items}.
-All items are scored on a 18 point scale.
+All items are scored on a 17 point scale.
 Before the IFTE is scored, the rater provides their clinical judgment to answer the question: ``Has the patient changed in this last period?'' on a 13 point scale.
 This last item is treated as the 23\textsuperscript{rd} item of the IFTE here.
 Each patient was scored with the IFTE on two separate occasions.
-
+The 17 point scale contained 5 anchor points at 1, 5, 9, 13, and 17.
+For example, for the item ``Does the patient show problem insight?'' these anchors would be `None`, `Rarely`, `Sometimes`, `Often`, and `Always`.
 % Based on: 
 % Before filling out the IFTE, the main clinician gives his/her clinical judgment whether he/she thinks the behavior of a patient has changed by answering the question: “Has the patient changed in this last period?” A 13-pointscale with four anchor points is used: 0 =“worsened,” 1 =“no change,” 2 =“a little improved” and 3 =“a lot improved.”
 
@@ -147,34 +148,64 @@ Before introducing the models used and analyzing the data, we give a descriptive
                                                                     &  Non-violent & Violent \\
         \midrule
 \textbf{History of violence}		  &&\\
-\hspace{3mm} Non-violent before T1 	 & 68 (84\%) & 6 (25\%) \\
-\hspace{3mm} Violent before T1 	 & 13 (16\%) & 18 (75\%) \\
-\hspace{3mm} Non-violent before T2 	 & 70 (85\%) & 5 (21\%) \\
-\hspace{3mm} Violent before T2 	 & 12 (15\%) & 19 (79\%) \\
-\textbf{Age}		  &&\\
-\hspace{3mm} 0-30 	 & 5 (6\%) & 5 (21\%) \\
-\hspace{3mm} 31-40 	 & 41 (50\%) & 14 (58\%) \\
-\hspace{3mm} 41-50 	 & 26 (32\%) & 2 (8\%) \\
-\hspace{3mm} 51+ 	 & 10 (12\%) & 3 (12\%) \\
-\textbf{Treatment duration}		  &&\\
-\hspace{3mm} 0-2 years 	 & 32 (39\%) & 13 (54\%) \\
-\hspace{3mm} 2-4 years 	 & 20 (24\%) & 4 (17\%) \\
-\hspace{3mm} 4-6 years 	 & 15 (18\%) & 0 (0\%) \\
-\hspace{3mm} 6+ years 	 & 15 (18\%) & 7 (29\%) \\
-\textbf{Diagnosis}		  &&\\
-\hspace{3mm} As 1 Other 	 & 12 (15\%) & 1 (4\%) \\
-\hspace{3mm} Autism spectrum disorder 	 & 14 (17\%) & 2 (8\%) \\
-\hspace{3mm} Personality disorder cluster B 	 & 14 (17\%) & 9 (38\%) \\
-\hspace{3mm} Personality disorder other 	 & 9 (11\%) & 3 (12\%) \\
-\hspace{3mm} Schizophrenia and other psychotic disorders 	 & 32 (40\%) & 9 (38\%) \\
-\textbf{Offense}		  &&\\
-\hspace{3mm} Aggravated assault 	 & 14 (17\%) & 10 (42\%) \\
-\hspace{3mm} Arson 	 & 9 (11\%) & 2 (8\%) \\
-\hspace{3mm} Manslaughter 	 & 16 (20\%) & 2 (8\%) \\
-\hspace{3mm} Moderately violent property crime 	 & 9 (11\%) & 3 (12\%) \\
-\hspace{3mm} Murder 	 & 10 (12\%) & 1 (4\%) \\
-\hspace{3mm} Sex offense 	 & 17 (21\%) & 1 (4\%) \\
-\hspace{3mm} Violent property crime 	 & 6 (7\%) & 5 (21\%) \\
+% \hspace{3mm} Non-violent before T1 	 & 68 (84\%) & 6 (25\%) \\
+% \hspace{3mm} Violent before T1 	 & 13 (16\%) & 18 (75\%) \\
+% \hspace{3mm} Non-violent before T2 	 & 70 (85\%) & 5 (21\%) \\
+% \hspace{3mm} Violent before T2 	 & 12 (15\%) & 19 (79\%) \\
+% \textbf{Age}		  &&\\
+% \hspace{3mm} 21-30 	 & 5 (6\%) & 5 (21\%) \\
+% \hspace{3mm} 31-40 	 & 41 (50\%) & 14 (58\%) \\
+% \hspace{3mm} 41-50 	 & 26 (32\%) & 2 (8\%) \\
+% \hspace{3mm} 51+ 	 & 10 (12\%) & 3 (12\%) \\
+% \textbf{Treatment duration}		  &&\\
+% \hspace{3mm} 0-2 years 	 & 32 (39\%) & 13 (54\%) \\
+% \hspace{3mm} 2-4 years 	 & 20 (24\%) & 4 (17\%) \\
+% \hspace{3mm} 4-6 years 	 & 15 (18\%) & 0 (0\%) \\
+% \hspace{3mm} 6+ years 	 & 15 (18\%) & 7 (29\%) \\
+% \textbf{Diagnosis}		  &&\\
+% \hspace{3mm} As 1 Other 	 & 12 (15\%) & 1 (4\%) \\
+% \hspace{3mm} Autism spectrum disorder 	 & 14 (17\%) & 2 (8\%) \\
+% \hspace{3mm} Personality disorder cluster B 	 & 14 (17\%) & 9 (38\%) \\
+% \hspace{3mm} Personality disorder other 	 & 9 (11\%) & 3 (12\%) \\
+% \hspace{3mm} Schizophrenia and other psychotic disorders 	 & 32 (40\%) & 9 (38\%) \\
+% \textbf{Offense}		  &&\\
+% \hspace{3mm} Aggravated assault 	 & 14 (17\%) & 10 (42\%) \\
+% \hspace{3mm} Arson 	 & 9 (11\%) & 2 (8\%) \\
+% \hspace{3mm} Manslaughter 	 & 16 (20\%) & 2 (8\%) \\
+% \hspace{3mm} Moderately violent property crime 	 & 9 (11\%) & 3 (12\%) \\
+% \hspace{3mm} Murder 	 & 10 (12\%) & 1 (4\%) \\
+% \hspace{3mm} Sex offense 	 & 17 (21\%) & 1 (4\%) \\
+% \hspace{3mm} Violent property crime 	 & 6 (7\%) & 5 (21\%) \\
+% \textbf{violent_before} &&\\ 
+\hspace{3mm}   Non-violent before T1   &        67 (84\%)   &   6 (25\%) \\
+\hspace{3mm}   Violent before T1   &        13 (16\%)   &   18 (75\%) \\
+% \textbf{violent_between} &&\\ 
+\hspace{3mm}   Non-violent before T2   &        68 (85\%)   &   5 (21\%) \\
+\hspace{3mm}   Violent before T2 &        12 (15\%)   &   19 (79\%) \\
+\textbf{Age} &&\\ 
+\hspace{3mm}   0-30   &        5 (6\%)   &   5 (21\%) \\
+\hspace{3mm}   31-40   &        40 (50\%)   &   14 (58\%) \\
+\hspace{3mm}   41-50   &        25 (31\%)   &   2 (8\%) \\
+\hspace{3mm}   51+   &        10 (12\%)   &   3 (12\%) \\
+\textbf{Treatment duration} &&\\ 
+\hspace{3mm}   0-2 years   &        32 (40\%)   &   13 (54\%) \\
+\hspace{3mm}   2-4 years   &        19 (24\%)   &   4 (17\%) \\
+\hspace{3mm}   4-6 years   &        14 (18\%)   &   0 (0\%) \\
+\hspace{3mm}   6+ years   &        15 (19\%)   &   7 (29\%) \\
+\textbf{Diagnosis} &&\\ 
+\hspace{3mm}   Schizophrenia and other psychotic disorders   &        31 (39\%)   &   9 (38\%) \\
+\hspace{3mm}   Autism spectrum disorder   &        14 (18\%)   &   2 (8\%) \\
+\hspace{3mm}   Axis 1   &        12 (15\%)   &   1 (4\%) \\
+\hspace{3mm}   Personality disorder cluster B   &        14 (18\%)   &   9 (38\%) \\
+\hspace{3mm}   Other personality disorders   &        9 (11\%)   &   3 (12\%) \\
+\textbf{Offense} &&\\ 
+\hspace{3mm}   Murder   &        10 (12\%)   &   1 (4\%) \\
+\hspace{3mm}   Arson   &        9 (11\%)   &   2 (8\%) \\
+\hspace{3mm}   Manslaughter   &        16 (20\%)   &   2 (8\%) \\
+\hspace{3mm}   Sex offense   &        17 (21\%)   &   1 (4\%) \\
+\hspace{3mm}   Aggravated assault   &        14 (18\%)   &   10 (42\%) \\
+\hspace{3mm}   Violent property crime   &        6 (8\%)   &   5 (21\%) \\
+\hspace{3mm}   Moderate violence / property crime   &        8 (10\%)   &   3 (12\%) \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -183,12 +214,12 @@ For the other variables, there are no apparent differences between non-violent a
 
 Next, we examine the IFTE scores. 
 \autoref{fig:descriptives_scores_hist} shows a histogram of the raw scores across all IFTE items, raters, and patients.
-It is clear that some scores are given more often than others, such as 1, 2, 6, 10, and 14.
-Furthermore, it appears that, with the exception of 1, even scores are given more often than odd scores.
+It is clear that the anchor points are given more often than the other scores ($\approx54\%$ of all scores are anchors points).
+Furthermore, it appears that points in the middle of two anchor points are given more often than point adjacent of an anchor point (i.e., a 3 is scored more often over 2 or 4, a 7 is scored more often than 6 or 8, etc.).
 \begin{figure}[!ht]
 	\centering
 	\includesvg[width=.8\textwidth]{descriptives_scores}
-	\caption{Histogram of observed scores across all patients, items, raters, and time points.}
+	\caption{Histogram of observed scores across all patients, items, raters, and time points. The first $x$-axis value, \emph{NA}, represents missing observations.}
 	\label{fig:descriptives_scores_hist}
 \end{figure}
 Given the number of patients and raters it is evident that not all raters can have scored all patients.
@@ -317,7 +348,7 @@ We consider these true values to be the basis on which all follow-up analyses sh
 
 
 \subsection{Augmenting Logistic Regression with the LTM}
-In a next step, we use logistic regression for to predict violent behavior, where we use the estimated true scores ($\ItemTruth_{\Ipatient\Iitem}$) from the LTM as additional predictors.
+In a next step, we use logistic regression to predict violent behavior, where we use the estimated true scores ($\ItemTruth_{\Ipatient\Iitem}$) from the LTM as additional predictors.
 We do so in a fully Bayesian approach, that is, we constructed a joint model for the violent behavior and the patient ratings.%
 \footnote{%
 An alternative is a two-step approach where in the first step the LTM is fit to the patient ratings.
@@ -363,6 +394,10 @@ All analyses were done using R \parencite{R} and Stan models were run using the 
 The code for the analyses is available in the online appendix at \githuburl{}.
 Although the data cannot be shared due to privacy concerns, the repository contains a simulated data set that can be used to run the code.
 
+The machine learning methods and the logistic regression models that will be introduced in the next section cannot handle missing values in the predictors.
+Therefore, we imputed the missing values using the R package mice \parencite{miceRpackage}.
+In the Bayesian analyses we marginalized out the missing values.
+
 % \iffalse
 % \subsection{Simulation Study}
 
@@ -386,7 +421,7 @@ These three competing models have in common that they are designed for purely re
 That is, each row of the data set contains one outcome (violent or nonviolent behavior) and a number of predictors.
 However, the raw data of the IFTE contains repeated observations, since patients were rated multiple times by different raters.
 To accommodate this we (naively) average across different raters to obtain a single score for each item and time point.
-Furthermore, the machine learning methods cannot handle 
+
 Altogether, by comparing these seven models we aim to answer the following three questions: (1) Can predictive models outperform the base prevalence of violent behavior? (2) Do models with the IFTE scores perform better than the baseline models without? (3) Does the LR-LTM perform better than the models that naively average across raters?
 
 To examine predictive performance we used 10-fold stratified cross-validation.
@@ -460,7 +495,7 @@ Prior history of violence has the largest coefficients, whereas the other coeffi
 \begin{figure}[!ht]
     \centering
     \includesvg[width=\textwidth]{posterior_mean_95CRI2}
-    \caption{Posterior means and 95\% credible intervals for the coefficients of the logistic regression model ($\CovariateBeta_{\Icovariate}$ and $\CovariateBeta_{\Iitem}$ in \autoref{model:Logistic_LTM}). The reference categories are treatment duration 0-2 years, diagnosis As 1 overig, and offense arson. The abbreviations VPC, MPC, and AA stand for violent property crime, moderately violent property crime, and aggravated assault.}
+    \caption{Posterior means and 95\% credible intervals for the coefficients of the logistic regression model ($\CovariateBeta_{\Icovariate}$ and $\CovariateBeta_{\Iitem}$ in \autoref{model:Logistic_LTM}). The reference categories are treatment duration 0-2 years, diagnosis Axis 1, and offense arson. The abbreviations VPC, MPC, and AA stand for violent property crime, moderately violent property crime, and aggravated assault.}
     \label{fig:parameters}
 \end{figure}
 As \autoref{tb:backgroundinfo} already indicated, the history of violence has a large effect.
@@ -496,9 +531,11 @@ While such an approach has shown merit before \parencite[see e.g.,][]{plonsky201
 \subsection{Suggestions for Future Data Collection}
 
 The interpretation of the parameters of the LTM in this application is hindered by the use of unconstrained thresholds.
-However, this modeling decision was mandated by the structure of the data, which, due to the large number of response categories, showed patterns that could not be described by a simpler function for the thresholds (e.g., a preference for even scores).
-For future data collection, it would be worthwhile to see to what extent the larger number of response options is necessary and to what extent some response categories can be collapsed.
-That would facilitate modeling of the data and simultaneously reduce the likelihood of spurious patterns in the data.
+However, this modeling decision was mandated by the structure of the data, which, due to the large number of response categories, showed patterns that could not be described by a simpler function for the thresholds (e.g., a preference for anchor points).
+These response patterns were somewhat unexpected, as earlier studies did not observe such patterns \parencite[e.g., see Figure 2 of ][]{schuringa2014inter}.
+For future data collection, it would be worthwhile to explore options to normalize the distribution of response scores.
+This could be done by through more clear instructions for the raters, or collapsing infrequently used response categories.
+A normal That would facilitate modeling of the data and simultaneously reduce the likelihood of spurious patterns in the data.
 
 The frequency of measurements is key to the usefulness of the IFTE scores.
 \textcite{schuringa2019inpatient} previously found that the most recent measurement is most predictive, which indicates that the scores' predictive value likely decreases over time.
