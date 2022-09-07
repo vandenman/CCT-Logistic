@@ -156,11 +156,11 @@ plot_ltm_fit <- function(raw_probabilities, observed_proportions, ylim = NULL) {
 }
 
 # NOTE: the fit to the IFTE items is approximately identical for the models with and without logistic regression
-pdf("simulation_figures/ltm_only_joined_ggplot22.pdf", width = 16, height = 8)
+# pdf("simulation_figures/ltm_only_joined_ggplot22.pdf", width = 16, height = 8)
 ylim <- list(c(-.2, .4), c(0, .4))
 plot_ltm_fit(raw_probabilities_without_lr, observed_proportions, ylim = ylim) + labs(title = "Without logistic regression")
 plot_ltm_fit(raw_probabilities_with_lr, observed_proportions,    ylim = ylim) + labs(title = "With logistic regression")
-dev.off()
+# dev.off()
 
 # inspect fit logistic regression ----
 observed_violence <- fits_with_lr$stan_data$orig$log_reg_outcomes
@@ -351,9 +351,7 @@ for (i in c(21, 22))
 
 grid::grid.newpage()
 grid::grid.draw(gt)
-save_figure(figure = gt, file = "posterior_mean_95CRI2.svg", width = 15, height = 15)
-
-gtable::gtable_show_layout(gt)
+# save_figure(figure = gt, file = "posterior_mean_95CRI2.svg", width = 15, height = 15)
 
 ggplot(data = log_reg_tib2 |> filter(fit == "free"),# |> filter(item < nc),
        aes(y = mean, group = interaction(fit, item, group), x = group)) +
@@ -365,32 +363,8 @@ ggplot(data = log_reg_tib2 |> filter(fit == "free"),# |> filter(item < nc),
   theme(axis.text.x = element_text(angle = 90))
 
 
-# Preliminary conclusions:
-#  1. It looks like the uncertainty kills any chance of meaningful conclusions.
-#  2. Some covariates really stand out.
-#  3. Maybe repeat this with only the last time point?
-
-largest_betas <- do.call(rbind, map(log_reg_results, \(x) {
-  o <- order(abs(x$log_reg_slopes_means), decreasing = TRUE)
-  x$log_reg_slopes_means[o]
-}))
-
-largest_betas_inds <- do.call(rbind, map(log_reg_results, \(x) {
-  o <- order(abs(x$log_reg_slopes_means), decreasing = TRUE)
-  as.numeric(extract_numeric(names(x$log_reg_slopes_means[o])))
-}))
-
-item_index <- ifelse(largest_betas_inds > nc, largest_betas_inds - nc, NA_integer_)
-
-tib <- tibble(
-  value  = c(largest_betas),
-  fit    = rep(names(modelNames), ncol(largest_betas)),
-  type   = c(ifelse(largest_betas_inds <= 18L, "covariate", "item")),
-  shape  = factor(item_index)
-)
 
 
-log_reg_results$orig$log_reg_slopes_means
 
 # multiply slopes of with value of lt
 raw_samples <- fits_with_lr$fit$free$draws(format = "draws_matrix")
@@ -436,14 +410,55 @@ ggplot(data = ifte_aggregate_tib, aes(x = x, y = y, ymin = ci_lower, ymax = ci_u
 
 # without CRIs (as in manuscript) --
 # yBreaks <- jaspGraphs::getPrettyAxisBreaks(ifte_aggregate_tib$y)
-yBreaks <- seq(-4, 4, 2) # same as other figure
-posterior_mean_IFTE_aggregate <- ggplot(data = ifte_aggregate_tib, aes(x = x, y = y, ymin = ci_lower, ymax = ci_upper, shape = violent, fill = violent)) +
+yBreaks <- jaspGraphs::getPrettyAxisBreaks(ifte_aggregate_tib$y)
+posterior_mean_IFTE_aggregate <- ggplot(data = ifte_aggregate_tib, aes(x = x, y = y, shape = violent, fill = violent)) +
   geom_point(size = 5) +
-  scale_y_continuous("Posterior mean", breaks = yBreaks, limits = range(yBreaks)) +
+  scale_y_continuous("Posterior mean", breaks = yBreaks, limits = range(yBreaks)+c(0, 0.1)) +
   scale_shape_manual(name = NULL, values = c(21, 22)) +
+  # scale_shape_manual(name = NULL, values = c("N", "V")) +
   scale_fill_manual(name = NULL, values = c("grey", "white")) +
   scale_x_continuous("Patient", breaks = c(1, 25, 50, 75, 104)) +
   jaspGraphs::geom_rangeframe() +
   jaspGraphs::themeJaspRaw(legend.position = c(0.15, 0.995))
 posterior_mean_IFTE_aggregate
 save_figure(figure = posterior_mean_IFTE_aggregate, file = "posterior_mean_IFTE_aggregate.svg", width = 7, height = 7)
+
+
+no_betas <- length(log_reg_results$orig$log_reg_slopes_means)
+no_beta_covariates <- ncol(log_reg_results$orig$design_mat)
+no_beta_items <- no_betas - no_beta_covariates
+
+tib <- tibble(
+  value      = unlist(lapply(log_reg_results, \(x) x$log_reg_slopes_means)),
+  fit        = rep(names(modelNames), each = no_betas),
+  beta_type  = rep(rep(c("covariate", "item"), c(no_beta_covariates, no_beta_items)), 2),
+  item_index = rep(c(rep(NA_integer_, no_beta_covariates), 1:23, 1:23), 2),
+  time_index = rep(rep(c(NA_integer_, 1L, 2L), c(no_beta_covariates, no_beta_items / 2, no_beta_items / 2)), 2)
+)
+
+# order items by effect
+tib_item <- tib |> filter(beta_type == "item" & fit == "free")
+print(tib_item[order(tib_item$value), ], n = 50)
+
+# 1  Does the patient show problem insight?                                                                  &   Protective behaviors    &   HKT-R                   \\
+# 2  Does the patient cooperate with your treatment?                                                         &   Protective behaviors    &   HKT-R                   \\
+# 3  Does the patient admit and take responsibility for the crime(s)?                                        &   Protective behaviors    &   HKT-R                   \\
+# 4  Does the patient show adequate coping skills?                                                           &   Protective behaviors    &   HKT-R                   \\
+# 5  Does the patient have balanced daytime activities?                                                      &   Resocialization Skills  &   HKT-R                   \\
+# 6  Does the patient show sufficient labor skills?                                                          &   Resocialization Skills  &   HKT-R                   \\
+# 7  Does the patient show sufficient common social skills?                                                  &   Resocialization Skills  &   HKT-R                   \\
+# 8  Does the patient show sufficient skills to take care of oneself?                                        &   Resocialization Skills  &   HKT-R                   \\
+# 9  Does the patient show sufficient financial skills?                                                      &   Resocialization Skills  &   Proposed by clinicians  \\
+# 10 Does the patient show impulsive behavior?                                                               &   Problematic behavior    &   HKT-R                   \\
+# 11 Does the patient show antisocial behavior?                                                              &   Problematic behavior    &   HKT-R                   \\
+# 12 Does the patient show hostile behavior?                                                                 &   Problematic behavior    &   HKT-R                   \\
+# 13 Does the patient show sexual deviant behavior?                                                          &   Problematic behavior    &   Proposed by clinicians  \\
+# 14 Does the patient show manipulative behavior?                                                            &   Problematic behavior    &   Proposed by clinicians  \\
+# 15 Does the patient comply with the rules\\ and conditions of the center and/or the treatment?             &   Problematic behavior    &   HKT-R                   \\
+# 16 Does the patient have antisocial associates?                                                            &   Problematic behavior    &   HKT-R                   \\
+# 17 Does the patient use his medication in a consistent and adequate manner?                                &   Protective behaviors    &   Proposed by clinicians  \\
+# 18 Does the patient have psychotic symptoms?                                                               &   Problematic behavior    &   HKT-R                   \\
+# 19 Does the patient show skills to prevent drug and alcohol use?                                           &   Protective behaviors    &   ASP                     \\
+# 20 Does the patient use any drug or alcohol?                                                               &   Problematic behavior    &   HKT-R                   \\
+# 21 Does the patient show skills to prevent physical aggressive behavior?                                   &   Protective behaviors    &   ASP                     \\
+# 22 Does the patient show skills to prevent sexual deviant behavior?                                        &   Protective behaviors    &   ASP                     \\

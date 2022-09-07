@@ -152,6 +152,21 @@ combined_plt
 # save_figure(figure = plot_raters_by_patients, file = "descriptives_raters_by_patients.svg", width = 900 / 96, height = 494 / 96)
 
 # tables
+key_violent_before <- setNames(
+  c("Non-violent before T1", "Violent before T1"),
+  levels(data_violence$violent_before)
+)
+key_violent_between <- setNames(
+  c("Non-violent before T1", "Violent before T1"),
+  levels(data_violence$violent_between)
+)
+
+key_age <- setNames(
+  c("21-30", "31-40", "41-50", "51+"),
+  levels(data_violence$age)
+)
+
+
 key_diagnosis <- setNames(
   c("Axis 1", "Autism spectrum disorder", "Personality disorder cluster B", "Other personality disorders", "Schizophrenia and other psychotic disorders"),
   levels(data_violence$diagnosis)
@@ -167,6 +182,9 @@ key_treatment_duration <- setNames(
 
 data_violence2 <- data_violence |>
   mutate(
+    violent_before     = recode(violent_before,     !!!key_violent_before),
+    violent_between    = recode(violent_between,    !!!key_violent_between),
+    age                = recode(age,                !!!key_age),
     diagnosis          = recode(diagnosis,          !!!key_diagnosis),
     crime              = recode(crime,              !!!key_crime),
     treatment_duration = recode(treatment_duration, !!!key_treatment_duration)
@@ -176,17 +194,21 @@ data_violence2$diagnosis <- factor(data_violence2$diagnosis, levels(data_violenc
 data_violence2$crime     <- factor(data_violence2$crime,     levels(data_violence2$crime)[c(3, 1, 2, 6, 7, 4, 5)])
 
 vars <- c("violent_before", "violent_between", "age", "treatment_duration", "diagnosis", "crime")
+latexNames <- list("History of violence", NULL, "Age", "Treatment duration", "Diagnosis", "Offense")
+names(latexNames) <- vars
 for (v in vars) {
   tb  <- table(data_violence2[[v]], data_violence2[["violent_after"]])
   ptb <- proportions(tb, margin = 2) * 100
   rnms <- rownames(tb)
-  cat("\\textbf{", v, "} &&\\\\ \n", sep = "")
+  latexName <- latexNames[[v]]
+  if (!is.null(latexName))
+    cat("\\textbf{", latexName, "} &&&\\\\ \n", sep = "")
   for (i in seq_len(nrow(tb))) {
     cat(
       "\\hspace{3mm}  ",
       rnms[i], "  &  ", strrep(" ", 4),
-      sprintf("%d (%.0f\\%%)", tb[i, 1], ptb[i, 1]), "  &  ",
-      sprintf("%d (%.0f\\%%)", tb[i, 2], ptb[i, 2]), "\\\\\n"
+      sprintf("%d & (%.0f\\%%)", tb[i, 1], ptb[i, 1]), "  &  ",
+      sprintf("%d & (%.0f\\%%)", tb[i, 2], ptb[i, 2]), "\\\\\n"
     )
   }
 }
