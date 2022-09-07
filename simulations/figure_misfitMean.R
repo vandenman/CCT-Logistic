@@ -28,7 +28,8 @@ create_figure2 <- function(tib, x = c(0, 0), y = c(0, 0)) {
   tib_text <- tibble(
     x = x,
     y = y,
-    label = sprintf("ρ = %.3f", cors$cor),
+    # ρ
+    label = sprintf("$\rho = %.3f$", cors$cor),
     type = cors$type
   )
 
