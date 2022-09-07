@@ -29,7 +29,7 @@ create_figure2 <- function(tib, x = c(0, 0), y = c(0, 0)) {
     x = x,
     y = y,
     # ρ
-    label = sprintf("$\rho = %.3f$", cors$cor),
+    label = sprintf("$\\rho = %.3f$", cors$cor),
     type = cors$type
   )
 
