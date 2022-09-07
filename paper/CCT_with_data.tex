@@ -49,6 +49,8 @@ Don van den Bergh was supported by a Research Talent grant from the Netherlands 
 
 \newcommand{\fig}{Fig.}
 
+\setcounter{secnumdepth}{0}
+
 \input{mycommands.tex}
 
 \begin{document}
@@ -58,16 +60,23 @@ Don van den Bergh was supported by a Research Talent grant from the Netherlands 
 % TODO: Ha Erwin, hier een ruwe draft, suggesties voor journals?
 % TODO: dubbelcheck referenties (bv IFTE en niet ifte)
 
-\tableofcontents
+% \tableofcontents
 
 \begin{abstract}
-TODO
+Forensic psychiatric hospitals regularly monitor the mental health and forensic risk factors of their patients.
+As part of this monitoring, staff score patients on various items.
+Common practice is to aggregate these scores across staff members.
+However, this is suboptimal because it assumes that assessors are interchangeable and that patients are independent.
+An improvement over averaging scores is the use of Cultural Consensus Theory (CCT), which imposes a hierarchical model across patients, staff members, and items.
+While accounting for differences between patients and staff members, Cultural Consensus Theory estimates a ``true'' score for each patient on each item based on the consensus among staff members.
+Here we apply a model based on Cultural Consensus Theory to data from a Dutch maximum security forensic psychiatric center and use the inferences to predict violent behavior in patients.
+We compare the predictive value with several alternatives, such as random forest and boosted regression trees.
+The paper concludes with a discussion of practical limitations and directions for how future monitoring of patients could be adapted to maximize the added value of a CCT-based approach.
 \end{abstract}
 
-\section{Introduction} % Yes, this will be deleted before submission
+% \section{Introduction} % Yes, this will be deleted before submission
 
-The mental health and forensic risk factors of patients in forensic psychiatric hospitals is regularly monitored with methods such as
-Routine Outcome Monitoring \parencite{deBeurs2011ROM}.
+The mental health and forensic risk factors of patients in forensic psychiatric hospitals is regularly monitored with methods such as Routine Outcome Monitoring \parencite{deBeurs2011ROM}.
 A staff member (e.g., a clinician or psychiatrist), henceforth a \emph{rater}, scores a patient on variety of criteria, such as problematic behavior (e.g., hostility) or protective behavior (e.g., coping skills).
 These scores are used to track the mental state of patients over time, to measure the effectiveness of treatment, and as a risk indicator for violent outbursts by patients.
 % Using these scores raters can monitor the mental state of a patient over time, answer questions about the effectiveness of a treatment, or warn staff members about which patients are at risk for turning violent.
@@ -113,7 +122,7 @@ The data were collected in the Dutch maximum-security Forensic Psychiatric Cente
 The individual records were retrospectively merged into a single data set. 
 In total, the data set contains information about 103 patients given by 188 raters on 23 items from 2 measurement occasions (18354 observations in total).
 In addition to the scores on the IFTE items, the data set contains several background variables about the patients.
-These are age (21-30, 31-40, 41-50, or 55+)\footnote{Ideally age is treated as a continuous variable. However, for privacy reasons, the data were made unidentifiable, for example by categorizing age.}, treatment duration (0-2 years, 2-4 years, 4-6 years, or 6+ years), diagnosis (schizophrenia and other psychotic disorders, autism spectrum disorder, Axis 1\footnote{Axis 1 is a combination of multiple disorders, such as substance related disorders (addiction, dependence, abuse), developmental disorders (ADHD, ADD),  mood disorders (depression, bipolar mood disorder), cognitive disorders (delirium, dementia, amnesia) Sexual disorders (paraphilia, pedophilia) \parencite{segal2010diagnostic}. Note that DSM 4 categories are used as at the time of measurement not all DSM 4 diagnoses had been converted to DSM 5 diagnoses.}, personality disorder B, personality disorder other), offense (manslaughter, aggravated assault, murder, arson, violent property crime, moderately violent crime or a property crime, and sexual offense), and history of violence (violent behavior 6 months before measurement 1, violent behavior 6 months before measurement 2, and violent behavior 6 months after measurement 2). When patients have multiple convictions, offense indicates the most serious conviction. A distinction between personality disorder B (composed of borderline, antisocial, and narcissistic personality disorder) and other personality disorders is made because patients with personality disorder B exhibited more violent behavior.
+These are age (21-30, 31-40, 41-50, or 55+)\footnote{Ideally age is treated as a continuous variable. However, for privacy reasons, the data were made unidentifiable, for example by categorizing age.}, treatment duration (0-2 years, 2-4 years, 4-6 years, or 6+ years), diagnosis (schizophrenia and other psychotic disorders, autism spectrum disorder, Axis 1\footnote{Axis 1 is a combination of multiple disorders, such as substance related disorders (addiction, dependence, abuse), developmental disorders (ADHD, ADD),  mood disorders (depression, bipolar mood disorder), cognitive disorders (delirium, dementia, amnesia) sexual disorders (paraphilia, pedophilia) \parencite{segal2010diagnostic}. Note that DSM 4 categories are used as at the time of measurement not all DSM 4 diagnoses had been converted to DSM 5 diagnoses.}, personality disorder B, personality disorder other), offense (manslaughter, aggravated assault, murder, arson, violent property crime, moderately violent crime or a property crime, and sexual offense), and history of violence (violent behavior 6 months before measurement 1, violent behavior 6 months before measurement 2, and violent behavior 6 months after measurement 2). When patients have multiple convictions, offense indicates the most serious conviction. A distinction between personality disorder B (composed of borderline, antisocial, and narcissistic personality disorder) and other personality disorders is made because patients with personality disorder B exhibited more violent behavior.
 
 \subsection{IFTE}
 The data were collected using a Routine Outcome Monitoring instrument called the Instrument for Forensic Treatment Evaluation (IFTE).
@@ -125,7 +134,7 @@ Before the IFTE is scored, the rater provides their clinical judgment to answer 
 This last item is treated as the 23\textsuperscript{rd} item of the IFTE here.
 Each patient was scored with the IFTE on two separate occasions.
 The 17 point scale contained 5 anchor points at 1, 5, 9, 13, and 17.
-For example, for the item ``Does the patient show problem insight?'' these anchors would be `None`, `Rarely`, `Sometimes`, `Often`, and `Always`.
+For example, for the item ``Does the patient show problem insight?'' these anchors would be `None', `Rarely', `Sometimes', `Often', and `Always'.
 % Based on: 
 % Before filling out the IFTE, the main clinician gives his/her clinical judgment whether he/she thinks the behavior of a patient has changed by answering the question: “Has the patient changed in this last period?” A 13-pointscale with four anchor points is used: 0 =“worsened,” 1 =“no change,” 2 =“a little improved” and 3 =“a lot improved.”
 
@@ -143,11 +152,12 @@ Before introducing the models used and analyzing the data, we give a descriptive
     \caption{Characteristics of the non-violent and violent patients.}
     \label{tb:backgroundinfo}
     \centering
-    \begin{tabular}{lrr}
+    \begin{tabular}{lr@{\hspace{\tabcolsep}}r@{\hspace{3\tabcolsep}}r@{\hspace{\tabcolsep}}r}
         \toprule
-                                                                    &  Non-violent & Violent \\
+        % &  \thead[c]{Non-violent\\after T2}  & \thead[c]{Violent\\after T2} \\
+        &  \multicolumn{2}{c}{\thead[c]{Non-violent\\after T2}} & \multicolumn{2}{c}{\thead[c]{Violent\\after T2}}\\
         \midrule
-\textbf{History of violence}		  &&\\
+% \textbf{History of violence}	&&	  &\\
 % \hspace{3mm} Non-violent before T1 	 & 68 (84\%) & 6 (25\%) \\
 % \hspace{3mm} Violent before T1 	 & 13 (16\%) & 18 (75\%) \\
 % \hspace{3mm} Non-violent before T2 	 & 70 (85\%) & 5 (21\%) \\
@@ -177,35 +187,67 @@ Before introducing the models used and analyzing the data, we give a descriptive
 % \hspace{3mm} Sex offense 	 & 17 (21\%) & 1 (4\%) \\
 % \hspace{3mm} Violent property crime 	 & 6 (7\%) & 5 (21\%) \\
 % \textbf{violent_before} &&\\ 
-\hspace{3mm}   Non-violent before T1   &        67 (84\%)   &   6 (25\%) \\
-\hspace{3mm}   Violent before T1   &        13 (16\%)   &   18 (75\%) \\
-% \textbf{violent_between} &&\\ 
-\hspace{3mm}   Non-violent before T2   &        68 (85\%)   &   5 (21\%) \\
-\hspace{3mm}   Violent before T2 &        12 (15\%)   &   19 (79\%) \\
-\textbf{Age} &&\\ 
-\hspace{3mm}   0-30   &        5 (6\%)   &   5 (21\%) \\
-\hspace{3mm}   31-40   &        40 (50\%)   &   14 (58\%) \\
-\hspace{3mm}   41-50   &        25 (31\%)   &   2 (8\%) \\
-\hspace{3mm}   51+   &        10 (12\%)   &   3 (12\%) \\
-\textbf{Treatment duration} &&\\ 
-\hspace{3mm}   0-2 years   &        32 (40\%)   &   13 (54\%) \\
-\hspace{3mm}   2-4 years   &        19 (24\%)   &   4 (17\%) \\
-\hspace{3mm}   4-6 years   &        14 (18\%)   &   0 (0\%) \\
-\hspace{3mm}   6+ years   &        15 (19\%)   &   7 (29\%) \\
-\textbf{Diagnosis} &&\\ 
-\hspace{3mm}   Schizophrenia and other psychotic disorders   &        31 (39\%)   &   9 (38\%) \\
-\hspace{3mm}   Autism spectrum disorder   &        14 (18\%)   &   2 (8\%) \\
-\hspace{3mm}   Axis 1   &        12 (15\%)   &   1 (4\%) \\
-\hspace{3mm}   Personality disorder cluster B   &        14 (18\%)   &   9 (38\%) \\
-\hspace{3mm}   Other personality disorders   &        9 (11\%)   &   3 (12\%) \\
-\textbf{Offense} &&\\ 
-\hspace{3mm}   Murder   &        10 (12\%)   &   1 (4\%) \\
-\hspace{3mm}   Arson   &        9 (11\%)   &   2 (8\%) \\
-\hspace{3mm}   Manslaughter   &        16 (20\%)   &   2 (8\%) \\
-\hspace{3mm}   Sex offense   &        17 (21\%)   &   1 (4\%) \\
-\hspace{3mm}   Aggravated assault   &        14 (18\%)   &   10 (42\%) \\
-\hspace{3mm}   Violent property crime   &        6 (8\%)   &   5 (21\%) \\
-\hspace{3mm}   Moderate violence / property crime   &        8 (10\%)   &   3 (12\%) \\
+
+% \hspace{3mm}   Non-violent before T1   &        67 (84\%)   &   6 (25\%) \\
+% \hspace{3mm}   Violent before T1   &        13 (16\%)   &   18 (75\%) \\
+% % \textbf{violent_between} &&\\ 
+% \hspace{3mm}   Non-violent before T2   &        68 (85\%)   &   5 (21\%) \\
+% \hspace{3mm}   Violent before T2 &        12 (15\%)   &   19 (79\%) \\
+% \textbf{Age} &&\\ 
+% \hspace{3mm}   0-30   &        5 (6\%)   &   5 (21\%) \\
+% \hspace{3mm}   31-40   &        40 (50\%)   &   14 (58\%) \\
+% \hspace{3mm}   41-50   &        25 (31\%)   &   2 (8\%) \\
+% \hspace{3mm}   51+   &        10 (12\%)   &   3 (12\%) \\
+% \textbf{Treatment duration} &&\\ 
+% \hspace{3mm}   0-2 years   &        32 (40\%)   &   13 (54\%) \\
+% \hspace{3mm}   2-4 years   &        19 (24\%)   &   4 (17\%) \\
+% \hspace{3mm}   4-6 years   &        14 (18\%)   &   0 (0\%) \\
+% \hspace{3mm}   6+ years   &        15 (19\%)   &   7 (29\%) \\
+% \textbf{Diagnosis} &&\\ 
+% \hspace{3mm}   Schizophrenia and other psychotic disorders   &        31 (39\%)   &   9 (38\%) \\
+% \hspace{3mm}   Autism spectrum disorder   &        14 (18\%)   &   2 (8\%) \\
+% \hspace{3mm}   Axis 1   &        12 (15\%)   &   1 (4\%) \\
+% \hspace{3mm}   Personality disorder cluster B   &        14 (18\%)   &   9 (38\%) \\
+% \hspace{3mm}   Other personality disorders   &        9 (11\%)   &   3 (12\%) \\
+% \textbf{Offense} &&\\ 
+% \hspace{3mm}   Murder   &        10 (12\%)   &   1 (4\%) \\
+% \hspace{3mm}   Arson   &        9 (11\%)   &   2 (8\%) \\
+% \hspace{3mm}   Manslaughter   &        16 (20\%)   &   2 (8\%) \\
+% \hspace{3mm}   Sex offense   &        17 (21\%)   &   1 (4\%) \\
+% \hspace{3mm}   Aggravated assault   &        14 (18\%)   &   10 (42\%) \\
+% \hspace{3mm}   Violent property crime   &        6 (8\%)   &   5 (21\%) \\
+% \hspace{3mm}   Moderate violence / property crime   &        8 (10\%)   &   3 (12\%) \\
+
+% \textbf{violent_before} &&&\\ 
+\textbf{History of violence} &&&\\ 
+\hspace{3mm}   Non-violent before T1   &        67 & (84\%)   &   6 & (25\%) \\
+\hspace{3mm}   Violent before T1   &        13 & (16\%)   &   18 & (75\%) \\
+\hspace{3mm}   Non-violent before T1   &        68 & (85\%)   &   5 & (21\%) \\
+\hspace{3mm}   Violent before T1   &        12 & (15\%)   &   19 & (79\%) \\
+\textbf{Age} &&&\\ 
+\hspace{3mm}   21-30   &        5 & (6\%)   &   5 & (21\%) \\
+\hspace{3mm}   31-40   &        40 & (50\%)   &   14 & (58\%) \\
+\hspace{3mm}   41-50   &        25 & (31\%)   &   2 & (8\%) \\
+\hspace{3mm}   51+   &        10 & (12\%)   &   3 & (12\%) \\
+\textbf{Treatment duration} &&&\\ 
+\hspace{3mm}   0-2 years   &        32 & (40\%)   &   13 & (54\%) \\
+\hspace{3mm}   2-4 years   &        19 & (24\%)   &   4 & (17\%) \\
+\hspace{3mm}   4-6 years   &        14 & (18\%)   &   0 & (0\%) \\
+\hspace{3mm}   6+ years   &        15 & (19\%)   &   7 & (29\%) \\
+\textbf{Diagnosis} &&&\\ 
+\hspace{3mm}   Schizophrenia and other psychotic disorders   &        31 & (39\%)   &   9 & (38\%) \\
+\hspace{3mm}   Autism spectrum disorder   &        14 & (18\%)   &   2 & (8\%) \\
+\hspace{3mm}   Axis 1   &        12 & (15\%)   &   1 & (4\%) \\
+\hspace{3mm}   Personality disorder cluster B   &        14 & (18\%)   &   9 & (38\%) \\
+\hspace{3mm}   Other personality disorders   &        9 & (11\%)   &   3 & (12\%) \\
+\textbf{Offense} &&&\\ 
+\hspace{3mm}   Murder   &        10 & (12\%)   &   1 & (4\%) \\
+\hspace{3mm}   Arson   &        9 & (11\%)   &   2 & (8\%) \\
+\hspace{3mm}   Manslaughter   &        16 & (20\%)   &   2 & (8\%) \\
+\hspace{3mm}   Sex offense   &        17 & (21\%)   &   1 & (4\%) \\
+\hspace{3mm}   Aggravated assault   &        14 & (18\%)   &   10 & (42\%) \\
+\hspace{3mm}   Violent property crime   &        6 & (8\%)   &   5 & (21\%) \\
+\hspace{3mm}   Moderate violence / property crime   &        8 & (10\%)   &   3 & (12\%) \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -246,6 +288,7 @@ However, as shown in \autoref{fig:misFitMean} averaging may lead to severely bia
 	\caption{True item scores ($x$-axis) versus the sample mean across raters ($y$-axis).}
 	\label{fig:misFitMean}
 \end{figure}
+\DB{\autoref{fig:misFitMean} is not convincing!}
 The average score disregards all additional information that is available.
 It ignores the individual differences between raters, for example, this assumes that all psychiatrists score hostility in the same way, and it ignores group differences among raters, for example, there is no difference in scores by psychiatrists as opposed to clinicians, or other staff members.
 In addition, the average ignores any additional information about the patient at hand, such as offense and diagnosis.
@@ -392,7 +435,7 @@ To explore the posterior distributions of the model parameters we used Stan \par
 Rather than Markov chain Monte Carlo (MCMC) we used variational inference, which was computationally faster while providing similar results in terms of parameter retrieval and model predictions \parencite{kucukelbir2017automatic}.
 All analyses were done using R \parencite{R} and Stan models were run using the R package \code{cmdstanr} \parencite{cmdstanr}.
 The code for the analyses is available in the online appendix at \githuburl{}.
-Although the data cannot be shared due to privacy concerns, the repository contains a simulated data set that can be used to run the code.
+Although the data cannot be shared due to privacy concerns, the repository contains simulated data that can be used to run the code.
 
 The machine learning methods and the logistic regression models that will be introduced in the next section cannot handle missing values in the predictors.
 Therefore, we imputed the missing values using the R package mice \parencite{miceRpackage}.
@@ -436,7 +479,7 @@ The Brier score is defined as $N^{-1}\sum_{i=1}^N\left(\hat{y}_i-y_{i}\right)^2$
 
 \autoref{tb:predictions} shows the prediction accuracy and the Brier score averaged over the 10-folds.
 The LR-LTM has the best classification of violence and the lowest Brier score, and the LR-Violence performs second best.
-The difference in classification performance is $0.894 - 0.866 = 0.028$, which for a data set of 104 patients implies that the LR-LTM makes more accurate predictions than the LR-Violence for about 3 patients.
+The difference in classification performance is $0.884 - 0.866 = 0.018$, which for a data set of 104 patients implies that the LR-LTM makes more accurate predictions than the LR-Violence for about 2 patients.
 Possibly striking is the poor performance of the LR.
 The standard logistic regression model clearly suffers from overfitting, as indicated by the high training performance but poor test performance. This result makes sense as the standard logistic regression model does not do anything special to combat overfitting, unlike the machine learning alternatives or Bayesian logistic regression used by the LR-LTM.
 
