@@ -471,7 +471,8 @@ print(tib_item[order(tib_item$value), ], n = 50)
 # 21 Does the patient show skills to prevent physical aggressive behavior?                                   &   Protective behaviors    &   ASP                     \\
 # 22 Does the patient show skills to prevent sexual deviant behavior?                                        &   Protective behaviors    &   ASP                     \\
 
-# plot posterior mean of lt vs sample mean of items
+# plot posterior mean of lt vs sample mean of items ----
+
 samples_lt <- fits_with_lr$fit$free$draws(variables = "lt", format = "draws_matrix")
 tail(colnames(samples_lt)) # 2nd dim is ni
 post_means_lt <- matrix(colMeans(samples_lt), np, ni)
@@ -516,16 +517,16 @@ observed_data_means_tib$group <- ifelse(
 breaks <- -3:3
 limits <- range(breaks)
 post_mean_lt_vs_item_sample_means <- ggplot(data = observed_data_means_tib, aes(x = post_mean_lt, y = mean2, shape = group, fill = group, color = group)) +
-  jaspGraphs::geom_point(alpha = .85, size = 4.5) +
+  jaspGraphs::geom_point(alpha = .85, size = 2.5) +
   jaspGraphs::geom_abline2(color = "grey80") +
   geom_text(data = tib_text, aes(x = x, y = y, label = label), size = .35*jaspGraphs::graphOptions("fontsize"), inherit.aes = FALSE) +
   scale_shape_manual(values = 21:23) +
-  labs(x = "Posterior mean of $\\theta$", y = "Standardized item mean") +
+  labs(x = "Posterior mean of $\\theta$", y = "Standardized item mean", shape = NULL, fill = NULL, color = NULL) +
   scale_x_continuous(breaks = breaks, limits = limits) +
   scale_y_continuous(breaks = breaks, limits = limits) +
   jaspGraphs::scale_JASPcolor_discrete() +
   jaspGraphs::scale_JASPfill_discrete() +
   jaspGraphs::geom_rangeframe() +
-  jaspGraphs::themeJaspRaw(legend.position = c(.05, .99))
+  jaspGraphs::themeJaspRaw(legend.position = c(.125, .99))
 post_mean_lt_vs_item_sample_means
 save_figure(figure = post_mean_lt_vs_item_sample_means, file = "post_mean_lt_vs_item_sample_means.svg", width = 7, height = 7)
