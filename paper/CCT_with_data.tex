@@ -118,11 +118,11 @@ Finally, we discuss some practical limitations of the data set at hand and how f
 % \end{enumerate}
 % }
 % \subsection{Method of collection}
-The data were collected in the Dutch maximum-security Forensic Psychiatric Center Dr. S. van Mesdag in the period October 2016 to February 2019.
+The data were collected in the Dutch maximum-security Forensic Psychiatric Center Dr. S. van Mesdag between October 2016 and February 2019.
 The individual records were retrospectively merged into a single data set. 
 In total, the data set contains information about 103 patients given by 188 raters on 23 items from 2 measurement occasions (18354 observations in total).
 In addition to the scores on the IFTE items, the data set contains several background variables about the patients.
-These are age (21-30, 31-40, 41-50, or 55+)\footnote{Ideally age is treated as a continuous variable. However, for privacy reasons, the data were made unidentifiable, for example by categorizing age.}, treatment duration (0-2 years, 2-4 years, 4-6 years, or 6+ years), diagnosis (schizophrenia and other psychotic disorders, autism spectrum disorder, Axis 1\footnote{Axis 1 is a combination of multiple disorders, such as substance related disorders (addiction, dependence, abuse), developmental disorders (ADHD, ADD),  mood disorders (depression, bipolar mood disorder), cognitive disorders (delirium, dementia, amnesia) sexual disorders (paraphilia, pedophilia) \parencite{segal2010diagnostic}. Note that DSM 4 categories are used as at the time of measurement not all DSM 4 diagnoses had been converted to DSM 5 diagnoses.}, personality disorder B, personality disorder other), offense (manslaughter, aggravated assault, murder, arson, violent property crime, moderately violent crime or a property crime, and sexual offense), and history of violence (violent behavior 6 months before measurement 1, violent behavior 6 months before measurement 2, and violent behavior 6 months after measurement 2). When patients have multiple convictions, offense indicates the most serious conviction. A distinction between personality disorder B (composed of borderline, antisocial, and narcissistic personality disorder) and other personality disorders is made because patients with personality disorder B exhibited more violent behavior.
+These are age (21-30, 31-40, 41-50, or 55+)\footnote{Ideally age is treated as a continuous variable. However, for privacy reasons, the data were made unidentifiable, for example by categorizing age.}, treatment duration (0-2 years, 2-4 years, 4-6 years, or 6+ years), diagnosis (schizophrenia and other psychotic disorders, autism spectrum disorder, Axis 1\footnote{Axis 1 is a combination of multiple disorders, such as substance related disorders (addiction, dependence, abuse), developmental disorders (ADHD, ADD),  mood disorders (depression, bipolar mood disorder), cognitive disorders (delirium, dementia, amnesia) sexual disorders (paraphilia, pedophilia) \parencite{segal2010diagnostic}. Note that DSM 4 categories are used as at the time of measurement not all DSM 4 diagnoses had been converted to DSM 5 diagnoses.}, personality disorder B, other personality disorders), offense (murder, arson, manslaughter, sex offense, aggravated assault, violent property crime, and moderately violent crime or a property crime), and history of violence (violent behavior 6 months before measurement 1, violent behavior 6 months before measurement 2, and violent behavior 6 months after measurement 2). When patients have multiple convictions, offense indicates the most serious conviction. A distinction between personality disorder B (composed of borderline, antisocial, and narcissistic personality disorder) and other personality disorders is made because patients with personality disorder B exhibited more violent behavior.
 
 \subsection{IFTE}
 The data were collected using a Routine Outcome Monitoring instrument called the Instrument for Forensic Treatment Evaluation (IFTE).
@@ -257,7 +257,7 @@ For the other variables, there are no apparent differences between non-violent a
 Next, we examine the IFTE scores. 
 \autoref{fig:descriptives_scores_hist} shows a histogram of the raw scores across all IFTE items, raters, and patients.
 It is clear that the anchor points are given more often than the other scores ($\approx54\%$ of all scores are anchors points).
-Furthermore, it appears that points in the middle of two anchor points are given more often than point adjacent of an anchor point (i.e., a 3 is scored more often over 2 or 4, a 7 is scored more often than 6 or 8, etc.).
+Furthermore, it appears that points in the middle of two anchor points are given more often than points adjacent of an anchor point (i.e., a 3 is scored more often over 2 or 4, a 7 is scored more often than 6 or 8, etc.).
 \begin{figure}[!ht]
 	\centering
 	\includesvg[width=.8\textwidth]{descriptives_scores}
@@ -285,7 +285,7 @@ However, as shown in \autoref{fig:misFitMean} averaging may lead to severely bia
 \begin{figure}[!ht]
 	\centering
 	\includesvg[width=\textwidth]{misfitMean}
-	\caption{True item scores ($x$-axis) versus the sample mean across raters ($y$-axis). The left panel shows a scenario where there is large heterogeneity among the raters, and the performance of the sample mean is poor. In the right panel the raters are homogeneous, and the performance of the sample mean is much better.}
+	\caption{True item scores ($x$-axis) versus the sample mean across raters ($y$-axis) for three fictive patients. The left panel shows a scenario where the raters are heterogeneous and consequently the performance of the sample mean is poor. In the right panel the raters are homogeneous and the sample mean performs much better.}
 	\label{fig:misFitMean}
 \end{figure}
 
