@@ -527,6 +527,6 @@ post_mean_lt_vs_item_sample_means <- ggplot(data = observed_data_means_tib, aes(
   jaspGraphs::scale_JASPcolor_discrete() +
   jaspGraphs::scale_JASPfill_discrete() +
   jaspGraphs::geom_rangeframe() +
-  jaspGraphs::themeJaspRaw(legend.position = c(.2, .99))
+  jaspGraphs::themeJaspRaw(legend.position = c(.24, .99))
 post_mean_lt_vs_item_sample_means
 save_figure(figure = post_mean_lt_vs_item_sample_means, file = "post_mean_lt_vs_item_sample_means.svg", width = 7, height = 7)

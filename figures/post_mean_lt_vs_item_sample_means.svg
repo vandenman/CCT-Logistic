@@ -2393,16 +2393,16 @@
 <text x='483.90' y='463.77' text-anchor='middle' style='font-size: 17.00px; font-family: "Liberation Sans";' textLength='9.73px' lengthAdjust='spacingAndGlyphs'>3</text>
 <text x='282.92' y='494.94' text-anchor='middle' style='font-size: 17.00px; font-family: "Liberation Sans";' textLength='215.74px' lengthAdjust='spacingAndGlyphs'>Posterior mean of $\theta$</text>
 <text transform='translate(17.12,218.08) rotate(-90)' text-anchor='middle' style='font-size: 17.00px; font-family: "Liberation Sans";' textLength='195.78px' lengthAdjust='spacingAndGlyphs'>Standardized item mean</text>
-<rect x='40.91' y='4.36' width='218.73' height='104.47' style='stroke-width: 0.75; stroke: none;' />
-<rect x='40.91' y='4.36' width='218.73' height='104.47' style='stroke-width: 10.67; stroke: none;' />
-<rect x='46.39' y='18.31' width='28.35' height='28.35' style='stroke-width: 10.67; stroke: none;' />
-<circle cx='60.56' cy='32.48' r='2.76' style='stroke-width: 0.71; stroke: #1B9E77; stroke-opacity: 0.80; fill: #1B9E77; fill-opacity: 0.80;' />
-<rect x='46.39' y='46.66' width='28.35' height='28.35' style='stroke-width: 10.67; stroke: none;' />
-<rect x='58.12' y='58.39' width='4.88' height='4.88' style='stroke-width: 0.71; stroke: #B27D5D; stroke-opacity: 0.80; fill: #B27D5D; fill-opacity: 0.80;' />
-<rect x='46.39' y='75.00' width='28.35' height='28.35' style='stroke-width: 10.67; stroke: none;' />
-<polygon points='60.56,92.63 64.01,89.18 60.56,85.72 57.11,89.18 ' style='stroke-width: 0.71; stroke: #666666; stroke-opacity: 0.80; fill: #666666; fill-opacity: 0.80;' />
-<text x='83.20' y='38.55' style='font-size: 17.00px; font-family: "Liberation Sans";' textLength='170.96px' lengthAdjust='spacingAndGlyphs'>Problematic behavior</text>
-<text x='83.20' y='66.90' style='font-size: 17.00px; font-family: "Liberation Sans";' textLength='163.18px' lengthAdjust='spacingAndGlyphs'>Protective behaviors</text>
-<text x='83.20' y='95.24' style='font-size: 17.00px; font-family: "Liberation Sans";' textLength='161.22px' lengthAdjust='spacingAndGlyphs'>Resocialization skills</text>
+<rect x='58.60' y='4.36' width='218.73' height='104.47' style='stroke-width: 0.75; stroke: none;' />
+<rect x='58.60' y='4.36' width='218.73' height='104.47' style='stroke-width: 10.67; stroke: none;' />
+<rect x='64.07' y='18.31' width='28.35' height='28.35' style='stroke-width: 10.67; stroke: none;' />
+<circle cx='78.25' cy='32.48' r='2.76' style='stroke-width: 0.71; stroke: #1B9E77; stroke-opacity: 0.80; fill: #1B9E77; fill-opacity: 0.80;' />
+<rect x='64.07' y='46.66' width='28.35' height='28.35' style='stroke-width: 10.67; stroke: none;' />
+<rect x='75.81' y='58.39' width='4.88' height='4.88' style='stroke-width: 0.71; stroke: #B27D5D; stroke-opacity: 0.80; fill: #B27D5D; fill-opacity: 0.80;' />
+<rect x='64.07' y='75.00' width='28.35' height='28.35' style='stroke-width: 10.67; stroke: none;' />
+<polygon points='78.25,92.63 81.70,89.18 78.25,85.72 74.79,89.18 ' style='stroke-width: 0.71; stroke: #666666; stroke-opacity: 0.80; fill: #666666; fill-opacity: 0.80;' />
+<text x='100.89' y='38.55' style='font-size: 17.00px; font-family: "Liberation Sans";' textLength='170.96px' lengthAdjust='spacingAndGlyphs'>Problematic behavior</text>
+<text x='100.89' y='66.90' style='font-size: 17.00px; font-family: "Liberation Sans";' textLength='163.18px' lengthAdjust='spacingAndGlyphs'>Protective behaviors</text>
+<text x='100.89' y='95.24' style='font-size: 17.00px; font-family: "Liberation Sans";' textLength='161.22px' lengthAdjust='spacingAndGlyphs'>Resocialization skills</text>
 </g>
 </svg>
