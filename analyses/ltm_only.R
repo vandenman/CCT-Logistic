@@ -517,7 +517,7 @@ observed_data_means_tib$group <- ifelse(
 breaks <- -3:3
 limits <- range(breaks)
 post_mean_lt_vs_item_sample_means <- ggplot(data = observed_data_means_tib, aes(x = post_mean_lt, y = mean2, shape = group, fill = group, color = group)) +
-  jaspGraphs::geom_point(alpha = .85, size = 2.5) +
+  jaspGraphs::geom_point(alpha = .80, size = 2.25) +
   jaspGraphs::geom_abline2(color = "grey80") +
   geom_text(data = tib_text, aes(x = x, y = y, label = label), size = .35*jaspGraphs::graphOptions("fontsize"), inherit.aes = FALSE) +
   scale_shape_manual(values = 21:23) +
@@ -527,6 +527,6 @@ post_mean_lt_vs_item_sample_means <- ggplot(data = observed_data_means_tib, aes(
   jaspGraphs::scale_JASPcolor_discrete() +
   jaspGraphs::scale_JASPfill_discrete() +
   jaspGraphs::geom_rangeframe() +
-  jaspGraphs::themeJaspRaw(legend.position = c(.125, .99))
+  jaspGraphs::themeJaspRaw(legend.position = c(.2, .99))
 post_mean_lt_vs_item_sample_means
 save_figure(figure = post_mean_lt_vs_item_sample_means, file = "post_mean_lt_vs_item_sample_means.svg", width = 7, height = 7)
