@@ -557,6 +557,18 @@ For some patients, the posterior mean of the impact of the aggregated IFTE is as
 However, note that the uncertainty of these estimates is enormous, that is, the average credible interval ranges from -8 to 8.\footnote{The large uncertainty here is inevitable, as by adding the variance of the sum is usually close to the sum of the variance of the individual parameters.}
 Nevertheless, \autoref{fig:IFTE_aggregate} shows that the IFTE matters for prediction, but also that the added value differs across patients.
 
+It is evident from the model comparisons in the previous section that the sample mean of the IFTE items does not improve predictions of violent behavior.
+However, this does not show us how the sample mean relates to the estimated latent truths in the Mesdag data.
+As shown in \autoref{fig:misFitMean}, this relationship varies greatly with the heterogeneity of the raters.
+\autoref{dataMisFitMean} visualizes the posterior mean of the latent truth $\ItemTruth_{\Ipatient\Iitem}$ against the standardized sample means for each patient and item. 
+\begin{figure}[!ht]
+    \centering
+    \includesvg[width=\textwidth]{post_mean_lt_vs_item_sample_means}
+    \caption{Posterior mean of the true item scores ($x$-axis) versus the sample mean across raters ($y$-axis). Colors indicate the item factors as listed in \autoref{tb:IFTE_items}. The correlation is around 0.5 which suggests that there is substantial variability among raters that is ignored by the sample mean.}
+    \label{fig:dataMisFitMean}
+\end{figure}
+The latent truths and the sample means are somewhat correlated, but it is clear that the sample means are not a good approximation to the latent truths.
+
 \section{Discussion}
 Here we applied a Cultural Consensus Theory model to scores of patients in a Forensic Psychiatric Center.
 We used this CCT model to augment the predictive performance of a logistic regression model and showed that our CCT-infused logistic regression model outpredicted all other candidate models.
