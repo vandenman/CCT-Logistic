@@ -440,6 +440,14 @@ tib <- tibble(
 tib_item <- tib |> filter(beta_type == "item" & fit == "free")
 print(tib_item[order(tib_item$value), ], n = 50)
 
+# TODO:
+# lt * beta == (-lt) * (-beta) so the sign might not be identified!
+# the same possibly goes for lt and the thresholds, check if
+# ordered_logistic_lpmf(x[o] | location / scale, free_thresholds[r] ./ scale)
+# is equal to
+# ordered_logistic_lpmf(x[o] | -location / scale, reverse(free_thresholds[r]) ./ scale);
+# but free_thresholds[r] are ordered and scale is positive so this cannot happen?
+
 # 1  Does the patient show problem insight?                                                                  &   Protective behaviors    &   HKT-R                   \\
 # 2  Does the patient cooperate with your treatment?                                                         &   Protective behaviors    &   HKT-R                   \\
 # 3  Does the patient admit and take responsibility for the crime(s)?                                        &   Protective behaviors    &   HKT-R                   \\
@@ -462,3 +470,62 @@ print(tib_item[order(tib_item$value), ], n = 50)
 # 20 Does the patient use any drug or alcohol?                                                               &   Problematic behavior    &   HKT-R                   \\
 # 21 Does the patient show skills to prevent physical aggressive behavior?                                   &   Protective behaviors    &   ASP                     \\
 # 22 Does the patient show skills to prevent sexual deviant behavior?                                        &   Protective behaviors    &   ASP                     \\
+
+# plot posterior mean of lt vs sample mean of items
+samples_lt <- fits_with_lr$fit$free$draws(variables = "lt", format = "draws_matrix")
+tail(colnames(samples_lt)) # 2nd dim is ni
+post_means_lt <- matrix(colMeans(samples_lt), np, ni)
+
+observed_data_means_tib <- data_2_analyze |>
+  group_by(patient, item) |>
+  summarise(mean = mean(score, na.rm = TRUE)) |>
+  ungroup(item) |>
+  mutate(mean2 = scale(mean)) |> # - mean(mean, na.rm = TRUE)) |>
+  ungroup()
+
+observed_data_means_mat <- matrix(observed_data_means_tib$mean2, np, ni, byrow = TRUE)
+
+pplot <- function(x, y) {
+  plot(x, y, main = sprintf("cor = %.3f", cor(x, y, use = "pairwise.complete.obs")))
+  abline(0, 1)
+}
+pplot(post_means_lt[1, ], observed_data_means_mat[1, ])
+pplot(post_means_lt[2, ], observed_data_means_mat[2, ])
+
+pplot(c(post_means_lt), c(observed_data_means_mat))
+
+observed_data_means_tib$post_mean_lt <- c(t(post_means_lt))
+tib_text <- tibble(
+  # x = -2,
+  # y = 1.5,
+  x = 2,
+  y = 2.8,
+  label = sprintf("$\\rho = %.3f$", cor(observed_data_means_tib$mean2, observed_data_means_tib$post_mean_lt, use = "pairwise.complete.obs"))
+)
+observed_data_means_tib$colors <- cut(as.integer(observed_data_means_tib$item), breaks = 5)
+
+prot_idx <- c(1, 2, 3, 4, 17, 19, 21, 22)
+reso_idx <- c(5, 6, 7, 8, 9)
+prob_idx <- setdiff(1:23, c(prot_idx, reso_idx))
+observed_data_means_tib$group <- ifelse(
+         observed_data_means_tib$item %in% prot_idx, "Protective behaviors",
+  ifelse(observed_data_means_tib$item %in% reso_idx, "Resocialization skills",
+                                                     "Problematic behavior")
+)
+
+breaks <- -3:3
+limits <- range(breaks)
+post_mean_lt_vs_item_sample_means <- ggplot(data = observed_data_means_tib, aes(x = post_mean_lt, y = mean2, shape = group, fill = group, color = group)) +
+  jaspGraphs::geom_point(alpha = .85, size = 4.5) +
+  jaspGraphs::geom_abline2(color = "grey80") +
+  geom_text(data = tib_text, aes(x = x, y = y, label = label), size = .35*jaspGraphs::graphOptions("fontsize"), inherit.aes = FALSE) +
+  scale_shape_manual(values = 21:23) +
+  labs(x = "Posterior mean of $\\theta$", y = "Standardized item mean") +
+  scale_x_continuous(breaks = breaks, limits = limits) +
+  scale_y_continuous(breaks = breaks, limits = limits) +
+  jaspGraphs::scale_JASPcolor_discrete() +
+  jaspGraphs::scale_JASPfill_discrete() +
+  jaspGraphs::geom_rangeframe() +
+  jaspGraphs::themeJaspRaw(legend.position = c(.05, .99))
+post_mean_lt_vs_item_sample_means
+save_figure(figure = post_mean_lt_vs_item_sample_means, file = "post_mean_lt_vs_item_sample_means.svg", width = 7, height = 7)

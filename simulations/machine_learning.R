@@ -338,7 +338,6 @@ data_missing$score <- NULL
 #                        ", data = data_for_cfa)
 #
 # lavaan::fitmeasures(cfa_fit) # rmsea 0.164, cfi 0.533, tli 0.476
-
 # fit ML methods ----
 
 # meta information

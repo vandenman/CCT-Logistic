@@ -107,7 +107,7 @@ tib_joined <- rbind(
 )
 figure <- create_figure2(tib_joined, c(1.0, 1.0), c(2.5, 2.5)) + theme(strip.text = element_blank())
 
-save_figure(figure, "misfitMean.svg")
+save_figure(figure, "misfitMean.svg", width = 14, height = 7)
 
 ltm_fit <- CCTLogistic::save_or_run_model({
   ltm_model <- compile_stan_model("stanmodels/LTM_3_models_with_logistic_regression_with_time.stan", pedantic = TRUE, quiet = FALSE, include_paths = "stanmodels", cpp_options = list(stan_threads=TRUE))
