@@ -451,7 +451,7 @@ name_map <- c(baseline_model         = "LR-Intercept",
               baseline_no_item       = "LR-No IFTE",
               baseline_no_violence   = "LR-No violence",
               baseline_violence_only = "LR-Violence",
-              frequentist_logistic   = "LR",
+              frequentist_logistic   = "LR-All",
               gbm                    = "GBM",
               random_forest          = "Random forest",
               CCT                    = "LR-LTM")
@@ -463,7 +463,7 @@ method_order <- c(
   "LR-No violence",
   "Random forest",
   "GBM",
-  "LR",
+  "LR-All",
   "LR-Intercept"
 )
 
@@ -796,8 +796,8 @@ tb_joined |>
   format_tb() |>
   do_xtable()
 
-# tb_mse |>
-#   format_tb() |>
-#   do_xtable()
+tb_mse |>
+  format_tb() |>
+  do_xtable()
 
 print(xtable::xtable(format_tb(tb_mse)),      include.rownames = FALSE, floating = FALSE, sanitize.text.function = identity)

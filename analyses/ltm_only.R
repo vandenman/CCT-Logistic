@@ -421,7 +421,7 @@ posterior_mean_IFTE_aggregate <- ggplot(data = ifte_aggregate_tib, aes(x = x, y 
   jaspGraphs::geom_rangeframe() +
   jaspGraphs::themeJaspRaw(legend.position = c(0.15, 0.995))
 posterior_mean_IFTE_aggregate
-save_figure(figure = posterior_mean_IFTE_aggregate, file = "posterior_mean_IFTE_aggregate.svg", width = 7, height = 7)
+# save_figure(figure = posterior_mean_IFTE_aggregate, file = "posterior_mean_IFTE_aggregate.svg", width = 7, height = 7)
 
 
 no_betas <- length(log_reg_results$orig$log_reg_slopes_means)
@@ -438,7 +438,35 @@ tib <- tibble(
 
 # order items by effect
 tib_item <- tib |> filter(beta_type == "item" & fit == "free")
-print(tib_item[order(tib_item$value), ], n = 50)
+tib_item_ordered <- tib_item[order(tib_item$value), ] |> mutate(item_index = item_index - 1) |> filter(item_index > 0)
+print(tib_item_ordered, n = 50)
+item_descriptions <- c(
+  "Does the patient show problem insight?",
+  "Does the patient cooperate with your treatment?",
+  "Does the patient admit and take responsibility for the crime(s)?",
+  "Does the patient show adequate coping skills?",
+  "Does the patient have balanced daytime activities?",
+  "Does the patient show sufficient labor skills?",
+  "Does the patient show sufficient common social skills?",
+  "Does the patient show sufficient skills to take care of oneself?",
+  "Does the patient show sufficient financial skills?",
+  "Does the patient show impulsive behavior?",
+  "Does the patient show antisocial behavior?",
+  "Does the patient show hostile behavior?",
+  "Does the patient show sexual deviant behavior?",
+  "Does the patient show manipulative behavior?",
+  "Does the patient comply with the rules\\ and conditions of the center and/or the treatment?",
+  "Does the patient have antisocial associates?",
+  "Does the patient use his medication in a consistent and adequate manner?",
+  "Does the patient have psychotic symptoms?",
+  "Does the patient show skills to prevent drug and alcohol use?",
+  "Does the patient use any drug or alcohol?",
+  "Does the patient show skills to prevent physical aggressive behavior?",
+  "Does the patient show skills to prevent sexual deviant behavior?"
+)
+tib_item_ordered$item_description <- item_descriptions[tib_item_ordered$item_index]
+View(tib_item_ordered[order(abs(tib_item_ordered$value)), ])
+
 
 # TODO:
 # lt * beta == (-lt) * (-beta) so the sign might not be identified!
@@ -530,3 +558,5 @@ post_mean_lt_vs_item_sample_means <- ggplot(data = observed_data_means_tib, aes(
   jaspGraphs::themeJaspRaw(legend.position = c(.24, .99))
 post_mean_lt_vs_item_sample_means
 save_figure(figure = post_mean_lt_vs_item_sample_means, file = "post_mean_lt_vs_item_sample_means.svg", width = 7, height = 7)
+
+tapply(data_2_analyze$score, data_2_analyze$item, range, na.rm = TRUE)
