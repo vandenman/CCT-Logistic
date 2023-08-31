@@ -5,6 +5,8 @@ library(ggplot2)
 library(cmdstanr)
 library(dplyr)
 library(purrr)
+library(patchwork)
+library(tidyr)
 
 options("cores" = as.integer(parallel::detectCores() / 2))
 # options("cores" = parallel::detectCores())
@@ -465,7 +467,7 @@ item_descriptions <- c(
   "Does the patient show skills to prevent sexual deviant behavior?"
 )
 tib_item_ordered$item_description <- item_descriptions[tib_item_ordered$item_index]
-View(tib_item_ordered[order(abs(tib_item_ordered$value)), ])
+# View(tib_item_ordered[order(abs(tib_item_ordered$value)), ])
 
 
 # TODO:
@@ -557,6 +559,103 @@ post_mean_lt_vs_item_sample_means <- ggplot(data = observed_data_means_tib, aes(
   jaspGraphs::geom_rangeframe() +
   jaspGraphs::themeJaspRaw(legend.position = c(.24, .99))
 post_mean_lt_vs_item_sample_means
-save_figure(figure = post_mean_lt_vs_item_sample_means, file = "post_mean_lt_vs_item_sample_means.svg", width = 7, height = 7)
+# save_figure(figure = post_mean_lt_vs_item_sample_means, file = "post_mean_lt_vs_item_sample_means.svg", width = 7, height = 7)
 
 tapply(data_2_analyze$score, data_2_analyze$item, range, na.rm = TRUE)
+
+
+# inspect rater thresholds ----
+threshold_samples <- fits_with_lr$fit$free$draws(variables = "free_thresholds")
+threshold_means <- colMeans(threshold_samples)
+
+which(startsWith(names(threshold_means), "free_thresholds[1,"))
+idx_1 <- seq(1, length(threshold_means), by = nr)
+
+threshold_mean_tib <- tibble(
+  post_mean = threshold_means,
+  rater     = rep(1:nr, nc - 1),
+  threshold = rep(1:(nc - 1), each = nr),
+)
+
+rater_group_vals_tib <- data_2_analyze |>
+  group_by(rater) |>
+  summarise(rater_group) |>
+  distinct(rater, .keep_all = TRUE)
+rater_group_vals <- rater_group_vals_tib[["rater_group"]]
+
+dim(threshold_mean_tib)
+nr * (nc - 1)
+
+threshold_mean_tib <- threshold_mean_tib |>
+  mutate(
+    rater_group = rater_group_vals[rater]
+  )
+threshold_mean_tib$rater_group
+
+# View(threshold_mean_tib)
+
+threshold_mean_per_rater_group <- threshold_mean_tib |>
+  group_by(rater_group, threshold) |>
+  summarise(threshold_mean = mean(post_mean)) |>
+  ungroup()
+
+nrow(threshold_mean_per_rater_group) == (nc - 1) * 4
+
+threshold_mean_per_rater_group |>
+  pivot_wider(id_cols = threshold, names_from = rater_group, values_from = threshold_mean)
+
+yBreaks <- pretty(threshold_mean_per_rater_group$threshold_mean)
+rater_group_level_thresholds_plot <- threshold_mean_per_rater_group |>
+ggplot() +
+  geom_line( mapping = aes(x = factor(threshold), y = threshold_mean, group = rater_group, color = rater_group), show.legend = TRUE) +
+  geom_point(mapping = aes(x = factor(threshold), y = threshold_mean, group = rater_group, color = rater_group), show.legend = TRUE) +
+  scale_y_continuous(breaks = yBreaks, limits = range(yBreaks)) +
+  jaspGraphs::geom_rangeframe() +
+  labs(y = "Group Level Posterior Threshold Means", x = "Threshold", color = NULL) +
+  jaspGraphs::themeJaspRaw(legend.position = c(.1, .95))
+rater_group_level_thresholds_plot
+
+# The figure above tells us that BC is less likely to give a high score and
+
+compute_probs <- function(cutpoints) {
+  cutpoints2 <- c(-Inf, cutpoints, Inf)
+  result <- numeric(length(cutpoints) + 1L)
+
+  for (i in 1:(length(cutpoints) + 1))
+    result[i] <- plogis(cutpoints2[i + 1L]) - plogis(cutpoints2[i])
+
+  stopifnot(abs(1 - sum(result)) <= sqrt(.Machine$double.eps))
+
+  return(result)
+}
+
+# cutpoints <- threshold_mean_per_rater_group$threshold_mean[1:(nc - 1)]
+# compute_probs(threshold_mean_per_rater_group$threshold_mean[1:(nc - 1)])
+
+implied_probs_per_rater_group <- threshold_mean_per_rater_group |>
+  group_by(rater_group) |>
+  summarise(probs = compute_probs(threshold_mean), cat = 1:nc) |>
+  ungroup()
+
+yBreaks <- pretty(c(0, implied_probs_per_rater_group$probs))
+rater_group_level_probs_plot <- implied_probs_per_rater_group |>
+  ggplot(aes(x = factor(cat), y = probs, group = rater_group, fill = rater_group)) +
+  geom_col(position = position_dodge()) +
+  scale_y_continuous(name = "Group Level Posterior Score Probabilities", breaks = yBreaks, limits = range(yBreaks)) +
+  jaspGraphs::geom_rangeframe(sides = "bl") +
+  labs(x = "Score", fill = NULL) +
+  jaspGraphs::themeJaspRaw() + #legend.position = c(.85, .95)) +
+  theme(panel.grid.major.y = element_line(colour = "grey80"))
+
+rater_group_level_probs_plot
+
+combined_threshold_plot <- rater_group_level_thresholds_plot / rater_group_level_probs_plot
+combined_threshold_plot
+
+# TODO:
+
+# - [ ] add small section to results with figure above
+# - [ ] add small section to data description about rater categories
+# - [ ] ask Erwin about the different rater categories
+
+

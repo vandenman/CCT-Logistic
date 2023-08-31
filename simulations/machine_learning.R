@@ -9,6 +9,7 @@ library(tidyr)
 library(pROC)
 library(ggplot2)
 library(mice)
+library(LongituRF)
 
 options("cores" = as.integer(parallel::detectCores() / 2))
 # functions ----
@@ -24,6 +25,10 @@ get_confusion_table <- function(predictions, observed, maxCategories = 2, round 
   join <- function(a, b) unlist(list(a, b))
   return(table(join(r, predictions), join(r, observed)))# - diag(1, maxCategories, maxCategories))
 
+}
+
+clamp <- function(x, l = 0, u = 1) {
+  ifelse(x < l, l, ifelse(x > u, u, x))
 }
 
 fit_rf <- function(data, target = "violent_after") {
@@ -100,8 +105,35 @@ fit_baseline_no_violence <- function(data, target = "violent_after") {
   return(glm(f, data = data, family = binomial()))
 }
 
+fit_rf_LongituRF <- function(data, target = "violent_after") {
+
+  cnms <- colnames(data)
+  f <- as.formula(sprintf("%s ~ .", target))
+  item_idx <- startsWith(cnms, "IFBE")
+  design_matrix_fixed_raw <- data[, cnms[!item_idx]]
+
+  design_matrix_fixed     <- model.matrix(f, design_matrix_fixed_raw)
+  design_matrix_random    <- as.matrix(data[, cnms[item_idx]])
+
+  outcomes <- data[[target]]
+
+  LongituRF_obj <- LongituRF::REEMforest(
+    X    = design_matrix_fixed,
+    Y    = as.integer(outcomes) - 1L,
+    Z    = design_matrix_random,
+    id   = seq_along(outcomes),
+    time = rep(1, length(outcomes)),
+    sto  = "BM",
+    mtry = ceiling(ncol(design_matrix_fixed) / 3 ) # default according to the help file, but must be specified manually
+  )
+
+  return(LongituRF_obj)
+
+}
+
 do_ml <- function(data_train, data_test,
-                  method = c("random_forest", "gbm", "bayesian_logistic", "frequentist_logistic", "baseline_model", "baseline_violence_only", "baseline_no_item", "baseline_no_violence"),
+                  method = c("random_forest", "gbm", "bayesian_logistic", "frequentist_logistic",
+                             "baseline_model", "baseline_violence_only", "baseline_no_item", "baseline_no_violence", "LongituRF"),
                   target = "violent_after") {
 
   method <- match.arg(method)
@@ -115,6 +147,7 @@ do_ml <- function(data_train, data_test,
     "baseline_violence_only" = fit_baseline_violence_only_model(data_train, target),
     "baseline_no_item"       = fit_baseline_no_item_model(data_train, target),
     "baseline_no_violence"   = fit_baseline_no_violence(data_train, target),
+    "LongituRF"              = fit_rf_LongituRF(data_train, target)
   )
   perf <- assess_performance(fit, data_train, data_test)
   list(fit = fit, perf = perf)
@@ -216,6 +249,38 @@ assess_performance.glm <- function(obj, data_train, data_test, target = "violent
 
   predicted_probs_train <- predict(obj, data_train, type = "response")
   predicted_probs_test  <- predict(obj, data_test, type = "response")
+
+  return(assess_performance2(predicted_probs_train, predicted_probs_test, data_train, data_test, target))
+
+}
+
+assess_performance.longituRF <- function(obj, data_train, data_test, target = "violent_after", ...) {
+
+  cnms <- colnames(data_train)
+
+  f <- as.formula(sprintf("%s ~ .", target))
+  item_idx <- startsWith(cnms, "IFBE")
+  design_matrix_fixed_train_raw <- data_train[, cnms[!item_idx]]
+  design_matrix_fixed_train     <- model.matrix(f, design_matrix_fixed_train_raw)
+  design_matrix_random_train    <- as.matrix(data_train[, cnms[item_idx]])
+
+  ntrain <- nrow(design_matrix_fixed_train)
+
+  raw_predictions_longituRF_train <- predict(obj, X = design_matrix_fixed_train, Z = design_matrix_random_train, id = seq_len(ntrain), time = rep(1, ntrain))
+  raw_predictions_longituRF_train <- clamp(raw_predictions_longituRF_train, 0, 1)
+
+  design_matrix_fixed_test_raw <- data_test[, cnms[!item_idx]]
+  design_matrix_fixed_test     <- model.matrix(f, design_matrix_fixed_test_raw)
+  design_matrix_random_test    <- as.matrix(data_test[, cnms[item_idx]])
+
+  ntest <- nrow(design_matrix_fixed_test)
+
+  raw_predictions_longituRF_test <- predict(obj, X = design_matrix_fixed_test, Z = design_matrix_random_test, id = seq_len(ntest), time = rep(1, ntest))
+  raw_predictions_longituRF_test <- clamp(raw_predictions_longituRF_test, 0, 1)
+
+
+  predicted_probs_train <- raw_predictions_longituRF_train
+  predicted_probs_test  <- raw_predictions_longituRF_test
 
   return(assess_performance2(predicted_probs_train, predicted_probs_test, data_train, data_test, target))
 
@@ -338,6 +403,30 @@ data_missing$score <- NULL
 #                        ", data = data_for_cfa)
 #
 # lavaan::fitmeasures(cfa_fit) # rmsea 0.164, cfi 0.533, tli 0.476
+
+# for LongituR
+data_wider_with_rater_long <- all_data |>
+  filter(
+    # !is.na(score) &
+    !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime))# |>
+# select(-c(age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
+# arrange(rater_group, patient, item, rater, time)
+
+missings <- which(is.na(data_wider_with_rater_long), arr.ind = TRUE)
+for (i in seq_len(nrow(missings))) {
+  cnm <- colnames(data_wider_with_rater_long)[missings[i, 2]]
+
+  item <- data_wider_with_rater_long$item[missings[i, 1]]
+  time <- data_wider_with_rater_long$time[missings[i, 1]]
+
+  k <- paste0("IFBE_", as.integer(item) - 1, "_time_", time)
+  j <- which(data_wider_imputed$patient == data_wider_with_rater_long$patient[missings[i, 1]])
+
+  data_wider_with_rater_long[missings[i, 1], missings[i, 2]] <- data_wider_imputed[j, k]
+}
+anyNA(data_wider_with_rater_long)
+
+
 # fit ML methods ----
 
 # meta information
@@ -372,6 +461,16 @@ data_test_objs <- vector("list", length = no_cross_validations)
 
 seeds <- matrix(sample(100000, no_cross_validations * nrow(objs)), nrow(objs), no_cross_validations, dimnames = dimnames(objs))
 force <- FALSE
+
+# add "LongituRF" as method here, to not change earlier seeds
+ml_methods <- c(ml_methods, "LongituRF")
+seeds <- rbind(seeds, matrix(
+  data     = sample(100000, no_cross_validations),
+  nrow     = 1L,
+  ncol     = no_cross_validations,
+  dimnames = list("LongituRF", NULL)
+))
+objs <- rbind(objs, matrix(list(), nrow = 1, ncol = no_cross_validations, dimnames = list("LongituRF", NULL)))
 
 # prediction_fitting_imputed fits all methods to the imputed data
 fitted_objects_dir <- file.path("fitted_objects", "prediction_fitting_imputed")
@@ -417,13 +516,13 @@ for (i in seq_len(no_cross_validations)) {
     # browser()
     # TODO: this check doesn't work!
     if (!inherits(ltm_fit, "try-error") && (identical(ltm_fit$return_codes(), 0) || identical(ltm_fit$return_codes(), NA_integer_))) {
-      system("beep_finished.sh 0")
+      beepr::beep(2)
       break
     } else if (r == ltm_retries) {
-      system("beep_finished.sh 1")
+      beepr::beep(9)
       stop("maximum ltm_retries reached!")
     } else {
-      system("beep_finished.sh 1")
+      beepr::beep(7)
     }
   }
 
@@ -444,7 +543,7 @@ for (i in seq_len(no_cross_validations)) {
 
 }
 
-system("beep_finished.sh")
+beepr::beep(8)
 
 # names used in manuscript ----
 name_map <- c(baseline_model         = "LR-Intercept",
@@ -454,7 +553,8 @@ name_map <- c(baseline_model         = "LR-Intercept",
               frequentist_logistic   = "LR-All",
               gbm                    = "GBM",
               random_forest          = "Random forest",
-              CCT                    = "LR-LTM")
+              CCT                    = "LR-LTM",
+              LongituRF              = "Longitudinal RF")
 
 method_order <- c(
   "LR-LTM",
@@ -462,6 +562,7 @@ method_order <- c(
   "LR-No IFTE",
   "LR-No violence",
   "Random forest",
+  "Longitudinal RF",
   "GBM",
   "LR-All",
   "LR-Intercept"
@@ -532,7 +633,7 @@ roc_auc_method_iter <- objs_tib |>
   group_by(method, iter) |>
   summarize(auc = c(roc(test_label, test_probs, plot = FALSE)$auc))
 
-roc_auc_method <-roc_auc_method_iter |>
+roc_auc_method <- roc_auc_method_iter |>
   group_by(method) |>
   summarize(mean_auc = mean(auc))
 
@@ -606,7 +707,7 @@ roc_plot <- ggplot(
 ) +
   jaspGraphs::geom_abline2(intercept = 0, slope = 1, color = "grey") +
   # geom_line(alpha = .3) + # <- showing the individual curves does not help
-  geom_line(data = roc_mean_tib_plt |> filt(), aes(x = mean_tfr, y = mean_tpr, color = method, group = method), size = 0.9) +
+  geom_line(data = roc_mean_tib_plt |> filt(), aes(x = mean_tfr, y = mean_tpr, color = method, group = method), linewidth = 0.9) +
   jaspGraphs::geom_rangeframe() +
   jaspGraphs::scale_JASPcolor_discrete(name = "Method (AUC)") +
   labs(x = "False positive rate", y = "True positive rate") +
