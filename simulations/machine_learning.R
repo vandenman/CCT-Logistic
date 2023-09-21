@@ -31,6 +31,35 @@ clamp <- function(x, l = 0, u = 1) {
   ifelse(x < l, l, ifelse(x > u, u, x))
 }
 
+wide_to_long <- function(tib) {
+
+  # specifically for REEMtree
+  tib2 <- tib |>
+    pivot_longer(
+      cols = colnames(tib)[startsWith(colnames(tib), "IFBE_")]
+    )
+
+  matches <- regmatches(tib2$name, gregexpr("[[:digit:]]+", tib2$name))
+  tib2$item <- as.integer(sapply(matches, \(x) as.numeric(x[1])))
+  tib2$time <- as.integer(sapply(matches, \(x) as.numeric(x[2])))
+
+  tib2 |>
+    select(-name) |>
+    pivot_wider(
+      names_from   = "item",
+      values_from  = "value",
+      names_prefix = "item_"
+    ) |>
+    mutate(
+      violent = factor(ifelse(
+        time == 1, violent_between, violent_after
+      ) - 1L)
+    ) |>
+    select(-violent_between, -violent_after) |>
+    relocate(patient, age, treatment_duration, violent_before, violent, diagnosis,
+             crime, time)
+}
+
 fit_rf <- function(data, target = "violent_after") {
   rf_obj <- ranger::ranger(
     dependent.variable.name = target,
@@ -131,12 +160,32 @@ fit_rf_LongituRF <- function(data, target = "violent_after") {
 
 }
 
+fit_REEMtree <- function(data, target = "violent_after") {
+
+  cnms <- colnames(data)
+  form <- as.formula(sprintf("%s ~ %s", target, paste(setdiff(cnms, c("patient", target)), collapse = " + ")))
+
+  if (is.factor(data[[target]]))
+    data[[target]] <- as.numeric(data[[target]]) - 1L
+
+  REEMresult <- REEMtree::REEMtree(form, data = as.data.frame(data), random = ~1|patient)
+  return(REEMresult)
+
+}
+
 do_ml <- function(data_train, data_test,
                   method = c("random_forest", "gbm", "bayesian_logistic", "frequentist_logistic",
-                             "baseline_model", "baseline_violence_only", "baseline_no_item", "baseline_no_violence", "LongituRF"),
-                  target = "violent_after") {
+                             "baseline_model", "baseline_violence_only", "baseline_no_item", "baseline_no_violence", "LongituRF", "REEMtree"),
+                  target = "violent_after",
+                  data_train2, data_test2) {
 
   method <- match.arg(method)
+
+  if (method == "REEMtree") {
+    data_train <- data_train2
+    data_test  <- data_test2
+    target     <- "violent"
+  }
 
   fit <- switch(method,
     "random_forest"          = fit_rf(data_train, target),
@@ -147,7 +196,8 @@ do_ml <- function(data_train, data_test,
     "baseline_violence_only" = fit_baseline_violence_only_model(data_train, target),
     "baseline_no_item"       = fit_baseline_no_item_model(data_train, target),
     "baseline_no_violence"   = fit_baseline_no_violence(data_train, target),
-    "LongituRF"              = fit_rf_LongituRF(data_train, target)
+    "LongituRF"              = fit_rf_LongituRF(data_train, target),
+    "REEMtree"               = fit_REEMtree(data_train, target)
   )
   perf <- assess_performance(fit, data_train, data_test)
   list(fit = fit, perf = perf)
@@ -286,6 +336,21 @@ assess_performance.longituRF <- function(obj, data_train, data_test, target = "v
 
 }
 
+assess_performance.REEMtree <- function(obj, data_train, data_test, target = "violent", ...) {
+
+  preds_train <- clamp(predict(obj, id = data_train[["patient"]], newdata = as.data.frame(data_train)))
+  preds_test  <- clamp(predict(obj, id =  data_test[["patient"]], newdata = as.data.frame( data_test)))
+
+  assess_performance2(
+    predicted_probs_train = preds_train,
+    predicted_probs_test  = preds_test,
+    data_train            = data_train,
+    data_test             = data_test,
+    target                = target
+  )
+
+}
+
 fitRandomforest <- function(dat_train, dat_test) {
 
   tStart <- Sys.time()
@@ -404,27 +469,31 @@ data_missing$score <- NULL
 #
 # lavaan::fitmeasures(cfa_fit) # rmsea 0.164, cfi 0.533, tli 0.476
 
-# for LongituR
-data_wider_with_rater_long <- all_data |>
-  filter(
-    # !is.na(score) &
-    !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime))# |>
-# select(-c(age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
-# arrange(rater_group, patient, item, rater, time)
+# for REEMtree
+data_wider_imputed_longer <- wide_to_long(data_wider_imputed)
+anyNA(data_wider_imputed_longer)
 
-missings <- which(is.na(data_wider_with_rater_long), arr.ind = TRUE)
-for (i in seq_len(nrow(missings))) {
-  cnm <- colnames(data_wider_with_rater_long)[missings[i, 2]]
-
-  item <- data_wider_with_rater_long$item[missings[i, 1]]
-  time <- data_wider_with_rater_long$time[missings[i, 1]]
-
-  k <- paste0("IFBE_", as.integer(item) - 1, "_time_", time)
-  j <- which(data_wider_imputed$patient == data_wider_with_rater_long$patient[missings[i, 1]])
-
-  data_wider_with_rater_long[missings[i, 1], missings[i, 2]] <- data_wider_imputed[j, k]
-}
-anyNA(data_wider_with_rater_long)
+# # for LongituR
+# data_wider_with_rater_long <- all_data |>
+#   filter(
+#     # !is.na(score) &
+#     !is.na(violent_before) & !is.na(diagnosis) & !is.na(crime))# |>
+# # select(-c(age, violent_before, violent_between, violent_after, treatment_duration, diagnosis, crime)) |>
+# # arrange(rater_group, patient, item, rater, time)
+#
+# missings <- which(is.na(data_wider_with_rater_long), arr.ind = TRUE)
+# for (i in seq_len(nrow(missings))) {
+#   cnm <- colnames(data_wider_with_rater_long)[missings[i, 2]]
+#
+#   item <- data_wider_with_rater_long$item[missings[i, 1]]
+#   time <- data_wider_with_rater_long$time[missings[i, 1]]
+#
+#   k <- paste0("IFBE_", as.integer(item) - 1, "_time_", time)
+#   j <- which(data_wider_imputed$patient == data_wider_with_rater_long$patient[missings[i, 1]])
+#
+#   data_wider_with_rater_long[missings[i, 1], missings[i, 2]] <- data_wider_imputed[j, k]
+# }
+# anyNA(data_wider_with_rater_long)
 
 
 # fit ML methods ----
@@ -457,20 +526,21 @@ cv_indices <- unname(Map(\(x, y) sort(c(x, y)), idx_violent_split, idx_nonviolen
 
 ml_methods <- c("random_forest", "gbm", "frequentist_logistic", "baseline_model", "baseline_violence_only", "baseline_no_item", "baseline_no_violence")
 objs <- matrix(list(), length(ml_methods) + 1L, no_cross_validations, dimnames = list(c(ml_methods, "CCT"), NULL))
-data_test_objs <- vector("list", length = no_cross_validations)
+data_test_objs  <- vector("list", length = no_cross_validations)
+data_test_objs2 <- vector("list", length = no_cross_validations)
 
 seeds <- matrix(sample(100000, no_cross_validations * nrow(objs)), nrow(objs), no_cross_validations, dimnames = dimnames(objs))
 force <- FALSE
 
-# add "LongituRF" as method here, to not change earlier seeds
-ml_methods <- c(ml_methods, "LongituRF")
+# add "REEMtree" as method here, to not change earlier seeds
+ml_methods <- c(ml_methods, "REEMtree")
 seeds <- rbind(seeds, matrix(
   data     = sample(100000, no_cross_validations),
   nrow     = 1L,
   ncol     = no_cross_validations,
-  dimnames = list("LongituRF", NULL)
+  dimnames = list("REEMtree", NULL)
 ))
-objs <- rbind(objs, matrix(list(), nrow = 1, ncol = no_cross_validations, dimnames = list("LongituRF", NULL)))
+objs <- rbind(objs, matrix(list(), nrow = 1, ncol = no_cross_validations, dimnames = list("REEMtree", NULL)))
 
 # prediction_fitting_imputed fits all methods to the imputed data
 fitted_objects_dir <- file.path("fitted_objects", "prediction_fitting_imputed")
@@ -482,14 +552,21 @@ for (i in seq_len(no_cross_validations)) {
 
   data_train <- data_wider_imputed[-idx_holdout, cols]
   data_test  <- data_wider_imputed[ idx_holdout, cols]
-  data_test_objs[[i]] <- data_test
+
+  # for REEMtree
+  patient_holdout <- data_wider_imputed$patient[idx_holdout]
+  data_train2 <- data_wider_imputed_longer |> filter(!(patient %in% patient_holdout & time == 2))
+  data_test2  <- data_wider_imputed_longer |> filter(  patient %in% patient_holdout & time == 2)
+
+  data_test_objs[[i]]  <- data_test
+  data_test_objs2[[i]] <- data_test2
   cat(sprintf("nrow(data_train) = %d\nnrow(data_test)  = %d\nfold = %s", nrow(data_train), nrow(data_test), i), sep = "\n")
 
   for (method in ml_methods) {
     cat("method:", method, "\n")
     set.seed(seeds[method, i])
     objs[[method, i]] <- CCTLogistic::save_or_run_model(
-      do_ml(data_train, data_test, method),
+      do_ml(data_train, data_test, method, target = "violent_after", data_train2, data_test2),
       path = file.path(fitted_objects_dir, sprintf("%s-%d.rds", method, i)),
       force = force
     )
@@ -554,7 +631,9 @@ name_map <- c(baseline_model         = "LR-Intercept",
               gbm                    = "GBM",
               random_forest          = "Random forest",
               CCT                    = "LR-LTM",
-              LongituRF              = "Longitudinal RF")
+              # LongituRF              = "Longitudinal RF",
+              REEMtree               = "REEMtree"
+)
 
 method_order <- c(
   "LR-LTM",
@@ -562,7 +641,8 @@ method_order <- c(
   "LR-No IFTE",
   "LR-No violence",
   "Random forest",
-  "Longitudinal RF",
+  # "Longitudinal RF",
+  "REEMtree",
   "GBM",
   "LR-All",
   "LR-Intercept"
@@ -714,6 +794,23 @@ roc_plot <- ggplot(
   jaspGraphs::themeJaspRaw(legend.position = c(0.9, 0.50))
 roc_plot
 
+roc_mean_tib_plt2 <- roc_mean_tib_plt |>
+  mutate(
+    linetype = factor(ifelse(as.integer(method) %% 3 == 0, 3, as.integer(method) %% 3))
+  )
+
+# some adjustments to the colors since there are now 7 methods
+cols <- jaspGraphs::JASPcolors()
+roc_plot_with_REEMtree <-
+  ggplot(data = roc_mean_tib_plt2, aes(x = mean_tfr, y = mean_tpr, color = method, group = method)) +#, linetype = method)) +
+  jaspGraphs::geom_abline2(intercept = 0, slope = 1, color = "grey") +
+  geom_line(linewidth = 0.9, alpha = .75) +
+  jaspGraphs::geom_rangeframe() +
+  scale_color_manual(name = "Method (AUC)", values = cols) +
+  labs(x = "False positive rate", y = "True positive rate") +
+  jaspGraphs::themeJaspRaw(legend.position = c(0.9, 0.50))
+roc_plot_with_REEMtree
+
 # a rough double check for the AUC (values do not exactly match roc_auc_method, nor do they need to)
 # roc_mean_tib |>
 #   group_by(method) |>
@@ -731,7 +828,8 @@ roc_plot
 #   )
 roc_auc_method
 
-save_figure(roc_plot, "roc_curve_cv.svg")
+save_figure(roc_plot,               "roc_curve_cv.svg")
+save_figure(roc_plot_with_REEMtree, "roc_curve_cv_with_REEMtree.svg")
 
 # roc_tibble <- tibble()
 # for (i in seq_along(data_train_objs)) {

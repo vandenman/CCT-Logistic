@@ -604,6 +604,21 @@ nrow(threshold_mean_per_rater_group) == (nc - 1) * 4
 threshold_mean_per_rater_group |>
   pivot_wider(id_cols = threshold, names_from = rater_group, values_from = threshold_mean)
 
+# behandelcoordinator                                -> Treatment Coordinator (TC)
+# Sociotherapie/ groepswerkers: Nurses (on the ward) -> sociotherapy/ group workers (ST)
+# Dagbesteding; Work therapists                      -> Work therapists (WT)
+# de rest (psychotherapeuten, psychiaters,
+#   vaktherapeuten, vaardigheidstrainers, maatschappelijk werkers. -> Other
+group_names <- c(
+  "BC"      = "TC",
+  "DB"      = "OT",
+  "ST"      = "ST",
+  "Overige" = "Other"
+)
+
+threshold_mean_per_rater_group <- threshold_mean_per_rater_group |>
+  mutate(rater_group = recode_factor(rater_group, !!!group_names))
+
 yBreaks <- pretty(threshold_mean_per_rater_group$threshold_mean)
 rater_group_level_thresholds_plot <- threshold_mean_per_rater_group |>
 ggplot() +
@@ -611,7 +626,8 @@ ggplot() +
   geom_point(mapping = aes(x = factor(threshold), y = threshold_mean, group = rater_group, color = rater_group), show.legend = TRUE) +
   scale_y_continuous(breaks = yBreaks, limits = range(yBreaks)) +
   jaspGraphs::geom_rangeframe() +
-  labs(y = "Group Level Posterior Threshold Means", x = "Threshold", color = NULL) +
+  jaspGraphs::scale_JASPcolor_discrete() +
+  labs(y = "Posterior Threshold Means", x = "Threshold", color = NULL) +
   jaspGraphs::themeJaspRaw(legend.position = c(.1, .95))
 rater_group_level_thresholds_plot
 
@@ -641,7 +657,8 @@ yBreaks <- pretty(c(0, implied_probs_per_rater_group$probs))
 rater_group_level_probs_plot <- implied_probs_per_rater_group |>
   ggplot(aes(x = factor(cat), y = probs, group = rater_group, fill = rater_group)) +
   geom_col(position = position_dodge()) +
-  scale_y_continuous(name = "Group Level Posterior Score Probabilities", breaks = yBreaks, limits = range(yBreaks)) +
+  scale_y_continuous(name = "Posterior Score Probabilities", breaks = yBreaks, limits = range(yBreaks)) +
+  jaspGraphs::scale_JASPfill_discrete() +
   jaspGraphs::geom_rangeframe(sides = "bl") +
   labs(x = "Score", fill = NULL) +
   jaspGraphs::themeJaspRaw() + #legend.position = c(.85, .95)) +
@@ -651,6 +668,39 @@ rater_group_level_probs_plot
 
 combined_threshold_plot <- rater_group_level_thresholds_plot / rater_group_level_probs_plot
 combined_threshold_plot
+
+CCTLogistic::save_figure(combined_threshold_plot, "combined_threshold_plot.svg")
+
+score_mean_per_rater_group <- data_2_analyze |>
+  filter(!is.na(score)) |>
+  group_by(rater_group, score) |>
+  summarise(n = n()) |>
+  mutate(
+    probs = n / sum(n),
+    cat   = score
+  ) |>
+  ungroup()
+
+rater_group_level_observed_probs_plot <- score_mean_per_rater_group |>
+  ggplot(aes(x = factor(cat), y = probs, group = rater_group, fill = rater_group)) +
+  geom_col(position = position_dodge()) +
+  scale_y_continuous(name = "Posterior Score Probabilities", breaks = yBreaks, limits = range(yBreaks)) +
+  jaspGraphs::scale_JASPfill_discrete() +
+  jaspGraphs::geom_rangeframe(sides = "bl") +
+  labs(x = "Score", fill = NULL) +
+  jaspGraphs::themeJaspRaw() + #legend.position = c(.85, .95)) +
+  theme(panel.grid.major.y = element_line(colour = "grey80"))
+
+rater_group_level_observed_probs_plot
+
+
+plot(score_mean_per_rater_group$probs, implied_probs_per_rater_group$probs)
+abline(0, 1)
+cor(score_mean_per_rater_group$probs, implied_probs_per_rater_group$probs)
+# 0.9476476
+# implied and observed scores are really good.
+# Some larger probabilities are slightly lower, which might be due to shrinkage related effects
+# this would imply a larger threshold distance and those are all shrunk towards 0.
 
 # TODO:
 
